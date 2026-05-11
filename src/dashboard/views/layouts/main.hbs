@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{title}} — WhatsApp Gateway</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">WhatsApp Gateway</div>
+      <nav class="nav">
+        {{#if currentUser}}
+          {{#ifEquals currentUser.role "ADMIN"}}
+            <a href="/dashboard" class="{{#ifEquals active 'overview'}}active{{/ifEquals}}">Overview</a>
+            <a href="/users" class="{{#ifEquals active 'users'}}active{{/ifEquals}}">Users</a>
+            <a href="/accounts" class="{{#ifEquals active 'accounts'}}active{{/ifEquals}}">Accounts</a>
+            <a href="/tokens" class="{{#ifEquals active 'tokens'}}active{{/ifEquals}}">Tokens</a>
+            <a href="/settings" class="{{#ifEquals active 'settings'}}active{{/ifEquals}}">Settings</a>
+          {{/ifEquals}}
+          {{#ifEquals currentUser.role "USER"}}
+            <a href="/me" class="{{#ifEquals active 'me'}}active{{/ifEquals}}">My WhatsApp</a>
+          {{/ifEquals}}
+        {{/if}}
+      </nav>
+      <div class="user-block">
+        {{#if currentUser}}
+          <span class="user-name">{{currentUser.name}}</span>
+          <form method="post" action="/logout" class="inline">
+            <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+            <button type="submit" class="link-button">Sign out</button>
+          </form>
+        {{/if}}
+      </div>
+    </header>
+    <main class="container">
+      {{{body}}}
+    </main>
+  </body>
+</html>

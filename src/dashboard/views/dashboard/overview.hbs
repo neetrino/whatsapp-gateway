@@ -1,0 +1,17 @@
+<section>
+  <h1>Overview</h1>
+  <div class="stats-grid">
+    <div class="stat-card"><span class="label">Total users</span><span class="value">{{totalUsers}}</span></div>
+    <div class="stat-card"><span class="label">Active users</span><span class="value">{{activeUsers}}</span></div>
+    <div class="stat-card"><span class="label">Connected accounts</span><span class="value">{{connectedAccounts}}</span></div>
+    <div class="stat-card"><span class="label">Disconnected accounts</span><span class="value">{{disconnectedAccounts}}</span></div>
+    <div class="stat-card"><span class="label">QR required</span><span class="value">{{qrRequiredAccounts}}</span></div>
+  </div>
+
+  <h2>System health</h2>
+  <table class="health-table">
+    <tr><th>Gateway</th><td><span class="status status-{{health.gateway}}">{{health.gateway}}</span></td></tr>
+    <tr><th>Database</th><td><span class="status status-{{health.database}}">{{health.database}}</span></td></tr>
+    <tr><th>WAHA</th><td><span class="status status-{{health.waha}}">{{health.waha}}</span></td></tr>
+  </table>
+</section>

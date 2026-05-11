@@ -1,0 +1,65 @@
+<section>
+  <h1>My WhatsApp</h1>
+  <p>Status: <span class="status status-{{account.status}}" id="status-pill">{{account.status}}</span>
+    {{#if account.phoneNumber}} · {{account.phoneNumber}}{{/if}}
+  </p>
+
+  {{#if revealed}}
+    <div class="banner">
+      <strong>Save this token now.</strong> It will not be shown again.
+      <pre class="token-display">{{revealed}}</pre>
+    </div>
+  {{/if}}
+
+  <div class="actions">
+    <a href="/me/qr" class="primary">Show QR</a>
+    <form method="post" action="/me/restart" class="inline">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <button type="submit">Restart session</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>API tokens</h2>
+    <form method="post" action="/me/tokens" class="form inline-form">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <label>Name<input name="name" maxlength="100" placeholder="e.g. NBOS production" /></label>
+      <button type="submit" class="primary">Create token</button>
+    </form>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Prefix</th>
+          <th>Last 4</th>
+          <th>Last used</th>
+          <th>Revoked</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each tokens}}
+          <tr>
+            <td>{{this.name}}</td>
+            <td><code>{{this.tokenPrefix}}</code></td>
+            <td><code>…{{this.last4}}</code></td>
+            <td>{{#if this.lastUsedAt}}{{this.lastUsedAt}}{{else}}—{{/if}}</td>
+            <td>{{#if this.revokedAt}}Yes{{else}}No{{/if}}</td>
+            <td>
+              {{#unless this.revokedAt}}
+                <form method="post" action="/me/tokens/{{this.id}}/revoke" class="inline">
+                  <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
+                  <button type="submit" class="danger">Revoke</button>
+                </form>
+                <form method="post" action="/me/tokens/{{this.id}}/regenerate" class="inline">
+                  <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
+                  <button type="submit">Regenerate</button>
+                </form>
+              {{/unless}}
+            </td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+</section>

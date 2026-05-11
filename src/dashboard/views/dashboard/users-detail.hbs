@@ -1,0 +1,41 @@
+<section>
+  <h1>{{user.name}}</h1>
+  <p class="meta">{{user.email}} · {{user.role}} · {{#if user.isActive}}Active{{else}}Disabled{{/if}}</p>
+
+  <div class="card">
+    <h2>Update profile</h2>
+    <form method="post" action="/users/{{user.id}}/update" class="form">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <label>Name<input name="name" value="{{user.name}}" maxlength="100" /></label>
+      <label>Email<input name="email" type="email" value="{{user.email}}" maxlength="255" /></label>
+      <label>Role
+        <select name="role">
+          <option value="USER" {{#ifEquals user.role "USER"}}selected{{/ifEquals}}>User</option>
+          <option value="ADMIN" {{#ifEquals user.role "ADMIN"}}selected{{/ifEquals}}>Admin</option>
+        </select>
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="isActive" value="true" {{#if user.isActive}}checked{{/if}} />
+        Active
+      </label>
+      <button type="submit" class="primary">Save</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Reset password</h2>
+    <form method="post" action="/users/{{user.id}}/reset-password" class="form">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <label>New password<input name="password" type="password" minlength="12" required /></label>
+      <button type="submit" class="primary">Reset password</button>
+    </form>
+  </div>
+
+  <div class="card danger">
+    <h2>Disable user</h2>
+    <form method="post" action="/users/{{user.id}}/disable">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <button type="submit" class="danger">Disable user</button>
+    </form>
+  </div>
+</section>

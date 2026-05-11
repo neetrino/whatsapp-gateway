@@ -1,0 +1,29 @@
+services:
+  gateway:
+    build: .
+    image: nbos-whatsapp-gateway:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # NODE_ENV from .env (use development for http://localhost cookies)
+      - WAHA_BASE_URL=http://waha:3000
+      # WAHA Core allows only one session named "default" (NOWEB image: devlikeapro/waha:noweb)
+      - WAHA_SESSION_NAME=default
+    depends_on:
+      - waha
+    ports:
+      - "3000:3000"
+
+  waha:
+    image: devlikeapro/waha:noweb
+    restart: unless-stopped
+    environment:
+      - WAHA_API_KEY=${WAHA_API_KEY}
+      - WHATSAPP_DEFAULT_ENGINE=NOWEB
+    volumes:
+      - waha_sessions:/app/.sessions
+    expose:
+      - "3000"
+
+volumes:
+  waha_sessions:

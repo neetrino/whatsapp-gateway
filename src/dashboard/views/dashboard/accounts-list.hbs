@@ -1,0 +1,29 @@
+<section>
+  <h1>WhatsApp accounts</h1>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Owner</th>
+        <th>Label</th>
+        <th>Session</th>
+        <th>Status</th>
+        <th>Phone</th>
+        <th>Last connected</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each accounts}}
+        <tr>
+          <td>{{this.user.email}}</td>
+          <td>{{this.label}}</td>
+          <td><code>{{this.sessionName}}</code></td>
+          <td><span class="status status-{{this.status}}">{{this.status}}</span></td>
+          <td>{{#if this.phoneNumber}}{{this.phoneNumber}}{{else}}—{{/if}}</td>
+          <td>{{#if this.lastConnectedAt}}{{this.lastConnectedAt}}{{else}}—{{/if}}</td>
+          <td><a href="/accounts/{{this.id}}">Manage</a></td>
+        </tr>
+      {{/each}}
+    </tbody>
+  </table>
+</section>

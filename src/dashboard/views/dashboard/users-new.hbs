@@ -1,0 +1,17 @@
+<section class="card">
+  <h1>New user</h1>
+  <form method="post" action="/users" class="form">
+    <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+    <label>Name<input name="name" required maxlength="100" /></label>
+    <label>Email<input name="email" type="email" required maxlength="255" /></label>
+    <label>Password<input name="password" type="password" required minlength="12" /></label>
+    <label>Role
+      <select name="role">
+        <option value="USER" selected>User</option>
+        <option value="ADMIN">Admin</option>
+      </select>
+    </label>
+    <label>WhatsApp label (optional)<input name="label" maxlength="100" /></label>
+    <button type="submit" class="primary">Create</button>
+  </form>
+</section>

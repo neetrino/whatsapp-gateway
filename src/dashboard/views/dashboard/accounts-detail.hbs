@@ -1,0 +1,31 @@
+<section>
+  <div class="page-header">
+    <h1>{{account.label}}</h1>
+    <span class="status status-{{account.status}}">{{account.status}}</span>
+  </div>
+  <p class="meta">
+    Session <code>{{account.sessionName}}</code>
+    {{#if account.phoneNumber}} · Phone: {{account.phoneNumber}}{{/if}}
+  </p>
+
+  <div class="actions">
+    <a href="/accounts/{{account.id}}/qr" class="primary">Show QR</a>
+    <form method="post" action="/accounts/{{account.id}}/restart" class="inline">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <button type="submit">Restart session</button>
+    </form>
+    <form method="post" action="/accounts/{{account.id}}/stop" class="inline">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <button type="submit" class="danger">Stop session</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Create API token</h2>
+    <form method="post" action="/tokens/{{account.id}}/create" class="form inline-form">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <label>Name<input name="name" maxlength="100" placeholder="e.g. NBOS production" /></label>
+      <button type="submit" class="primary">Create token</button>
+    </form>
+  </div>
+</section>

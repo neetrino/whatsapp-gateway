@@ -1,0 +1,86 @@
+<section>
+
+  <h1>QR for {{account.label}}</h1>
+
+  <p>Status: <span class="status status-{{account.status}}" id="status-pill">{{account.status}}</span></p>
+
+  <div class="qr-block">
+
+    {{#if qrDataUrl}}
+
+      <img src="{{qrDataUrl}}" alt="WhatsApp QR code" />
+
+    {{else}}
+
+      <p class="form-error">{{#if qrError}}{{qrError}}{{else}}QR not ready yet. Try “Restart session” or wait a few seconds.{{/if}}</p>
+
+      {{#if qrErrorCode}}<p class="meta">Code: <code>{{qrErrorCode}}</code></p>{{/if}}
+
+    {{/if}}
+
+  </div>
+
+  <div class="actions">
+
+    <form method="post" action="/accounts/{{account.id}}/restart" class="inline">
+
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+
+      <button type="submit">Restart session</button>
+
+    </form>
+
+    <form method="post" action="/accounts/{{account.id}}/stop" class="inline">
+
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+
+      <button type="submit" class="danger" title="Unlink WhatsApp from this gateway (WAHA stop)">Disconnect WhatsApp</button>
+
+    </form>
+
+  </div>
+
+  <p>Open WhatsApp on your phone, scan the QR. The status will refresh automatically.</p>
+
+  <script>
+
+    (function () {
+
+      var endpoint = '/accounts/{{account.id}}/status.json';
+
+      var pill = document.getElementById('status-pill');
+
+      function tick() {
+
+        fetch(endpoint, { credentials: 'same-origin' })
+
+          .then(function (r) { return r.json(); })
+
+          .then(function (json) {
+
+            var status = json && json.data ? json.data.status : (json && json.status);
+
+            if (!status || !pill) return;
+
+            pill.className = 'status status-' + status;
+
+            pill.textContent = status;
+
+            if (status === 'CONNECTED') return;
+
+            setTimeout(tick, 3000);
+
+          })
+
+          .catch(function () { setTimeout(tick, 5000); });
+
+      }
+
+      setTimeout(tick, 3000);
+
+    })();
+
+  </script>
+
+</section>
+
