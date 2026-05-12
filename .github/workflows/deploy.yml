@@ -1,0 +1,41 @@
+name: Deploy production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Deploy via SSH
+        env:
+          HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
+          HETZNER_SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HETZNER_HOST:-}" ] || [ -z "${HETZNER_SSH_KEY:-}" ]; then
+            echo "Missing HETZNER_HOST or HETZNER_SSH_KEY repository secrets." >&2
+            exit 1
+          fi
+          install -m 700 -d "${HOME}/.ssh"
+          printf '%s\n' "${HETZNER_SSH_KEY}" > "${HOME}/.ssh/hetzner_deploy"
+          chmod 600 "${HOME}/.ssh/hetzner_deploy"
+          ssh-keyscan -T 30 -H "${HETZNER_HOST}" >> "${HOME}/.ssh/known_hosts"
+          chmod 644 "${HOME}/.ssh/known_hosts"
+          ssh \
+            -i "${HOME}/.ssh/hetzner_deploy" \
+            -o IdentitiesOnly=yes \
+            -o IdentityAgent=none \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            "root@${HETZNER_HOST}" \
+            '/opt/deploy-whatsapp-gateway.sh'
