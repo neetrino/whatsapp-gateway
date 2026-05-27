@@ -242,4 +242,37 @@ describe('POST /api/messages/send (e2e)', () => {
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('WHATSAPP_NOT_CONNECTED');
   });
+
+  it('supports GET /api/messages/send-by-url with token query parameter', async () => {
+    const raw = generateApiToken(prefix).raw;
+    findValidByRaw.mockResolvedValue({
+      apiTokenId: 't1',
+      whatsappAccountId: 'acc1',
+      sessionName: 'wa_test',
+      revoked: false,
+    });
+    sendText.mockResolvedValue({ id: 'wmsg3' });
+
+    const res = await request(app.getHttpServer()).get('/api/messages/send-by-url').query({
+      token: raw,
+      chatId: '37499111222@c.us',
+      text: 'Hello from URL',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(sendText).toHaveBeenCalledWith('wa_test', '37499111222@c.us', 'Hello from URL');
+  });
+
+  it('returns INVALID_TOKEN for bad token on GET /api/messages/send-by-url', async () => {
+    findValidByRaw.mockResolvedValueOnce(null);
+    const res = await request(app.getHttpServer()).get('/api/messages/send-by-url').query({
+      token: `${prefix}_invalid`,
+      chatId: '37499111222@c.us',
+      text: 'Hi',
+    });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('INVALID_TOKEN');
+  });
 });

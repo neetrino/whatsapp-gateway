@@ -110,6 +110,30 @@ async function sendWhatsappMessage(chatId: string, text: string) {
 }
 ```
 
+## `GET /api/messages/send-by-url`
+
+Shortcut endpoint for tools that can only open a URL. Sends a text message via query parameters.
+
+> Security note: passing API tokens in URL query is less secure than `Authorization: Bearer ...` because URLs may be logged by browsers, proxies, and server logs. Use `POST /api/messages/send` whenever possible.
+
+### Query parameters
+
+| Parameter | Required | Description |
+|----------|----------|-------------|
+| `token` | Yes | Raw API token value (`gw_live_...`). |
+| `chatId` | Yes | Same rules as text send (`@c.us` / `@g.us`). |
+| `text` | Yes | Message text (same validation and max length as text send). |
+
+### Example
+
+```bash
+curl "https://wa-gateway.example.com/api/messages/send-by-url?token=gw_live_xxxxxxxxx&chatId=37499111222%40c.us&text=Hello%20from%20URL"
+```
+
+### Response
+
+Same success/error envelope and error codes as `POST /api/messages/send`.
+
 ## `POST /api/messages/send-media`
 
 Sends a **real** WhatsApp image or video. The Gateway passes a **public HTTPS `mediaUrl`** to WAHA; **WAHA** fetches the file and delivers it as media. The recipient sees the image/video (and optional caption), **not** the URL as a text message.
