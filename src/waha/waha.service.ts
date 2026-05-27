@@ -61,6 +61,23 @@ export class WahaService {
     }
   }
 
+  async logoutSession(account: WhatsappAccount): Promise<void> {
+    try {
+      await this.client.logoutSession(this.effectiveSessionName(account));
+      await this.prisma.whatsappAccount.update({
+        where: { id: account.id },
+        data: {
+          status: SessionStatus.DISCONNECTED,
+          phoneNumber: null,
+          lastDisconnectedAt: new Date(),
+        },
+      });
+    } catch (error) {
+      this.logSafeError('logout_session_failed', error);
+      throw error;
+    }
+  }
+
   async restartSession(account: WhatsappAccount): Promise<void> {
     try {
       await this.client.restartSession(this.effectiveSessionName(account));
@@ -113,6 +130,13 @@ export class WahaService {
     ctx: { requestId: string; accountId: string },
   ): Promise<QrViewModel> {
     const wahaSession = this.effectiveSessionName(account);
+    if (account.status === SessionStatus.CONNECTED) {
+      return {
+        dataUrl: null,
+        errorCode: 'WAHA_ALREADY_CONNECTED',
+        errorSummary: 'Session is already connected. QR is not required.',
+      };
+    }
     this.logger.log({
       msg: 'waha_qr_flow',
       requestId: ctx.requestId,
@@ -207,6 +231,16 @@ export class WahaService {
         };
       }
       if (error.status === 422) {
+        const alreadyConnected =
+          /already connected/i.test(msg) ||
+          /session.*working/i.test(msg) ||
+          /already authenticated/i.test(msg);
+        if (alreadyConnected) {
+          return {
+            code: 'WAHA_ALREADY_CONNECTED',
+            summary: 'Session is already connected. QR is not required.',
+          };
+        }
         const coreOnlyDefault =
           /only ['"]default['"] session/i.test(msg) || /OnlyDefaultSession/i.test(msg);
         if (coreOnlyDefault) {

@@ -97,12 +97,21 @@ export class MyAccountController {
     res.redirect(303, '/me/qr');
   }
 
-  /** Stops WAHA session — unlinks this Gateway account from WhatsApp (same as admin “stop”). */
+  /** Fully unlinks WhatsApp from this Gateway account (WAHA logout). */
+  @Post('unlink')
+  @HttpCode(HttpStatus.SEE_OTHER)
+  async unlink(@CurrentUser() user: AuthenticatedUser, @Res() res: Response): Promise<void> {
+    const account = await this.accountsService.getOwnByUserId(user.id);
+    await this.accountsService.unlink(account);
+    res.redirect(303, '/me');
+  }
+
+  /** Temporarily stops WAHA session without unlinking auth state. */
   @Post('stop')
   @HttpCode(HttpStatus.SEE_OTHER)
   async stop(@CurrentUser() user: AuthenticatedUser, @Res() res: Response): Promise<void> {
     const account = await this.accountsService.getOwnByUserId(user.id);
-    await this.accountsService.stop(account);
+    await this.accountsService.stopSession(account);
     res.redirect(303, '/me');
   }
 

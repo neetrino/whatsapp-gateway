@@ -39,10 +39,26 @@ export class WahaClient {
   }
 
   async startSession(sessionName: string): Promise<void> {
+    const encoded = encodeURIComponent(sessionName);
+    try {
+      await this.invoke('start session', {
+        method: 'POST',
+        url: `/api/sessions/${encoded}/start`,
+      });
+      return;
+    } catch (error) {
+      const notFound = error instanceof WahaApiError && error.status === 404;
+      if (!notFound) throw error;
+    }
+
+    await this.invoke('create session', {
+      method: 'POST',
+      url: '/api/sessions',
+      data: { name: sessionName },
+    });
     await this.invoke('start session', {
       method: 'POST',
-      url: '/api/sessions/start',
-      data: { name: sessionName },
+      url: `/api/sessions/${encoded}/start`,
     });
   }
 
@@ -62,6 +78,56 @@ export class WahaClient {
     });
   }
 
+  async logoutSession(sessionName: string): Promise<void> {
+    const encoded = encodeURIComponent(sessionName);
+    const route = `/api/sessions/${encoded}/logout`;
+    this.logger.log({
+      msg: 'waha_logout_session',
+      action: 'logoutSession',
+      wahaSession: sessionName,
+      endpointPath: route,
+    });
+    try {
+      const response = await this.http.request({
+        method: 'POST',
+        url: route,
+        validateStatus: () => true,
+      });
+      this.logger.log({
+        msg: 'waha_logout_session',
+        action: 'logoutSession',
+        wahaSession: sessionName,
+        endpointPath: route,
+        status: response.status,
+      });
+      if (response.status >= 200 && response.status < 300) {
+        return;
+      }
+      const upstream = this.extractUpstreamMessage(response.data);
+      throw new WahaApiError(
+        `WAHA logout session failed (${response.status}): ${upstream ?? 'no message'}`,
+        response.status,
+        upstream,
+      );
+    } catch (error) {
+      if (error instanceof WahaApiError || error instanceof WahaTransportError) throw error;
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError;
+        this.logger.warn({
+          msg: 'waha_transport_error',
+          label: 'logout session',
+          code: axiosError.code,
+        });
+        throw new WahaTransportError(
+          `WAHA logout session transport error: ${axiosError.code ?? 'unknown'}`,
+        );
+      }
+      throw new WahaTransportError(
+        `WAHA logout session unexpected error: ${error instanceof Error ? error.message : 'unknown'}`,
+      );
+    }
+  }
+
   async getStatus(sessionName: string): Promise<WahaSessionInfo> {
     const response = await this.invoke<WahaSessionInfo>('get session status', {
       method: 'GET',
@@ -76,7 +142,7 @@ export class WahaClient {
    */
   async getQr(sessionName: string): Promise<WahaQrPayload> {
     const encoded = encodeURIComponent(sessionName);
-    const paths = [`/api/sessions/${encoded}/auth/qr`, `/api/${encoded}/auth/qr`];
+    const paths = [`/api/${encoded}/auth/qr`];
     let lastError: unknown;
     for (const url of paths) {
       try {

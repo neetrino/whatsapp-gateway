@@ -95,8 +95,12 @@ export class WhatsappAccountsService {
     await this.wahaService.restartSession(account);
   }
 
-  async stop(account: WhatsappAccount): Promise<void> {
+  async stopSession(account: WhatsappAccount): Promise<void> {
     await this.wahaService.stopSession(account);
+  }
+
+  async unlink(account: WhatsappAccount): Promise<void> {
+    await this.wahaService.logoutSession(account);
   }
 
   async getQrForPage(account: WhatsappAccount, requestId: string): Promise<QrViewModel> {

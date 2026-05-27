@@ -103,6 +103,18 @@ export class AccountsDashboardController {
     res.redirect(303, `/accounts/${id}/qr`);
   }
 
+  @Post(':id/unlink')
+  @HttpCode(HttpStatus.SEE_OTHER)
+  async unlink(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const account = await this.accountsService.getByIdForActor(id, actor);
+    await this.accountsService.unlink(account);
+    res.redirect(303, `/accounts/${id}`);
+  }
+
   @Post(':id/stop')
   @HttpCode(HttpStatus.SEE_OTHER)
   async stop(
@@ -111,7 +123,7 @@ export class AccountsDashboardController {
     @Res() res: Response,
   ): Promise<void> {
     const account = await this.accountsService.getByIdForActor(id, actor);
-    await this.accountsService.stop(account);
+    await this.accountsService.stopSession(account);
     res.redirect(303, `/accounts/${id}`);
   }
 }

@@ -12,9 +12,16 @@
 
     {{else}}
 
-      <p class="form-error">{{#if qrError}}{{qrError}}{{else}}QR not ready yet. Try “Restart session” or wait a few seconds.{{/if}}</p>
-
-      {{#if qrErrorCode}}<p class="meta">Code: <code>{{qrErrorCode}}</code></p>{{/if}}
+      {{#ifEquals account.status "CONNECTED"}}
+        <p class="meta">WhatsApp is connected. QR is not required.</p>
+      {{else}}
+        {{#ifEquals qrErrorCode "WAHA_ALREADY_CONNECTED"}}
+          <p class="meta">{{qrError}}</p>
+        {{else}}
+          <p class="form-error">{{#if qrError}}{{qrError}}{{else}}QR not ready yet. Try “Restart session” or wait a few seconds.{{/if}}</p>
+          {{#if qrErrorCode}}<p class="meta">Code: <code>{{qrErrorCode}}</code></p>{{/if}}
+        {{/ifEquals}}
+      {{/ifEquals}}
 
     {{/if}}
 
@@ -30,11 +37,11 @@
 
     </form>
 
-    <form method="post" action="/accounts/{{account.id}}/stop" class="inline">
+    <form method="post" action="/accounts/{{account.id}}/unlink" class="inline">
 
       <input type="hidden" name="_csrf" value="{{csrfToken}}" />
 
-      <button type="submit" class="danger" title="Unlink WhatsApp from this gateway (WAHA stop)">Disconnect WhatsApp</button>
+      <button type="submit" class="danger" title="Unlink WhatsApp from this gateway (WAHA logout)">Disconnect WhatsApp</button>
 
     </form>
 
