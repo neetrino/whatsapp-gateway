@@ -33,8 +33,9 @@ export class AuthController {
     }
     const cookies = (req as Request & { cookies?: Record<string, string> }).cookies;
     res.status(HttpStatus.OK).render('auth/login', {
-      title: 'Sign in',
+      title: 'Neetrino Internal Chat Gateway',
       layout: 'auth',
+      noindex: true,
       csrfToken: cookies?.[CSRF_COOKIE_NAME] ?? '',
       loginError: undefined as string | undefined,
     });
@@ -56,8 +57,9 @@ export class AuthController {
       if (err instanceof AppException && err.code === ERROR_CODES.UNAUTHORIZED) {
         const cookies = (req as Request & { cookies?: Record<string, string> }).cookies;
         res.status(HttpStatus.OK).render('auth/login', {
-          title: 'Sign in',
+          title: 'Neetrino Internal Chat Gateway',
           layout: 'auth',
+          noindex: true,
           csrfToken: cookies?.[CSRF_COOKIE_NAME] ?? '',
           loginError: err.message,
         });

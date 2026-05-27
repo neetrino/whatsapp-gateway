@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{title}} — WhatsApp Gateway</title>
+    <title>{{title}} — Neetrino Internal Chat Gateway</title>
     <link rel="stylesheet" href="/assets/style.css" />
   </head>
   <body>
     <header class="topbar">
-      <div class="brand">WhatsApp Gateway</div>
+      <div class="brand">Neetrino Internal Chat Gateway</div>
       <nav class="nav">
         {{#if currentUser}}
           {{#ifEquals currentUser.role "ADMIN"}}
@@ -19,7 +19,7 @@
             <a href="/settings" class="{{#ifEquals active 'settings'}}active{{/ifEquals}}">Settings</a>
           {{/ifEquals}}
           {{#ifEquals currentUser.role "USER"}}
-            <a href="/me" class="{{#ifEquals active 'me'}}active{{/ifEquals}}">My WhatsApp</a>
+            <a href="/me" class="{{#ifEquals active 'me'}}active{{/ifEquals}}">My Account</a>
           {{/ifEquals}}
         {{/if}}
       </nav>
