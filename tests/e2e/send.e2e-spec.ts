@@ -266,13 +266,112 @@ describe('POST /api/messages/send (e2e)', () => {
 
   it('returns INVALID_TOKEN for bad token on GET /api/messages/send-by-url', async () => {
     findValidByRaw.mockResolvedValueOnce(null);
-    const res = await request(app.getHttpServer()).get('/api/messages/send-by-url').query({
-      token: `${prefix}_invalid`,
-      chatId: '37499111222@c.us',
-      text: 'Hi',
-    });
+    const res = await request(app.getHttpServer())
+      .get('/api/messages/send-by-url')
+      .query({
+        token: `${prefix}_invalid`,
+        chatId: '37499111222@c.us',
+        text: 'Hi',
+      });
 
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('INVALID_TOKEN');
+  });
+
+  it('supports POST /api/messages/send-by-url with query parameters', async () => {
+    const raw = generateApiToken(prefix).raw;
+    findValidByRaw.mockResolvedValue({
+      apiTokenId: 't1',
+      whatsappAccountId: 'acc1',
+      sessionName: 'wa_test',
+      revoked: false,
+    });
+    sendText.mockResolvedValue({ id: 'wmsg4' });
+
+    const res = await request(app.getHttpServer())
+      .post('/api/messages/send-by-url')
+      .query({
+        token: raw,
+        chatId: '37499111222%40c.us',
+        text: 'Hello%20from%20POST',
+      })
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(sendText).toHaveBeenCalledWith('wa_test', '37499111222@c.us', 'Hello from POST');
+  });
+
+  it('supports POST /api/messages/send-by-url with JSON body when query is missing', async () => {
+    const raw = generateApiToken(prefix).raw;
+    findValidByRaw.mockResolvedValue({
+      apiTokenId: 't1',
+      whatsappAccountId: 'acc1',
+      sessionName: 'wa_test',
+      revoked: false,
+    });
+    sendText.mockResolvedValue({ id: 'wmsg5' });
+
+    const res = await request(app.getHttpServer()).post('/api/messages/send-by-url').send({
+      token: raw,
+      chatId: '37499111222%40c.us',
+      text: 'Hello%20from%20JSON',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(sendText).toHaveBeenCalledWith('wa_test', '37499111222@c.us', 'Hello from JSON');
+  });
+
+  it('supports POST /api/messages/send-by-url with form-urlencoded body', async () => {
+    const raw = generateApiToken(prefix).raw;
+    findValidByRaw.mockResolvedValue({
+      apiTokenId: 't1',
+      whatsappAccountId: 'acc1',
+      sessionName: 'wa_test',
+      revoked: false,
+    });
+    sendText.mockResolvedValue({ id: 'wmsg6' });
+
+    const res = await request(app.getHttpServer())
+      .post('/api/messages/send-by-url')
+      .type('form')
+      .send({
+        token: raw,
+        chatId: '37499111222%40c.us',
+        text: 'Hello%20from%20FORM',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(sendText).toHaveBeenCalledWith('wa_test', '37499111222@c.us', 'Hello from FORM');
+  });
+
+  it('prioritizes query params over body on POST /api/messages/send-by-url', async () => {
+    const raw = generateApiToken(prefix).raw;
+    findValidByRaw.mockResolvedValue({
+      apiTokenId: 't1',
+      whatsappAccountId: 'acc1',
+      sessionName: 'wa_test',
+      revoked: false,
+    });
+    sendText.mockResolvedValue({ id: 'wmsg7' });
+
+    const res = await request(app.getHttpServer())
+      .post('/api/messages/send-by-url')
+      .query({
+        token: raw,
+        chatId: '37499111222%40c.us',
+        text: 'Text%20from%20query',
+      })
+      .send({
+        token: `${raw}_body`,
+        chatId: '120363123456789012@g.us',
+        text: 'Text from body',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(sendText).toHaveBeenCalledWith('wa_test', '37499111222@c.us', 'Text from query');
   });
 });
