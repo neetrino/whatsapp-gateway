@@ -255,3 +255,137 @@ Returns **safe** operational status (no secrets, no raw WAHA payloads).
 ```
 
 Values may be `ok` or `unavailable` for `database` / `waha` when dependencies fail.
+
+## Groups API
+
+All group endpoints require `Authorization: Bearer <API_TOKEN>` (same token binding as message send).  
+Session is resolved internally via the token → WhatsApp account → `WahaService.effectiveSessionName`.  
+Clients must **not** send `session`, `accountId`, or WAHA credentials.
+
+### `GET /api/groups`
+
+Query: `limit` (1–200, default 100), `offset` (≥0, default 0), optional `search` (max 100, case-insensitive over normalized `name`/`id`).
+
+Gateway calls WAHA `GET /api/{session}/groups` with `sortBy=subject`, `sortOrder=asc`, `exclude=participants`. Search is applied after normalization (not forwarded to WAHA).
+
+```json
+{
+  "success": true,
+  "data": {
+    "groups": [
+      {
+        "id": "120363123456789012@g.us",
+        "name": "ACME Website",
+        "participantCount": 5,
+        "pictureUrl": null
+      }
+    ],
+    "pagination": { "limit": 100, "offset": 0, "count": 1 }
+  }
+}
+```
+
+Rate limit: 60 / minute (route throttle).
+
+### `POST /api/groups`
+
+**Required header:** `Idempotency-Key` (8–128 chars: letters, digits, `._:-`).
+
+Body:
+
+```json
+{
+  "name": "ACME Website",
+  "participants": ["37499111111@c.us", "37499222222@c.us"]
+}
+```
+
+Rules:
+
+- Participants: `^[0-9]+@c.us$` only (no bare phones, no `@lid` / `@s.whatsapp.net` / `@g.us`).
+- Max 50 participants per request (Gateway application limit).
+- Duplicates are removed before WAHA.
+- Gateway does **not** normalize phone numbers.
+
+Success:
+
+```json
+{
+  "success": true,
+  "data": { "id": "120363123456789012@g.us", "name": "ACME Website" }
+}
+```
+
+Idempotency: same key + same body returns stored success without calling WAHA again. Same key + different body → `409 IDEMPOTENCY_KEY_REUSED`.  
+Transport timeout after create may yield `503 GROUP_CREATE_OUTCOME_UNKNOWN` — **do not blind-retry**; reconcile manually.
+
+Rate limit: 10 / minute.
+
+### `POST /api/groups/refresh`
+
+Refreshes WAHA group cache. Do not call on every list. Rate limit: **1 / minute**.
+
+```json
+{ "success": true, "data": { "refreshed": true } }
+```
+
+### `GET /api/groups/:groupId`
+
+`groupId` must match `…@g.us`.
+
+### `GET /api/groups/:groupId/participants`
+
+Normalized participants (`role`: `participant` | `admin` | `superadmin` | `left` | `unknown`).  
+`@lid` ids are returned with `phone: null`.
+
+### `POST /api/groups/:groupId/participants`
+
+**Required header:** `Idempotency-Key`.
+
+Body: `{ "participants": ["37499333333@c.us"] }`.
+
+Already-members are treated as successful no-ops. Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "groupId": "120363123456789012@g.us",
+    "status": "completed",
+    "added": ["37499333333@c.us"],
+    "alreadyMembers": ["37499111111@c.us"],
+    "failed": []
+  }
+}
+```
+
+When WAHA fails at operation level without reliable per-id mapping, `status` may be `partial` with `failed[].code = PARTICIPANT_ADD_FAILED` (safe message only).
+
+Rate limit: 20 / minute.
+
+### `GET /api/groups/:groupId/invite-link`
+
+Returns `{ groupId, inviteUrl }` where `inviteUrl` is `https://chat.whatsapp.com/{code}`.  
+Invite URLs are sensitive — Gateway does not log them. NBOS should send the URL to clients via `POST /api/messages/send` if needed.
+
+Rate limit: 30 / minute.
+
+### Group-specific error codes
+
+| HTTP | code | When |
+|------|------|------|
+| 400 | `INVALID_GROUP_ID` | Bad `@g.us` id |
+| 400 | `INVALID_GROUP_PARTICIPANT` | Bad participant JID |
+| 400 | `IDEMPOTENCY_KEY_REQUIRED` / `IDEMPOTENCY_KEY_INVALID` | Missing/bad key |
+| 409 | `IDEMPOTENCY_KEY_REUSED` | Key reused with different body |
+| 409 | `IDEMPOTENT_OPERATION_IN_PROGRESS` | Concurrent same key |
+| 404 | `GROUP_NOT_FOUND` | Unknown group |
+| 502 | `GROUP_*_FAILED` / `GROUP_CREATE_INVALID_PROVIDER_RESPONSE` / invite invalid | Provider failure |
+| 503 | `GROUP_CREATE_OUTCOME_UNKNOWN` | Create transport timeout after possible success |
+| 503 | `WAHA_UNAVAILABLE` | Transport / disconnect |
+
+### Safe retry rules
+
+- **Safe:** `GET` list/group/participants/invite-link (and `POST refresh` within rate limit).
+- **Unsafe without same Idempotency-Key:** `POST` create group.
+- **Add participants:** replay same Idempotency-Key; Gateway reconciles membership.

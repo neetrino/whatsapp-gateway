@@ -10,7 +10,10 @@ describe('WahaService getQrForDashboard / effectiveSessionName', () => {
     const config = { get: jest.fn(() => 'default') };
     const svc = new WahaService({} as never, client as never, config as never);
     const connected = { ...account, status: 'CONNECTED' } as WhatsappAccount;
-    const r = await svc.getQrForDashboard(connected, { requestId: 'req_connected', accountId: 'a1' });
+    const r = await svc.getQrForDashboard(connected, {
+      requestId: 'req_connected',
+      accountId: 'a1',
+    });
     expect(client.getQr).not.toHaveBeenCalled();
     expect(r.errorCode).toBe('WAHA_ALREADY_CONNECTED');
     expect(r.errorSummary).toBe('Session is already connected. QR is not required.');

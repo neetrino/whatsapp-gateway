@@ -22,6 +22,12 @@ const inferCode = (messages: string[]): ErrorCode => {
   if (messages.some((m) => m.includes('Invalid chatId format'))) {
     return ERROR_CODES.INVALID_CHAT_ID;
   }
+  if (messages.some((m) => m.includes('Invalid groupId format'))) {
+    return ERROR_CODES.INVALID_GROUP_ID;
+  }
+  if (messages.some((m) => m.toLowerCase().includes('participant'))) {
+    return ERROR_CODES.INVALID_GROUP_PARTICIPANT;
+  }
   if (messages.some((m) => m.toLowerCase().includes('mediatype'))) {
     return ERROR_CODES.INVALID_MEDIA_TYPE;
   }

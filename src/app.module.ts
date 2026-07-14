@@ -22,6 +22,7 @@ import { WahaModule } from './waha/waha.module';
 import { MessagesModule } from './messages/messages.module';
 import { HealthModule } from './health/health.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { GroupsModule } from './groups/groups.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -49,6 +50,7 @@ import { AppController } from './app.controller';
     ApiTokensModule,
     WahaModule,
     MessagesModule,
+    GroupsModule,
     HealthModule,
     DashboardModule,
   ],

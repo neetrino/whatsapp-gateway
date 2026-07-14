@@ -54,7 +54,8 @@ WAHA session storage: persistent Docker volume mounted at `/app/.sessions`.
 | `whatsapp-accounts`  | Account read, status, restart/stop, QR retrieval. Strict role + ownership checks.               |
 | `api-tokens`         | Generate/list/revoke/regenerate. HMAC-SHA256 with `TOKEN_PEPPER`. Show-once on create.          |
 | `waha`               | Isolated WAHA boundary. Only place that knows WAHA URL shape and status strings.                |
-| `messages`           | `POST /api/messages/send`. ApiToken guard. Strict DTO. Outbound log lifecycle.                  |
+| `messages`           | `POST /api/messages/send` (+ media). ApiToken guard. Strict DTO. Outbound log lifecycle.          |
+| `groups`             | Group lifecycle API: list/create/get/refresh/participants/invite-link. Idempotent mutations.     |
 | `health`             | `GET /health` returning `{ gateway, database, waha }`.                                          |
 | `dashboard`          | Handlebars-rendered admin/user pages and minimal JSON status endpoint for QR poll.              |
 
@@ -65,7 +66,8 @@ Strict rule: WAHA-specific URLs, headers, and status strings live only inside `s
 ```
 User (1) ──── (1) WhatsappAccount (1) ──── (n) ApiToken
                             │
-                            └─── (n) OutboundMessageLog   [no text, no rawPayload]
+                            ├─── (n) OutboundMessageLog   [no text, no rawPayload]
+                            └─── (n) GroupApiOperation    [idempotency for create/add]
 ```
 
 ### `User`
@@ -175,22 +177,15 @@ Admin sees: users, all WhatsApp accounts (label, sessionName, status, phoneNumbe
 
 User sees: own WhatsApp account, own QR, own status, own token metadata.
 
-Strictly absent for both roles: chats, groups, conversations, messages, message text, incoming/outgoing message bodies, webhook events, webhook logs, raw WAHA payloads. There is no route, page, modal, or table for any of these. An e2e test asserts the dashboard's chats/messages/webhooks routes return 404.
+Strictly absent for both roles: chats UI, conversations UI, message history UI, webhook logs, raw WAHA payloads.  
+Group **management** is available only via the authenticated JSON API (`/api/groups*`), not as a Messenger dashboard. An e2e test asserts legacy dashboard paths like `/chats`, `/groups`, `/webhooks` still return 404.
 
 ## WAHA integration boundary
 
-`src/waha/waha.client.ts` is the only place that knows WAHA URL shapes. Other modules call `WahaService`. Methods:
+`src/waha/waha.client.ts` is the only place that knows WAHA URL shapes. Other modules call `WahaClient` / `WahaService`. Methods include session lifecycle, send text/media, and group operations (`listGroups`, `createGroup`, `getGroup`, `refreshGroups`, `listGroupParticipants`, `addGroupParticipants`, `getGroupInviteCode`).
 
-- `startSession(sessionName)`
-- `stopSession(sessionName)`
-- `restartSession(sessionName)`
-- `getQr(sessionName) → { mimeType, data }`
-- `getStatus(sessionName) → WahaSessionStatusRaw`
-- `sendText(sessionName, chatId, text) → { id?: string }`
-- `healthCheck() → boolean`
-
-`WahaService` maps WAHA status strings (`STARTING`, `SCAN_QR_CODE`, `WORKING`, `FAILED`, `STOPPED`, …) to our `SessionStatus` enum and persists transitions on `WhatsappAccount`. The exact endpoint paths are confirmed against the running WAHA container's `/api/docs` during Phase 5 before wiring.
+`WahaService` maps WAHA status strings (`STARTING`, `SCAN_QR_CODE`, `WORKING`, `FAILED`, `STOPPED`, …) to our `SessionStatus` enum and persists transitions on `WhatsappAccount`. Confirm REST paths against the running WAHA container's `/api/docs` before production upgrades.
 
 ## What is explicitly NOT built
 
-No projects, workspaces, tenants, ProjectUser, ProjectWhatsappAccount, ProjectApiToken. No multiple WhatsApp accounts per user. No `accountType` personal/shared. No shared fallback. No `prefixSenderName`, no `sentByName`, no "Name: message". No phone-number sending, no phone normalization, no `@c.us` builder. No chats / groups / messages / webhook events / rawPayload UI anywhere. No webhook endpoint in v1 — session status is refreshed on demand.
+No projects, workspaces, tenants, Product/Lead/Deal models, employee roles, or CRM workflow. No phone-number normalization / `@c.us` builder. No Messenger UI for chats/groups. No webhook endpoint in v1 — session status is refreshed on demand. Product-to-group binding and client invite messaging belong to NBOS.

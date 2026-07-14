@@ -29,6 +29,23 @@ export interface WahaSendTextResult {
   id?: string;
 }
 
+export interface WahaListGroupsQuery {
+  limit: number;
+  offset: number;
+  sortBy?: 'subject' | 'id';
+  sortOrder?: 'asc' | 'desc';
+  exclude?: 'participants';
+}
+
+export interface WahaCreateGroupInput {
+  name: string;
+  participants: Array<{ id: string }>;
+}
+
+export interface WahaAddParticipantsInput {
+  participants: Array<{ id: string }>;
+}
+
 export class WahaTransportError extends Error {
   constructor(message: string) {
     super(message);

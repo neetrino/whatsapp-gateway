@@ -7,7 +7,7 @@ This project is **not** NBOS, **not** a plugin, and **not** a Messenger UI.
 
 ## What this is
 
-- HTTP JSON API: `POST /api/messages/send` (`chatId` + `text` only) and `POST /api/messages/send-media` (`chatId`, `mediaType`, `mediaUrl`, optional `caption`), both with `Authorization: Bearer <token>`.
+- HTTP JSON API: `POST /api/messages/send` (`chatId` + `text` only), `POST /api/messages/send-media` (`chatId`, `mediaType`, `mediaUrl`, optional `caption`), and group lifecycle under `/api/groups*` (list/create/get/refresh/participants/invite-link), all with `Authorization: Bearer <token>`.
 - Minimal **dashboard** (server-rendered) for users/admins: login, WhatsApp connection (QR), session actions, API token lifecycle, safe health.
 - **One user → one WhatsApp account → one WAHA session.** API tokens belong to that account.
 
@@ -73,6 +73,7 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Hetzner + reverse proxy guidanc
 
 - **Text:** `POST /api/messages/send` — `Authorization: Bearer <API_TOKEN>`, JSON `{ "chatId", "text" }` only.
 - **Media:** `POST /api/messages/send-media` — same auth, JSON `{ "chatId", "mediaType": "IMAGE" | "VIDEO", "mediaUrl": "https://...", "caption?": "..." }`. **Media delivery depends on WAHA engine, image tag, and tier** (Core NOWEB is not claimed for production image/video until separately tested). When supported, WAHA downloads the URL and sends real media (the URL is never sent as plain text).
+- **Groups:** `GET|POST /api/groups`, `POST /api/groups/refresh`, `GET /api/groups/:groupId`, participants list/add, invite-link — see [docs/API.md](docs/API.md). Create/add require `Idempotency-Key`.
 
 Full contract: [docs/API.md](docs/API.md).
 

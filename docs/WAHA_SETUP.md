@@ -71,10 +71,19 @@ The client currently calls:
 | `POST` | `/api/sendImage` | Outbound image by URL (`session`, `chatId`, `file.url`, optional caption) |
 
 | `POST` | `/api/sendVideo` | Outbound video by URL (`session`, `chatId`, `file.url`, optional caption) |
+| `GET` | `/api/{session}/groups` | List groups (`limit`, `offset`, `sortBy`, `sortOrder`, `exclude`) |
+| `POST` | `/api/{session}/groups` | Create group |
+| `GET` | `/api/{session}/groups/{groupId}` | Get group |
+| `POST` | `/api/{session}/groups/refresh` | Refresh groups cache |
+| `GET` | `/api/{session}/groups/{groupId}/participants/v2` | Participants (fallback: `/participants`) |
+| `POST` | `/api/{session}/groups/{groupId}/participants/add` | Add participants |
+| `GET` | `/api/{session}/groups/{groupId}/invite-code` | Invite code |
 
 
 
 If your WAHA build uses different paths, update **`WahaClient` only**.
+
+**Runtime note:** Docker was not available at implement time to inspect container OpenAPI. Before production group traffic, open WAHA `/api/docs` (or `/-json`) on the running `devlikeapro/waha:noweb` image and confirm the paths above. NOWEB list groups may require enabling the NOWEB Store if you see `rate-overlimit`.
 
 
 

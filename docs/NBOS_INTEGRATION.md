@@ -168,3 +168,19 @@ async function sendWhatsappVideo(chatId: string, videoUrl: string, caption?: str
 If the Gateway returns `WHATSAPP_NOT_CONNECTED`, the WhatsApp session must be re-established via the Gateway dashboard (QR / session actions). NBOS cannot fix that through the send API.
 
 For media, `INVALID_MEDIA_URL` usually means the URL failed SSRF checks or extension rules; `IMAGE_SEND_FAILED` / `VIDEO_SEND_FAILED` mean WAHA rejected or could not send the file—verify the URL is reachable from the WAHA container, the format is supported, and your WAHA **engine/tier** actually supports that media path (see the warning in the media section above).
+
+## Groups (Product WhatsApp groups)
+
+NBOS owns Product ↔ group binding, employee roles, and when to create/add members.  
+NBOS talks **only** to this Gateway (never directly to WAHA).
+
+Typical flow:
+
+1. `GET /api/groups` — pick an existing group or confirm naming.
+2. `POST /api/groups` with `Idempotency-Key` — create a group and seed employee JIDs (`…@c.us` only).
+3. Store returned `id` (`…@g.us`) on the Product in NBOS.
+4. Later: `POST /api/groups/:groupId/participants` with a new `Idempotency-Key` to add more employees.
+5. `GET /api/groups/:groupId/invite-link` — get invite URL for the **client**.
+6. Send that URL with `POST /api/messages/send` to the client’s personal chat (`…@c.us`). Do **not** auto-add the client via Gateway.
+
+See [API.md](API.md) Groups section for contracts, idempotency, and `GROUP_CREATE_OUTCOME_UNKNOWN` handling.
