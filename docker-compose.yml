@@ -14,7 +14,7 @@ services:
       - "3000:3000"
 
   waha:
-    image: devlikeapro/waha:2026.6.2
+    image: devlikeapro/waha:noweb-2026.6.2
     restart: unless-stopped
     environment:
       - WAHA_API_KEY=${WAHA_API_KEY}
