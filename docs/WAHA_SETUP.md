@@ -14,7 +14,7 @@ This Gateway expects a **WAHA Core** instance reachable at `WAHA_BASE_URL` (defa
 
 - **Engine:** `WHATSAPP_DEFAULT_ENGINE=NOWEB` on the WAHA container.
 
-- **Session name:** `WAHA_SESSION_NAME=default` on the Gateway — WAHA Core supports a single active session named `default` only.
+- **Session name:** For multi-account (WAHA Plus / multi-session builds), leave `WAHA_SESSION_NAME` unset on the Gateway so each account uses its DB `sessionName`. Only set `WAHA_SESSION_NAME=default` for legacy single-session WAHA Core.
 
 - **Primary v1 acceptance check:** outbound **text** via `POST /api/sendText` (see [`src/waha/waha.client.ts`](../src/waha/waha.client.ts)).
 
@@ -107,7 +107,7 @@ Gateway `.env` / compose (see [`.env.example`](../.env.example)):
 
 - `WAHA_BASE_URL=http://waha:3000`
 
-- `WAHA_SESSION_NAME=default` (required for WAHA Core)
+- `WAHA_SESSION_NAME` — leave unset for multi-session; set to `default` only for legacy WAHA Core single-session
 
 - `WHATSAPP_DEFAULT_ENGINE=NOWEB` — documented for parity with compose; the WAHA service sets the engine explicitly in `docker-compose.yml`
 

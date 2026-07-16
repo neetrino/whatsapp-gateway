@@ -54,14 +54,14 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  whatsappAccount WhatsappAccount?
+  whatsappAccounts WhatsappAccount[]
 
   @@map("users")
 }
 
 model WhatsappAccount {
   id                 String        @id @default(cuid())
-  userId             String        @unique
+  userId             String
   label              String
   sessionName        String        @unique
   status             SessionStatus @default(QR_REQUIRED)
@@ -77,6 +77,7 @@ model WhatsappAccount {
   logs               OutboundMessageLog[]
   groupApiOperations GroupApiOperation[]
 
+  @@index([userId])
   @@map("whatsapp_accounts")
 }
 

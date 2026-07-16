@@ -9,7 +9,7 @@ This project is **not** NBOS, **not** a plugin, and **not** a Messenger UI.
 
 - HTTP JSON API: `POST /api/messages/send` (`chatId` + `text` only), `POST /api/messages/send-media` (`chatId`, `mediaType`, `mediaUrl`, optional `caption`), and group lifecycle under `/api/groups*` (list/create/get/refresh/participants/invite-link), all with `Authorization: Bearer <token>`.
 - Minimal **dashboard** (server-rendered) for users/admins: login, WhatsApp connection (QR), session actions, API token lifecycle, safe health.
-- **One user → one WhatsApp account → one WAHA session.** API tokens belong to that account.
+- **One user → many WhatsApp accounts → one WAHA session each.** API tokens belong to a specific account.
 
 ## What this is not
 
@@ -65,7 +65,7 @@ docker compose build
 docker compose up -d
 ```
 
-The bundled WAHA service uses **`devlikeapro/waha:noweb`** with **`WHATSAPP_DEFAULT_ENGINE=NOWEB`**. WAHA Core allows a single session named **`default`** — set **`WAHA_SESSION_NAME=default`** on the Gateway (see [`.env.example`](.env.example) and `docker-compose.yml`). **Text** sending is the primary verified path; **image/video** via `POST /api/messages/send-media` depends on engine/version/tier and must be validated separately (see [docs/WAHA_SETUP.md](docs/WAHA_SETUP.md)).
+The bundled WAHA service uses **`devlikeapro/waha:noweb`** with **`WHATSAPP_DEFAULT_ENGINE=NOWEB`**. For **multiple WhatsApp accounts** (WAHA Plus / multi-session), leave **`WAHA_SESSION_NAME` unset** so each account uses its own DB `sessionName`. Only set **`WAHA_SESSION_NAME=default`** for legacy single-session WAHA Core. **Text** sending is the primary verified path; **image/video** via `POST /api/messages/send-media` depends on engine/version/tier and must be validated separately (see [docs/WAHA_SETUP.md](docs/WAHA_SETUP.md)).
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Hetzner + reverse proxy guidance.
 

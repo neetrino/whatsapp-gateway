@@ -3,6 +3,41 @@
   <p class="meta">{{user.email}} · {{user.role}} · {{#if user.isActive}}Active{{else}}Disabled{{/if}}</p>
 
   <div class="card">
+    <h2>WhatsApp accounts</h2>
+    <form method="post" action="/accounts/for-user/{{user.id}}" class="form inline-form">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <label>Label<input name="label" required maxlength="100" placeholder="e.g. Sales line" /></label>
+      <button type="submit" class="primary">Add WhatsApp account</button>
+    </form>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Label</th>
+          <th>Status</th>
+          <th>Phone</th>
+          <th>Session</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each user.whatsappAccounts}}
+          <tr>
+            <td>{{this.label}}</td>
+            <td><span class="status status-{{this.status}}">{{this.status}}</span></td>
+            <td>{{#if this.phoneNumber}}{{this.phoneNumber}}{{else}}—{{/if}}</td>
+            <td><code>{{this.sessionName}}</code></td>
+            <td><a href="/accounts/{{this.id}}">Manage</a></td>
+          </tr>
+        {{else}}
+          <tr>
+            <td colspan="5">No WhatsApp accounts yet.</td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
     <h2>Update profile</h2>
     <form method="post" action="/users/{{user.id}}/update" class="form">
       <input type="hidden" name="_csrf" value="{{csrfToken}}" />

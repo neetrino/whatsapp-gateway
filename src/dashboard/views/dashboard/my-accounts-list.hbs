@@ -1,0 +1,41 @@
+<section>
+  <div class="page-header">
+    <h1>My WhatsApp accounts</h1>
+  </div>
+
+  <div class="card">
+    <h2>Add account</h2>
+    <form method="post" action="/me/accounts" class="form inline-form">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <label>Label<input name="label" required maxlength="100" placeholder="e.g. Support line" /></label>
+      <button type="submit" class="primary">Add WhatsApp account</button>
+    </form>
+  </div>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Label</th>
+        <th>Status</th>
+        <th>Phone</th>
+        <th>Session</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each accounts}}
+        <tr>
+          <td>{{this.label}}</td>
+          <td><span class="status status-{{this.status}}">{{this.status}}</span></td>
+          <td>{{#if this.phoneNumber}}{{this.phoneNumber}}{{else}}—{{/if}}</td>
+          <td><code>{{this.sessionName}}</code></td>
+          <td><a href="/me/accounts/{{this.id}}">Manage</a></td>
+        </tr>
+      {{else}}
+        <tr>
+          <td colspan="5">No WhatsApp accounts yet. Add one above.</td>
+        </tr>
+      {{/each}}
+    </tbody>
+  </table>
+</section>

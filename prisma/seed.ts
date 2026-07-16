@@ -42,7 +42,7 @@ const main = async (): Promise<void> => {
     },
   });
 
-  const existingAccount = await prisma.whatsappAccount.findUnique({
+  const existingAccount = await prisma.whatsappAccount.findFirst({
     where: { userId: admin.id },
   });
 

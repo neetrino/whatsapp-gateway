@@ -1,6 +1,6 @@
 <section>
 
-  <h1>Account QR Authentication</h1>
+  <h1>{{account.label}} — QR</h1>
 
   <p>Status: <span class="status status-{{account.status}}" id="status-pill">{{account.status}}</span></p>
 
@@ -29,7 +29,7 @@
 
   <div class="actions">
 
-    <form method="post" action="/me/restart" class="inline">
+    <form method="post" action="/me/accounts/{{account.id}}/restart" class="inline">
 
       <input type="hidden" name="_csrf" value="{{csrfToken}}" />
 
@@ -37,7 +37,7 @@
 
     </form>
 
-    <form method="post" action="/me/unlink" class="inline">
+    <form method="post" action="/me/accounts/{{account.id}}/unlink" class="inline">
 
       <input type="hidden" name="_csrf" value="{{csrfToken}}" />
 
@@ -45,7 +45,7 @@
 
     </form>
 
-    <a href="/me">Back to my account</a>
+    <a href="/me/accounts/{{account.id}}">Back to account</a>
 
   </div>
 
@@ -53,11 +53,13 @@
 
     (function () {
 
+      var endpoint = '/me/accounts/{{account.id}}/status.json';
+
       var pill = document.getElementById('status-pill');
 
       function tick() {
 
-        fetch('/me/status.json', { credentials: 'same-origin' })
+        fetch(endpoint, { credentials: 'same-origin' })
 
           .then(function (r) { return r.json(); })
 
@@ -88,4 +90,3 @@
   </script>
 
 </section>
-

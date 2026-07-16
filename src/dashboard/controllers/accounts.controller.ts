@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
@@ -18,12 +19,20 @@ import {
 } from '../../common/decorators/current-user.decorator';
 import type { RequestWithId } from '../../common/interceptors/request-id.middleware';
 import { WhatsappAccountsService } from '../../whatsapp-accounts/whatsapp-accounts.service';
+import { UsersService } from '../../users/users.service';
+import {
+  AdminCreateWhatsappAccountDto,
+  CreateWhatsappAccountDto,
+} from '../../whatsapp-accounts/dto/create-whatsapp-account.dto';
 import { baseView, type BaseViewModel } from '../view-helpers';
 
 @Controller('accounts')
 @Roles(Role.ADMIN)
 export class AccountsDashboardController {
-  constructor(private readonly accountsService: WhatsappAccountsService) {}
+  constructor(
+    private readonly accountsService: WhatsappAccountsService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Get()
   @Render('dashboard/accounts-list')
@@ -33,6 +42,34 @@ export class AccountsDashboardController {
   ): Promise<BaseViewModel & { accounts: unknown; active: 'accounts' }> {
     const accounts = await this.accountsService.listAll();
     return { ...baseView(req, user, 'WhatsApp accounts'), accounts, active: 'accounts' };
+  }
+
+  @Get('new')
+  @Render('dashboard/accounts-new')
+  async newPage(
+    @Req() req: Request,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<BaseViewModel & { users: unknown; active: 'accounts' }> {
+    const users = await this.usersService.list();
+    return { ...baseView(req, user, 'New WhatsApp account'), users, active: 'accounts' };
+  }
+
+  @Post()
+  @HttpCode(HttpStatus.SEE_OTHER)
+  async create(@Body() dto: AdminCreateWhatsappAccountDto, @Res() res: Response): Promise<void> {
+    const created = await this.accountsService.createForUser(dto.userId, dto.label);
+    res.redirect(303, `/accounts/${created.id}/qr`);
+  }
+
+  @Post('for-user/:userId')
+  @HttpCode(HttpStatus.SEE_OTHER)
+  async createForUser(
+    @Param('userId') userId: string,
+    @Body() dto: CreateWhatsappAccountDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    const created = await this.accountsService.createForUser(userId, dto.label);
+    res.redirect(303, `/accounts/${created.id}/qr`);
   }
 
   @Get(':id')

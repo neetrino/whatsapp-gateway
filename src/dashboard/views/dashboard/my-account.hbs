@@ -1,5 +1,8 @@
 <section>
-  <h1>My Account</h1>
+  <div class="page-header">
+    <h1>{{account.label}}</h1>
+    <a href="/me">All accounts</a>
+  </div>
   <p>Status: <span class="status status-{{account.status}}" id="status-pill">{{account.status}}</span>
     {{#if account.phoneNumber}} · {{account.phoneNumber}}{{/if}}
   </p>
@@ -12,16 +15,20 @@
   {{/if}}
 
   <div class="actions">
-    <a href="/me/qr" class="primary">Show QR</a>
-    <form method="post" action="/me/restart" class="inline">
+    <a href="/me/accounts/{{account.id}}/qr" class="primary">Show QR</a>
+    <form method="post" action="/me/accounts/{{account.id}}/restart" class="inline">
       <input type="hidden" name="_csrf" value="{{csrfToken}}" />
       <button type="submit">Restart session</button>
+    </form>
+    <form method="post" action="/me/accounts/{{account.id}}/stop" class="inline">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <button type="submit">Stop session</button>
     </form>
   </div>
 
   <div class="card">
     <h2>API tokens</h2>
-    <form method="post" action="/me/tokens" class="form inline-form">
+    <form method="post" action="/me/accounts/{{account.id}}/tokens" class="form inline-form">
       <input type="hidden" name="_csrf" value="{{csrfToken}}" />
       <label>Name<input name="name" maxlength="100" placeholder="e.g. NBOS production" /></label>
       <button type="submit" class="primary">Create token</button>
@@ -47,11 +54,11 @@
             <td>{{#if this.revokedAt}}Yes{{else}}No{{/if}}</td>
             <td>
               {{#unless this.revokedAt}}
-                <form method="post" action="/me/tokens/{{this.id}}/revoke" class="inline">
+                <form method="post" action="/me/accounts/{{../account.id}}/tokens/{{this.id}}/revoke" class="inline">
                   <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
                   <button type="submit" class="danger">Revoke</button>
                 </form>
-                <form method="post" action="/me/tokens/{{this.id}}/regenerate" class="inline">
+                <form method="post" action="/me/accounts/{{../account.id}}/tokens/{{this.id}}/regenerate" class="inline">
                   <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
                   <button type="submit">Regenerate</button>
                 </form>

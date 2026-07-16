@@ -10,7 +10,7 @@
         <th>Email</th>
         <th>Role</th>
         <th>Active</th>
-        <th>WhatsApp status</th>
+        <th>WhatsApp accounts</th>
         <th>Created</th>
       </tr>
     </thead>
@@ -21,7 +21,7 @@
           <td>{{this.email}}</td>
           <td>{{this.role}}</td>
           <td>{{#if this.isActive}}Yes{{else}}No{{/if}}</td>
-          <td>{{#if this.whatsappAccount}}{{this.whatsappAccount.status}}{{else}}—{{/if}}</td>
+          <td>{{this.whatsappAccountCount}}</td>
           <td>{{this.createdAt}}</td>
         </tr>
       {{/each}}

@@ -15,7 +15,7 @@ A standalone HTTP service that lets external systems (e.g. NBOS) send WhatsApp m
 
 ## Final business rules
 
-1. One `User` has exactly one `WhatsappAccount`.
+1. One `User` may have many `WhatsappAccount`s.
 2. One `WhatsappAccount` has exactly one WAHA session.
 3. One `WhatsappAccount` may have one or more `ApiToken`s.
 4. An `ApiToken` is bound to exactly one `WhatsappAccount`. The token decides which account sends.
@@ -50,8 +50,8 @@ WAHA session storage: persistent Docker volume mounted at `/app/.sessions`.
 | `common`             | Global exception filter, response envelope, request-id, guards, decorators, redacting logger.   |
 | `prisma`             | `PrismaService` and `PrismaModule`. Single DB client.                                           |
 | `auth`               | Dashboard login/logout. Argon2id password hashes. JWT in httpOnly cookie. CSRF.                 |
-| `users`              | Admin CRUD over users. Auto-creates a `WhatsappAccount` on user creation. Password reset.       |
-| `whatsapp-accounts`  | Account read, status, restart/stop, QR retrieval. Strict role + ownership checks.               |
+| `users`              | Admin CRUD over users. Creates an initial `WhatsappAccount` on user creation; more can be added later. |
+| `whatsapp-accounts`  | Account CRUD (multi per user), status, restart/stop, QR retrieval. Strict role + ownership checks.   |
 | `api-tokens`         | Generate/list/revoke/regenerate. HMAC-SHA256 with `TOKEN_PEPPER`. Show-once on create.          |
 | `waha`               | Isolated WAHA boundary. Only place that knows WAHA URL shape and status strings.                |
 | `messages`           | `POST /api/messages/send` (+ media). ApiToken guard. Strict DTO. Outbound log lifecycle.          |
@@ -64,7 +64,7 @@ Strict rule: WAHA-specific URLs, headers, and status strings live only inside `s
 ## Data model
 
 ```
-User (1) ──── (1) WhatsappAccount (1) ──── (n) ApiToken
+User (1) ──── (n) WhatsappAccount (1) ──── (n) ApiToken
                             │
                             ├─── (n) OutboundMessageLog   [no text, no rawPayload]
                             └─── (n) GroupApiOperation    [idempotency for create/add]
@@ -74,7 +74,7 @@ User (1) ──── (1) WhatsappAccount (1) ──── (n) ApiToken
 `id, name, email (unique), passwordHash, role (ADMIN|USER), isActive, createdAt, updatedAt`.
 
 ### `WhatsappAccount`
-`id, userId (unique → 1:1), label, sessionName (unique), status (enum), phoneNumber?, isActive, lastConnectedAt?, lastDisconnectedAt?, createdAt, updatedAt`.
+`id, userId (indexed → 1:n), label, sessionName (unique), status (enum), phoneNumber?, isActive, lastConnectedAt?, lastDisconnectedAt?, createdAt, updatedAt`.
 
 `SessionStatus`: `QR_REQUIRED | CONNECTING | CONNECTED | DISCONNECTED | ERROR`.
 

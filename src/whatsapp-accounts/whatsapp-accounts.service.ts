@@ -20,12 +20,12 @@ export class WhatsappAccountsService {
   ) {}
 
   async createForUser(userId: string, label: string): Promise<WhatsappAccount> {
-    const existing = await this.prisma.whatsappAccount.findUnique({ where: { userId } });
-    if (existing) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
       throw new AppException({
-        code: ERROR_CODES.CONFLICT,
-        message: 'User already has a WhatsApp account.',
-        status: 409,
+        code: ERROR_CODES.NOT_FOUND,
+        message: 'User not found.',
+        status: 404,
       });
     }
     return this.prisma.whatsappAccount.create({
@@ -48,6 +48,16 @@ export class WhatsappAccountsService {
     });
   }
 
+  async listForUser(userId: string): Promise<AccountWithUser[]> {
+    return this.prisma.whatsappAccount.findMany({
+      where: { userId },
+      include: {
+        user: { select: { id: true, name: true, email: true, role: true, isActive: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async getByIdForActor(id: string, actor: AuthenticatedUser): Promise<AccountWithUser> {
     const account = await this.prisma.whatsappAccount.findUnique({
       where: { id },
@@ -63,23 +73,6 @@ export class WhatsappAccountsService {
       });
     }
     this.assertActorMayAccess(account, actor);
-    return account;
-  }
-
-  async getOwnByUserId(userId: string): Promise<AccountWithUser> {
-    const account = await this.prisma.whatsappAccount.findUnique({
-      where: { userId },
-      include: {
-        user: { select: { id: true, name: true, email: true, role: true, isActive: true } },
-      },
-    });
-    if (!account) {
-      throw new AppException({
-        code: ERROR_CODES.NOT_FOUND,
-        message: 'WhatsApp account not found.',
-        status: 404,
-      });
-    }
     return account;
   }
 

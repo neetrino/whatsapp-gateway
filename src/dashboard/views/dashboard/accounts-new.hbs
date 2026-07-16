@@ -1,0 +1,15 @@
+<section class="card">
+  <h1>New WhatsApp account</h1>
+  <form method="post" action="/accounts" class="form">
+    <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+    <label>Owner
+      <select name="userId" required>
+        {{#each users}}
+          <option value="{{this.id}}">{{this.name}} ({{this.email}})</option>
+        {{/each}}
+      </select>
+    </label>
+    <label>Label<input name="label" required maxlength="100" placeholder="e.g. Sales line" /></label>
+    <button type="submit" class="primary">Create</button>
+  </form>
+</section>

@@ -56,19 +56,49 @@ export class UsersService {
     }
   }
 
-  async list(): Promise<Array<SafeUser & { whatsappAccount: { status: SessionStatus } | null }>> {
+  async list(): Promise<
+    Array<SafeUser & { whatsappAccountCount: number; whatsappStatuses: SessionStatus[] }>
+  > {
     const users = await this.prisma.user.findMany({
-      include: { whatsappAccount: { select: { status: true } } },
+      include: { whatsappAccounts: { select: { status: true }, orderBy: { createdAt: 'desc' } } },
       orderBy: { createdAt: 'desc' },
     });
     return users.map((u) => {
-      const { passwordHash: _passwordHash, whatsappAccount, ...rest } = u;
-      return { ...rest, whatsappAccount };
+      const { passwordHash: _passwordHash, whatsappAccounts, ...rest } = u;
+      return {
+        ...rest,
+        whatsappAccountCount: whatsappAccounts.length,
+        whatsappStatuses: whatsappAccounts.map((a) => a.status),
+      };
     });
   }
 
-  async getById(id: string): Promise<SafeUser> {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+  async getById(id: string): Promise<
+    SafeUser & {
+      whatsappAccounts: Array<{
+        id: string;
+        label: string;
+        status: SessionStatus;
+        phoneNumber: string | null;
+        sessionName: string;
+      }>;
+    }
+  > {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        whatsappAccounts: {
+          select: {
+            id: true,
+            label: true,
+            status: true,
+            phoneNumber: true,
+            sessionName: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
     if (!user) {
       throw new AppException({
         code: ERROR_CODES.NOT_FOUND,
@@ -76,7 +106,8 @@ export class UsersService {
         status: 404,
       });
     }
-    return stripPasswordHash(user);
+    const { passwordHash: _passwordHash, ...rest } = user;
+    return rest;
   }
 
   async update(id: string, input: UpdateUserDto): Promise<SafeUser> {
