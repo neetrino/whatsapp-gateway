@@ -7,15 +7,14 @@ services:
     environment:
       # NODE_ENV from .env (use development for http://localhost cookies)
       - WAHA_BASE_URL=http://waha:3000
-      # WAHA Core allows only one session named "default" (NOWEB image: devlikeapro/waha:noweb)
-      - WAHA_SESSION_NAME=default
+      # Do not set WAHA_SESSION_NAME — each WhatsApp account uses its own sessionName (multi-session since WAHA 2026.6.1)
     depends_on:
       - waha
     ports:
       - "3000:3000"
 
   waha:
-    image: devlikeapro/waha:noweb
+    image: devlikeapro/waha:2026.6.2
     restart: unless-stopped
     environment:
       - WAHA_API_KEY=${WAHA_API_KEY}
