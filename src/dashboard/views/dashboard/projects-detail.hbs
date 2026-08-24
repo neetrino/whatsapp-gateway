@@ -1,0 +1,137 @@
+<section>
+  <div class="page-header">
+    <h1>{{project.name}}</h1>
+    <span class="status {{#if project.isActive}}status-CONNECTED{{else}}status-DISCONNECTED{{/if}}">
+      {{#if project.isActive}}Active{{else}}Inactive{{/if}}
+    </span>
+  </div>
+  <p class="meta">Slug <code>{{project.slug}}</code></p>
+
+  {{#if revealed}}
+    <div class="banner">
+      <strong>Save this token now.</strong> It will not be shown again.
+      <pre class="token-display">{{revealed}}</pre>
+    </div>
+  {{/if}}
+
+  {{#if accountAmbiguous}}
+    <div class="banner">
+      <strong>Legacy API warning.</strong> This project has more than one active WhatsApp account.
+      Send and group API calls will fail with <code>PROJECT_ACCOUNT_AMBIGUOUS</code> until exactly one account is active.
+    </div>
+  {{/if}}
+
+  <div class="card">
+    <h2>Edit project</h2>
+    <form method="post" action="/projects/{{project.id}}/update" class="form inline-form">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <label>Name<input name="name" value="{{project.name}}" required maxlength="100" /></label>
+      <label>Slug<input name="slug" value="{{project.slug}}" required minlength="2" maxlength="64" /></label>
+      <button type="submit" class="primary">Save</button>
+    </form>
+    {{#if project.isActive}}
+      <form method="post" action="/projects/{{project.id}}/deactivate" class="inline">
+        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+        <button type="submit" class="danger">Deactivate</button>
+      </form>
+    {{else}}
+      <form method="post" action="/projects/{{project.id}}/activate" class="inline">
+        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+        <button type="submit" class="primary">Activate</button>
+      </form>
+    {{/if}}
+  </div>
+
+  <div class="card">
+    <h2>API tokens</h2>
+    <form method="post" action="/projects/{{project.id}}/tokens" class="form inline-form">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <label>Name<input name="name" maxlength="100" placeholder="e.g. NBOS production" /></label>
+      <button type="submit" class="primary">Create token</button>
+    </form>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Prefix</th>
+          <th>Last 4</th>
+          <th>Last used</th>
+          <th>Revoked</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each tokens}}
+          <tr>
+            <td>{{this.name}}</td>
+            <td><code>{{this.tokenPrefix}}</code></td>
+            <td><code>…{{this.last4}}</code></td>
+            <td>{{#if this.lastUsedAt}}{{this.lastUsedAt}}{{else}}—{{/if}}</td>
+            <td>{{#if this.revokedAt}}Yes{{else}}No{{/if}}</td>
+            <td>
+              {{#unless this.revokedAt}}
+                <form method="post" action="/projects/{{../project.id}}/tokens/{{this.id}}/revoke" class="inline">
+                  <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
+                  <button type="submit" class="danger">Revoke</button>
+                </form>
+                <form method="post" action="/projects/{{../project.id}}/tokens/{{this.id}}/regenerate" class="inline">
+                  <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
+                  <button type="submit">Regenerate</button>
+                </form>
+              {{/unless}}
+            </td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="page-header">
+      <h2>WhatsApp accounts</h2>
+      <a href="/projects/{{project.id}}/accounts/new" class="primary">Create account</a>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Label</th>
+          <th>Mode</th>
+          <th>Status</th>
+          <th>Phone</th>
+          <th>Active</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each accounts}}
+          <tr>
+            <td>{{this.label}}</td>
+            <td>{{this.mode}}</td>
+            <td><span class="status status-{{this.status}}">{{this.status}}</span></td>
+            <td>{{#if this.phoneNumber}}{{this.phoneNumber}}{{else}}—{{/if}}</td>
+            <td>
+              {{#if this.isActive}}
+                Active
+                <form method="post" action="/projects/{{../project.id}}/accounts/{{this.id}}/deactivate" class="inline">
+                  <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
+                  <button type="submit" class="danger">Deactivate</button>
+                </form>
+              {{else}}
+                Inactive
+                <form method="post" action="/projects/{{../project.id}}/accounts/{{this.id}}/activate" class="inline">
+                  <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
+                  <button type="submit">Activate</button>
+                </form>
+              {{/if}}
+            </td>
+            <td>
+              <a href="/projects/{{../project.id}}/accounts/{{this.id}}">Detail</a>
+              ·
+              <a href="/projects/{{../project.id}}/accounts/{{this.id}}/qr">QR</a>
+            </td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+</section>

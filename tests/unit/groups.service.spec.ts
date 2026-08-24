@@ -5,6 +5,7 @@ import { ERROR_CODES } from '../../src/common/errors/error-codes';
 
 const accountCtx = {
   apiTokenId: 't1',
+  projectId: 'p1',
   whatsappAccountId: 'acc1',
   sessionName: 'wa_db',
 };
@@ -19,7 +20,7 @@ const connectedAccount = {
 describe('GroupsService', () => {
   const buildPrisma = () => ({
     whatsappAccount: {
-      findUnique: jest.fn().mockResolvedValue(connectedAccount),
+      findFirst: jest.fn().mockResolvedValue(connectedAccount),
     },
     groupApiOperation: {
       findUnique: jest.fn().mockResolvedValue(null),
@@ -60,7 +61,7 @@ describe('GroupsService', () => {
 
   it('rejects disconnected account', async () => {
     const prisma = buildPrisma();
-    prisma.whatsappAccount.findUnique.mockResolvedValue({
+    prisma.whatsappAccount.findFirst.mockResolvedValue({
       ...connectedAccount,
       status: SessionStatus.DISCONNECTED,
     });
@@ -245,5 +246,21 @@ describe('GroupsService', () => {
     await expect(service.getGroup(accountCtx, '120363123456789012@g.us')).rejects.toMatchObject({
       code: ERROR_CODES.GROUP_NOT_FOUND,
     });
+  });
+
+  it('fails closed when the account is not in the token project', async () => {
+    const prisma = buildPrisma();
+    prisma.whatsappAccount.findFirst.mockResolvedValue(null);
+    const service = new GroupsService(
+      prisma as never,
+      { listGroups: jest.fn() } as never,
+      wahaSvc() as never,
+    );
+    await expect(service.listGroups(accountCtx, { limit: 10, offset: 0 })).rejects.toMatchObject({
+      code: ERROR_CODES.NOT_FOUND,
+    });
+    expect(prisma.whatsappAccount.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'acc1', projectId: 'p1' } }),
+    );
   });
 });

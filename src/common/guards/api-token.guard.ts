@@ -13,30 +13,7 @@ export class ApiTokenGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const header = request.header('authorization');
-    if (!header) {
-      throw new AppException({
-        code: ERROR_CODES.UNAUTHORIZED,
-        message: 'Authorization token is required.',
-        status: 401,
-      });
-    }
-    const match = BEARER_PATTERN.exec(header.trim());
-    if (!match) {
-      throw new AppException({
-        code: ERROR_CODES.INVALID_TOKEN,
-        message: 'Invalid API token.',
-        status: 401,
-      });
-    }
-    const raw = match[1];
-    if (!raw) {
-      throw new AppException({
-        code: ERROR_CODES.INVALID_TOKEN,
-        message: 'Invalid API token.',
-        status: 401,
-      });
-    }
+    const raw = this.readBearer(request.header('authorization'));
     const found = await this.apiTokensService.findValidByRaw(raw);
     if (!found) {
       throw new AppException({
@@ -52,12 +29,70 @@ export class ApiTokenGuard implements CanActivate {
         status: 403,
       });
     }
+    if (!found.projectIsActive) {
+      throw new AppException({
+        code: ERROR_CODES.PROJECT_INACTIVE,
+        message: 'Project is inactive.',
+        status: 403,
+      });
+    }
+    const account = this.resolveLegacyAccount(found.activeAccounts);
     void this.apiTokensService.touchLastUsed(found.apiTokenId);
     (request as RequestWithApiAccount).apiAccount = {
       apiTokenId: found.apiTokenId,
-      whatsappAccountId: found.whatsappAccountId,
-      sessionName: found.sessionName,
+      projectId: found.projectId,
+      whatsappAccountId: account.id,
+      sessionName: account.sessionName,
     };
     return true;
+  }
+
+  private readBearer(header: string | undefined): string {
+    if (!header) {
+      throw new AppException({
+        code: ERROR_CODES.UNAUTHORIZED,
+        message: 'Authorization token is required.',
+        status: 401,
+      });
+    }
+    const match = BEARER_PATTERN.exec(header.trim());
+    const raw = match?.[1];
+    if (!raw) {
+      throw new AppException({
+        code: ERROR_CODES.INVALID_TOKEN,
+        message: 'Invalid API token.',
+        status: 401,
+      });
+    }
+    return raw;
+  }
+
+  private resolveLegacyAccount(accounts: Array<{ id: string; sessionName: string }>): {
+    id: string;
+    sessionName: string;
+  } {
+    if (accounts.length === 0) {
+      throw new AppException({
+        code: ERROR_CODES.PROJECT_HAS_NO_ACTIVE_ACCOUNT,
+        message: 'Project has no active WhatsApp account.',
+        status: 409,
+      });
+    }
+    if (accounts.length > 1) {
+      throw new AppException({
+        code: ERROR_CODES.PROJECT_ACCOUNT_AMBIGUOUS,
+        message: 'Project has more than one active WhatsApp account.',
+        status: 409,
+      });
+    }
+    const account = accounts[0];
+    if (!account) {
+      throw new AppException({
+        code: ERROR_CODES.PROJECT_HAS_NO_ACTIVE_ACCOUNT,
+        message: 'Project has no active WhatsApp account.',
+        status: 409,
+      });
+    }
+    return account;
   }
 }

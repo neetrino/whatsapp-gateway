@@ -7,6 +7,7 @@ import { ApiTokensService } from '../../src/api-tokens/api-tokens.service';
 import { WahaClient } from '../../src/waha/waha.client';
 import { SessionStatus } from '@prisma/client';
 import { generateApiToken } from '../../src/common/utils/tokens';
+import { validResolvedToken } from '../helpers/resolved-token';
 import { WahaApiError, WahaTransportError } from '../../src/waha/types/waha.types';
 import dns from 'node:dns/promises';
 import type { LookupAddress, LookupOptions } from 'node:dns';
@@ -27,9 +28,10 @@ describe('POST /api/messages/send-media (e2e)', () => {
     $connect: jest.fn().mockResolvedValue(undefined),
     $disconnect: jest.fn().mockResolvedValue(undefined),
     $queryRaw: jest.fn().mockResolvedValue([{ ok: 1 }]),
-    user: { count: jest.fn().mockResolvedValue(0) },
+    admin: { findUnique: jest.fn() },
+    project: { count: jest.fn().mockResolvedValue(0), findUnique: jest.fn(), findMany: jest.fn() },
     whatsappAccount: {
-      findUnique: jest.fn().mockResolvedValue({
+      findFirst: jest.fn().mockResolvedValue({
         id: 'acc1',
         sessionName: 'wa_test',
         isActive: true,
@@ -108,13 +110,8 @@ describe('POST /api/messages/send-media (e2e)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    findValidByRaw.mockResolvedValue({
-      apiTokenId: 't1',
-      whatsappAccountId: 'acc1',
-      sessionName: 'wa_test',
-      revoked: false,
-    });
-    prismaMock.whatsappAccount.findUnique.mockResolvedValue({
+    findValidByRaw.mockResolvedValue({ ...validResolvedToken });
+    prismaMock.whatsappAccount.findFirst.mockResolvedValue({
       id: 'acc1',
       sessionName: 'wa_test',
       isActive: true,
@@ -239,7 +236,7 @@ describe('POST /api/messages/send-media (e2e)', () => {
 
   it('returns WHATSAPP_NOT_CONNECTED when disconnected', async () => {
     const raw = generateApiToken(prefix).raw;
-    prismaMock.whatsappAccount.findUnique.mockResolvedValueOnce({
+    prismaMock.whatsappAccount.findFirst.mockResolvedValueOnce({
       id: 'acc1',
       sessionName: 'wa_test',
       isActive: true,
@@ -320,12 +317,10 @@ describe('POST /api/messages/send-media (e2e)', () => {
   it('uses sessionName from database row for token whatsappAccountId', async () => {
     const raw = generateApiToken(prefix).raw;
     findValidByRaw.mockResolvedValue({
-      apiTokenId: 't1',
-      whatsappAccountId: 'acc1',
-      sessionName: 'ignored_from_token',
-      revoked: false,
+      ...validResolvedToken,
+      activeAccounts: [{ id: 'acc1', sessionName: 'ignored_from_token' }],
     });
-    prismaMock.whatsappAccount.findUnique.mockResolvedValue({
+    prismaMock.whatsappAccount.findFirst.mockResolvedValue({
       id: 'acc1',
       sessionName: 'from_db_session',
       isActive: true,

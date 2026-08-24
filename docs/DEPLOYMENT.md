@@ -38,8 +38,12 @@ From any environment with Node.js and this repo (CI, admin laptop, or a one-off 
 ```bash
 export DATABASE_URL="postgresql://..."
 npx prisma migrate deploy
-ADMIN_EMAIL=... ADMIN_PASSWORD=... ADMIN_NAME=... npm run prisma:seed
+ADMIN_EMAIL=... ADMIN_PASSWORD=... npm run prisma:seed
 ```
+
+`prisma/seed.ts` upserts the **singleton Admin** from `ADMIN_EMAIL` / `ADMIN_PASSWORD` only (no `ADMIN_NAME`, no User rows, no WhatsApp account). Re-running seed verifies the existing Argon2 hash and does **not** bump `sessionVersion` unless the email or password actually changes.
+
+**Destructive test-only migration:** `prisma/migrations/20260824120000_phase1_admin_project_ownership` deletes existing `users`, WhatsApp accounts, API tokens, and related logs, then introduces Admin/Project ownership. Use it on **disposable test databases only**. Do not apply it to production data that you need to keep.
 
 The production Docker image is runtime-only (no `ts-node`). Run the **seed once** from a dev/CI environment against Neon.
 

@@ -13,7 +13,7 @@ describe('MessagesService', () => {
 
   const buildPrisma = () => ({
     whatsappAccount: {
-      findUnique: jest.fn().mockResolvedValue({
+      findFirst: jest.fn().mockResolvedValue({
         id: whatsappAccountId,
         sessionName,
         isActive: true,
@@ -42,11 +42,17 @@ describe('MessagesService', () => {
     );
 
     await service.send(
-      { apiTokenId: 't1', whatsappAccountId, sessionName },
+      { apiTokenId: 't1', projectId: 'p1', whatsappAccountId, sessionName },
       { chatId: '37499111222@c.us', text: '  Hello\n' },
     );
 
     expect(wahaClient.sendText).toHaveBeenCalledWith(sessionName, '37499111222@c.us', '  Hello\n');
+    const logData = prisma.outboundMessageLog.create.mock.calls[0]?.[0].data as Record<
+      string,
+      unknown
+    >;
+    expect(logData).not.toHaveProperty('text');
+    expect(logData).not.toHaveProperty('token');
   });
 
   it('maps WAHA transport errors to WAHA_UNAVAILABLE', async () => {
@@ -63,7 +69,7 @@ describe('MessagesService', () => {
 
     await expect(
       service.send(
-        { apiTokenId: 't1', whatsappAccountId, sessionName },
+        { apiTokenId: 't1', projectId: 'p1', whatsappAccountId, sessionName },
         { chatId: '37499111222@c.us', text: 'Hi' },
       ),
     ).rejects.toMatchObject({ code: ERROR_CODES.WAHA_UNAVAILABLE });
@@ -83,7 +89,7 @@ describe('MessagesService', () => {
 
     await expect(
       service.send(
-        { apiTokenId: 't1', whatsappAccountId, sessionName },
+        { apiTokenId: 't1', projectId: 'p1', whatsappAccountId, sessionName },
         { chatId: '120363123456789012@g.us', text: 'Hi' },
       ),
     ).rejects.toMatchObject({ code: ERROR_CODES.MESSAGE_SEND_FAILED });
@@ -101,11 +107,35 @@ describe('MessagesService', () => {
 
     await expect(
       service.send(
-        { apiTokenId: 't1', whatsappAccountId, sessionName },
+        { apiTokenId: 't1', projectId: 'p1', whatsappAccountId, sessionName },
         { chatId: '37499111222@c.us', text: '   ' },
       ),
     ).rejects.toMatchObject({ code: ERROR_CODES.VALIDATION_ERROR });
 
+    expect(wahaClient.sendText).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when the account is not in the token project', async () => {
+    const prisma = {
+      whatsappAccount: { findFirst: jest.fn().mockResolvedValue(null) },
+      outboundMessageLog: { create: jest.fn(), update: jest.fn() },
+    };
+    const wahaClient = { sendText: jest.fn() };
+    const service = new MessagesService(
+      prisma as never,
+      wahaClient as never,
+      wahaServiceMock() as never,
+      buildConfig() as never,
+    );
+    await expect(
+      service.send(
+        { apiTokenId: 't1', projectId: 'project-b', whatsappAccountId, sessionName },
+        { chatId: '37499111222@c.us', text: 'hello' },
+      ),
+    ).rejects.toMatchObject({ code: ERROR_CODES.NOT_FOUND });
+    expect(prisma.whatsappAccount.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: whatsappAccountId, projectId: 'project-b' } }),
+    );
     expect(wahaClient.sendText).not.toHaveBeenCalled();
   });
 });

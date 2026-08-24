@@ -18,7 +18,7 @@ describe('MessagesMediaService', () => {
   const build = () => {
     const prisma = {
       whatsappAccount: {
-        findUnique: jest.fn().mockResolvedValue({
+        findFirst: jest.fn().mockResolvedValue({
           id: 'acc1',
           sessionName: 'wa_sess',
           isActive: true,
@@ -54,7 +54,7 @@ describe('MessagesMediaService', () => {
   it('calls sendImageByUrl, not sendText', async () => {
     const { service, waha } = build();
     await service.sendMedia(
-      { apiTokenId: 't', whatsappAccountId: 'acc1', sessionName: 'x' },
+      { apiTokenId: 't', projectId: 'p1', whatsappAccountId: 'acc1', sessionName: 'x' },
       {
         chatId: '37499111222@c.us',
         mediaType: 'IMAGE',
@@ -76,7 +76,7 @@ describe('MessagesMediaService', () => {
     validateMediaUrl.mockResolvedValueOnce({ href: 'https://cdn.example.com/v.mp4' });
     const { service, waha } = build();
     await service.sendMedia(
-      { apiTokenId: 't', whatsappAccountId: 'acc1', sessionName: 'x' },
+      { apiTokenId: 't', projectId: 'p1', whatsappAccountId: 'acc1', sessionName: 'x' },
       {
         chatId: '37499111222@c.us',
         mediaType: 'VIDEO',
@@ -90,7 +90,7 @@ describe('MessagesMediaService', () => {
   it('creates log with IMAGE messageType without mediaUrl', async () => {
     const { service, prisma } = build();
     await service.sendMedia(
-      { apiTokenId: 't', whatsappAccountId: 'acc1', sessionName: 'x' },
+      { apiTokenId: 't', projectId: 'p1', whatsappAccountId: 'acc1', sessionName: 'x' },
       { chatId: '37499111222@c.us', mediaType: 'IMAGE', mediaUrl: 'https://x/y.jpg' },
     );
     expect(prisma.outboundMessageLog.create).toHaveBeenCalledWith({
@@ -110,11 +110,31 @@ describe('MessagesMediaService', () => {
     waha.sendImageByUrl.mockRejectedValueOnce(new WahaApiError('x', 500));
     await expect(
       service.sendMedia(
-        { apiTokenId: 't', whatsappAccountId: 'acc1', sessionName: 'x' },
+        { apiTokenId: 't', projectId: 'p1', whatsappAccountId: 'acc1', sessionName: 'x' },
         { chatId: '37499111222@c.us', mediaType: 'IMAGE', mediaUrl: 'https://x/y.jpg' },
       ),
     ).rejects.toMatchObject({ code: ERROR_CODES.IMAGE_SEND_FAILED });
     expect(prisma.outboundMessageLog.update).toHaveBeenCalled();
+  });
+
+  it('fails closed when the account is not in the token project', async () => {
+    const prisma = {
+      whatsappAccount: { findFirst: jest.fn().mockResolvedValue(null) },
+      outboundMessageLog: { create: jest.fn(), update: jest.fn() },
+    };
+    const waha = { effectiveSessionName: jest.fn(), sendImageByUrl: jest.fn() };
+    const config = { get: jest.fn() };
+    const service = new MessagesMediaService(prisma as never, waha as never, config as never);
+    await expect(
+      service.sendMedia(
+        { apiTokenId: 't', projectId: 'project-b', whatsappAccountId: 'acc1', sessionName: 'x' },
+        { chatId: '37499111222@c.us', mediaType: 'IMAGE', mediaUrl: 'https://x/y.jpg' },
+      ),
+    ).rejects.toMatchObject({ code: ERROR_CODES.NOT_FOUND });
+    expect(prisma.whatsappAccount.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'acc1', projectId: 'project-b' } }),
+    );
+    expect(waha.sendImageByUrl).not.toHaveBeenCalled();
   });
 
   it('maps WAHA transport error to WAHA_UNAVAILABLE', async () => {
@@ -122,7 +142,7 @@ describe('MessagesMediaService', () => {
     waha.sendVideoByUrl.mockRejectedValueOnce(new WahaTransportError('econnreset'));
     await expect(
       service.sendMedia(
-        { apiTokenId: 't', whatsappAccountId: 'acc1', sessionName: 'x' },
+        { apiTokenId: 't', projectId: 'p1', whatsappAccountId: 'acc1', sessionName: 'x' },
         { chatId: '37499111222@c.us', mediaType: 'VIDEO', mediaUrl: 'https://x/y.mp4' },
       ),
     ).rejects.toMatchObject({ code: ERROR_CODES.WAHA_UNAVAILABLE });

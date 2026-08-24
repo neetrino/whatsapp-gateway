@@ -9,13 +9,12 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ResponseEnvelopeInterceptor } from './common/interceptors/response-envelope.interceptor';
 import { JwtCookieGuard } from './common/guards/jwt-cookie.guard';
-import { RolesGuard } from './common/guards/roles.guard';
 import { CsrfGuard } from './common/guards/csrf.guard';
 import { CsrfMiddleware } from './common/middleware/csrf.middleware';
 import { RequestIdMiddleware } from './common/interceptors/request-id.middleware';
 import { VALIDATION_PIPE_OPTIONS } from './common/pipes/validation.factory';
 import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
+import { ProjectsModule } from './projects/projects.module';
 import { WhatsappAccountsModule } from './whatsapp-accounts/whatsapp-accounts.module';
 import { ApiTokensModule } from './api-tokens/api-tokens.module';
 import { WahaModule } from './waha/waha.module';
@@ -45,7 +44,7 @@ import { AppController } from './app.controller';
     }),
     PrismaModule,
     AuthModule,
-    UsersModule,
+    ProjectsModule,
     WhatsappAccountsModule,
     ApiTokensModule,
     WahaModule,
@@ -61,7 +60,6 @@ import { AppController } from './app.controller';
     { provide: APP_PIPE, useFactory: () => new ValidationPipe(VALIDATION_PIPE_OPTIONS) },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtCookieGuard },
-    { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: CsrfGuard },
   ],
 })

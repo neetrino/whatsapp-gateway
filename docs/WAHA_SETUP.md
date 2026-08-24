@@ -131,7 +131,7 @@ Moving between **WEBJS** and **NOWEB** (or upgrading engines) can leave **incomp
 
 
 
-Do **not** remove the Postgres database, reset Prisma, or delete Gateway users/tokens unless there is a separate reason.
+Do **not** remove the Postgres database, reset Prisma, or delete Gateway Admin/projects/tokens unless there is a separate reason.
 
 
 

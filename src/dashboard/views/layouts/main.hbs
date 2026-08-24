@@ -10,22 +10,15 @@
     <header class="topbar">
       <div class="brand">Neetrino Internal Chat Gateway</div>
       <nav class="nav">
-        {{#if currentUser}}
-          {{#ifEquals currentUser.role "ADMIN"}}
-            <a href="/dashboard" class="{{#ifEquals active 'overview'}}active{{/ifEquals}}">Overview</a>
-            <a href="/users" class="{{#ifEquals active 'users'}}active{{/ifEquals}}">Users</a>
-            <a href="/accounts" class="{{#ifEquals active 'accounts'}}active{{/ifEquals}}">Accounts</a>
-            <a href="/tokens" class="{{#ifEquals active 'tokens'}}active{{/ifEquals}}">Tokens</a>
-            <a href="/settings" class="{{#ifEquals active 'settings'}}active{{/ifEquals}}">Settings</a>
-          {{/ifEquals}}
-          {{#ifEquals currentUser.role "USER"}}
-            <a href="/me" class="{{#ifEquals active 'me'}}active{{/ifEquals}}">My Account</a>
-          {{/ifEquals}}
+        {{#if currentAdmin}}
+          <a href="/dashboard" class="{{#ifEquals active 'overview'}}active{{/ifEquals}}">Dashboard</a>
+          <a href="/projects" class="{{#ifEquals active 'projects'}}active{{/ifEquals}}">Projects</a>
+          <a href="/system" class="{{#ifEquals active 'system'}}active{{/ifEquals}}">System / Health</a>
         {{/if}}
       </nav>
       <div class="user-block">
-        {{#if currentUser}}
-          <span class="user-name">{{currentUser.name}}</span>
+        {{#if currentAdmin}}
+          <span class="user-name">{{currentAdmin.email}}</span>
           <form method="post" action="/logout" class="inline">
             <input type="hidden" name="_csrf" value="{{csrfToken}}" />
             <button type="submit" class="link-button">Sign out</button>

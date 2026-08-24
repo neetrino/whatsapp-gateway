@@ -15,9 +15,19 @@ describe('Dashboard route safety (e2e)', () => {
     $connect: jest.fn().mockResolvedValue(undefined),
     $disconnect: jest.fn().mockResolvedValue(undefined),
     $queryRaw: jest.fn().mockResolvedValue([{ ok: 1 }]),
-    user: { count: jest.fn().mockResolvedValue(0), findUnique: jest.fn(), findMany: jest.fn() },
-    whatsappAccount: { findMany: jest.fn().mockResolvedValue([]), findUnique: jest.fn() },
-    apiToken: { findMany: jest.fn().mockResolvedValue([]) },
+    admin: { findUnique: jest.fn(), count: jest.fn() },
+    project: {
+      count: jest.fn().mockResolvedValue(0),
+      findMany: jest.fn().mockResolvedValue([]),
+      findUnique: jest.fn(),
+    },
+    whatsappAccount: {
+      findMany: jest.fn().mockResolvedValue([]),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      count: jest.fn(),
+    },
+    apiToken: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn() },
     outboundMessageLog: { findMany: jest.fn() },
   };
 
@@ -44,8 +54,7 @@ describe('Dashboard route safety (e2e)', () => {
         findValidByRaw: jest.fn(),
         touchLastUsed: jest.fn(),
         create: jest.fn(),
-        listAll: jest.fn().mockResolvedValue([]),
-        listForAccount: jest.fn(),
+        listForProject: jest.fn().mockResolvedValue([]),
         revoke: jest.fn(),
         regenerate: jest.fn(),
       })
@@ -59,6 +68,7 @@ describe('Dashboard route safety (e2e)', () => {
     await app.close();
   });
 
+  const removedPaths = ['/users', '/me', '/tokens', '/accounts', '/settings'];
   const forbiddenPaths = [
     '/chats',
     '/messages',
@@ -71,8 +81,25 @@ describe('Dashboard route safety (e2e)', () => {
     '/videos',
   ];
 
+  it.each(removedPaths)('returns 404 for removed %s', async (path) => {
+    const res = await request(app.getHttpServer()).get(path).set('Accept', 'application/json');
+    expect(res.status).toBe(404);
+  });
+
   it.each(forbiddenPaths)('returns 404 for %s', async (path) => {
     const res = await request(app.getHttpServer()).get(path).set('Accept', 'application/json');
     expect(res.status).toBe(404);
+  });
+
+  it.each(['/dashboard', '/projects', '/system'])('requires Admin session for %s', async (path) => {
+    const res = await request(app.getHttpServer()).get(path).set('Accept', 'application/json');
+    expect(res.status).toBe(401);
+  });
+
+  it('protects QR routes with Admin session', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/projects/p1/accounts/a1/qr')
+      .set('Accept', 'application/json');
+    expect(res.status).toBe(401);
   });
 });

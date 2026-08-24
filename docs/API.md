@@ -64,7 +64,10 @@ Unknown JSON properties are rejected (`forbidNonWhitelisted`).
 | 401 | `UNAUTHORIZED` | Missing `Authorization` header. |
 | 401 | `INVALID_TOKEN` | Unknown token hash. |
 | 403 | `TOKEN_REVOKED` | Token revoked. |
-| 400 | `VALIDATION_ERROR` | Missing `chatId` / `text`, unknown fields, text too long. |
+| 403 | `PROJECT_INACTIVE` | Token’s Project is inactive. |
+| 409 | `PROJECT_HAS_NO_ACTIVE_ACCOUNT` | Project has no active WhatsApp account. |
+| 409 | `PROJECT_ACCOUNT_AMBIGUOUS` | Project has more than one active WhatsApp account. |
+| 400 | `VALIDATION_ERROR` | Missing `chatId` / `text`, unknown fields, text too long, token in query. |
 | 400 | `PHONE_NOT_SUPPORTED` | `phone` field present. |
 | 400 | `INVALID_CHAT_ID` | `chatId` suffix not `@c.us` or `@g.us`. |
 | 409 | `WHATSAPP_NOT_CONNECTED` | Account inactive or session not `CONNECTED`. |
@@ -110,24 +113,27 @@ async function sendWhatsappMessage(chatId: string, text: string) {
 }
 ```
 
-## `GET /api/messages/send-by-url`
+## `POST /api/messages/send-by-url`
 
-Shortcut endpoint for tools that can only open a URL. Sends a text message via query parameters.
+Compatibility shortcut that sends a text message. **Bearer authentication is required.** API tokens must never be placed in the URL, query string, or redirect.
 
-> Security note: passing API tokens in URL query is less secure than `Authorization: Bearer ...` because URLs may be logged by browsers, proxies, and server logs. Use `POST /api/messages/send` whenever possible.
+`GET /api/messages/send-by-url` does not send messages. If `token` is present in the query, the Gateway returns `400 VALIDATION_ERROR` and does not authenticate with that value.
 
-### Query parameters
+### Headers
 
-| Parameter | Required | Description |
-|----------|----------|-------------|
-| `token` | Yes | Raw API token value (`gw_live_...`). |
-| `chatId` | Yes | Same rules as text send (`@c.us` / `@g.us`). |
-| `text` | Yes | Message text (same validation and max length as text send). |
+Same as text send: `Authorization: Bearer <API_TOKEN>`, `Content-Type: application/json`.
+
+### Request body
+
+Same as `POST /api/messages/send`: `{ "chatId", "text" }`. Do not send `token` in the body or query.
 
 ### Example
 
 ```bash
-curl "https://wa-gateway.example.com/api/messages/send-by-url?token=gw_live_xxxxxxxxx&chatId=37499111222%40c.us&text=Hello%20from%20URL"
+curl -X POST "https://wa-gateway.example.com/api/messages/send-by-url" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer gw_live_xxxxxxxxx" \
+  -d '{"chatId":"37499111222@c.us","text":"Hello"}'
 ```
 
 ### Response

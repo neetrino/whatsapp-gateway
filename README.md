@@ -8,8 +8,8 @@ This project is **not** NBOS, **not** a plugin, and **not** a Messenger UI.
 ## What this is
 
 - HTTP JSON API: `POST /api/messages/send` (`chatId` + `text` only), `POST /api/messages/send-media` (`chatId`, `mediaType`, `mediaUrl`, optional `caption`), and group lifecycle under `/api/groups*` (list/create/get/refresh/participants/invite-link), all with `Authorization: Bearer <token>`.
-- Minimal **dashboard** (server-rendered) for users/admins: login, WhatsApp connection (QR), session actions, API token lifecycle, safe health.
-- **One user → one WhatsApp account → one WAHA session.** API tokens belong to that account.
+- Minimal **dashboard** (server-rendered) for the singleton **Admin**: login, **Projects** (API tokens + WhatsApp accounts, QR, session actions), system health.
+- **Admin (singleton) → Project → ApiTokens[] + WhatsappAccounts[]**. Tokens and accounts belong to a Project, not to a User. There is no User/Role model and no `ADMIN_NAME`.
 
 ## What this is not
 
@@ -23,7 +23,7 @@ This project is **not** NBOS, **not** a plugin, and **not** a Messenger UI.
 ```mermaid
 flowchart LR
   Client["External system / NBOS"] -->|"Bearer + JSON"| Gateway["WhatsApp Gateway\nNestJS + Prisma"]
-  Browser["Admin / User browser"] -->|"httpOnly cookie"| Gateway
+  Browser["Admin browser"] -->|"signed httpOnly gw_session"| Gateway
   Gateway -->|"Internal HTTP"| WAHA["WAHA container"]
   WAHA --> WhatsApp["WhatsApp network"]
   Gateway --> Neon["Neon PostgreSQL"]
@@ -48,11 +48,11 @@ Public exposure: **Gateway only** (HTTPS). WAHA stays on the Docker internal net
 ```bash
 npm install
 npx prisma migrate deploy
-npm run prisma:seed   # requires ADMIN_EMAIL / ADMIN_PASSWORD / ADMIN_NAME in .env
+npm run prisma:seed   # requires ADMIN_EMAIL / ADMIN_PASSWORD in .env
 npm run start:dev
 ```
 
-4. Open `http://localhost:3000/login`, sign in as the seeded admin, create users, scan QR, create API tokens.
+4. Open `http://localhost:3000/login`, sign in as the seeded Admin, create a **Project**, add WhatsApp accounts, scan QR, create API tokens.
 
 ## Environment
 

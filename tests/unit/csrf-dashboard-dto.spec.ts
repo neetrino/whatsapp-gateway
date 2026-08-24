@@ -1,11 +1,13 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { LoginDto } from '../../src/auth/dto/login.dto';
-import { CreateUserDto } from '../../src/users/dto/create-user.dto';
-import { ResetPasswordDto, UpdateUserDto } from '../../src/users/dto/update-user.dto';
+import { CreateProjectDto } from '../../src/projects/dto/create-project.dto';
+import { UpdateProjectDto } from '../../src/projects/dto/update-project.dto';
+import { CreateWhatsappAccountDto } from '../../src/whatsapp-accounts/dto/create-whatsapp-account.dto';
 import { CreateTokenDto } from '../../src/api-tokens/dto/create-token.dto';
 import { SendMessageDto } from '../../src/messages/dto/send-message.dto';
 import { VALIDATION_PIPE_OPTIONS } from '../../src/common/pipes/validation.factory';
+import { WhatsappAccountMode } from '@prisma/client';
 
 const pipeValidateOpts = {
   whitelist: VALIDATION_PIPE_OPTIONS.whitelist,
@@ -33,29 +35,29 @@ describe('Dashboard DTOs with _csrf (forbidNonWhitelisted)', () => {
     expect(errors.length).toBeGreaterThan(0);
   });
 
-  it('CreateUserDto accepts _csrf', async () => {
-    const dto = plainToInstance(CreateUserDto, {
-      name: 'Test',
-      email: 't@example.com',
-      password: 'longpassword12',
+  it('CreateProjectDto accepts _csrf', async () => {
+    const dto = plainToInstance(CreateProjectDto, {
+      name: 'NBOS',
+      slug: 'nbos',
       _csrf: 'abc',
     });
     const errors = await validate(dto, pipeValidateOpts);
     expect(errors).toHaveLength(0);
   });
 
-  it('UpdateUserDto accepts _csrf', async () => {
-    const dto = plainToInstance(UpdateUserDto, {
-      name: 'N',
+  it('UpdateProjectDto accepts _csrf', async () => {
+    const dto = plainToInstance(UpdateProjectDto, {
+      name: 'NBOS',
       _csrf: 'abc',
     });
     const errors = await validate(dto, pipeValidateOpts);
     expect(errors).toHaveLength(0);
   });
 
-  it('ResetPasswordDto accepts _csrf', async () => {
-    const dto = plainToInstance(ResetPasswordDto, {
-      password: 'longpassword12',
+  it('CreateWhatsappAccountDto accepts _csrf', async () => {
+    const dto = plainToInstance(CreateWhatsappAccountDto, {
+      label: 'Main',
+      mode: WhatsappAccountMode.SEND_ONLY,
       _csrf: 'abc',
     });
     const errors = await validate(dto, pipeValidateOpts);

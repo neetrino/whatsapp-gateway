@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MessageStatus, MessageType, SessionStatus } from '@prisma/client';
+import { MessageStatus, MessageType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WahaClient } from '../waha/waha.client';
 import { WahaService } from '../waha/waha.service';
@@ -10,6 +10,7 @@ import { ERROR_CODES } from '../common/errors/error-codes';
 import { ulid } from 'ulid';
 import type { EnvironmentVariables } from '../config/env.validation';
 import type { ApiAccountContext } from '../common/decorators/api-account.decorator';
+import { loadConnectedAccount } from '../whatsapp-accounts/load-connected-account';
 
 export interface SendInput {
   chatId: string;
@@ -37,7 +38,11 @@ export class MessagesService {
 
   async send(account: ApiAccountContext, input: SendInput): Promise<SendResult> {
     this.assertText(input.text);
-    const dbAccount = await this.loadAccountAndAssertConnected(account.whatsappAccountId);
+    const dbAccount = await loadConnectedAccount(
+      this.prisma,
+      account.projectId,
+      account.whatsappAccountId,
+    );
     const requestId = `req_${ulid()}`;
 
     const log = await this.prisma.outboundMessageLog.create({
@@ -91,23 +96,6 @@ export class MessagesService {
         status: 400,
       });
     }
-  }
-
-  private async loadAccountAndAssertConnected(
-    whatsappAccountId: string,
-  ): Promise<{ id: string; sessionName: string }> {
-    const account = await this.prisma.whatsappAccount.findUnique({
-      where: { id: whatsappAccountId },
-      select: { id: true, sessionName: true, isActive: true, status: true },
-    });
-    if (!account || !account.isActive || account.status !== SessionStatus.CONNECTED) {
-      throw new AppException({
-        code: ERROR_CODES.WHATSAPP_NOT_CONNECTED,
-        message: 'WhatsApp account is not connected. Please scan QR code in Gateway dashboard.',
-        status: 409,
-      });
-    }
-    return { id: account.id, sessionName: account.sessionName };
   }
 
   private async recordFailure(logId: string, error: unknown): Promise<void> {

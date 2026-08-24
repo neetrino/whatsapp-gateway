@@ -1,6 +1,5 @@
-import { PrismaClient, Role, SessionStatus } from '@prisma/client';
-import { randomBytes } from 'node:crypto';
-import { hashPassword } from '../src/common/utils/password';
+import { PrismaClient } from '@prisma/client';
+import { upsertSingletonAdmin } from '../src/auth/upsert-admin';
 
 const prisma = new PrismaClient();
 
@@ -12,54 +11,23 @@ const requireEnv = (name: string): string => {
   return value;
 };
 
-const generateSessionName = (): string => `wa_${randomBytes(8).toString('hex')}`;
-
 const main = async (): Promise<void> => {
   const adminEmail = requireEnv('ADMIN_EMAIL').toLowerCase();
   const adminPassword = requireEnv('ADMIN_PASSWORD');
-  const adminName = process.env.ADMIN_NAME ?? 'Admin';
 
   if (adminPassword.length < 12) {
     throw new Error('ADMIN_PASSWORD must be at least 12 characters.');
   }
 
-  const passwordHash = await hashPassword(adminPassword);
-
-  const admin = await prisma.user.upsert({
-    where: { email: adminEmail },
-    update: {
-      name: adminName,
-      passwordHash,
-      role: Role.ADMIN,
-      isActive: true,
-    },
-    create: {
-      email: adminEmail,
-      name: adminName,
-      passwordHash,
-      role: Role.ADMIN,
-      isActive: true,
-    },
+  const result = await upsertSingletonAdmin(prisma, {
+    email: adminEmail,
+    password: adminPassword,
   });
-
-  const existingAccount = await prisma.whatsappAccount.findUnique({
-    where: { userId: admin.id },
-  });
-
-  if (!existingAccount) {
-    await prisma.whatsappAccount.create({
-      data: {
-        userId: admin.id,
-        label: `${adminName}'s WhatsApp`,
-        sessionName: generateSessionName(),
-        status: SessionStatus.QR_REQUIRED,
-        isActive: true,
-      },
-    });
-  }
 
   // eslint-disable-next-line no-console
-  console.log(`Seed complete. Admin user: ${adminEmail}`);
+  console.log(
+    `Seed complete. Admin: ${adminEmail} (${result.created ? 'created' : result.sessionBumped ? 'updated' : 'unchanged'})`,
+  );
 };
 
 main()

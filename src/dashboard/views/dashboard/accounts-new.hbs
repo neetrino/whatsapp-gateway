@@ -1,0 +1,16 @@
+<section class="card">
+  <h1>New WhatsApp account</h1>
+  <p class="meta">Project <code>{{project.slug}}</code></p>
+  <form method="post" action="/projects/{{project.id}}/accounts" class="form">
+    <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+    <label>Label<input name="label" required maxlength="100" /></label>
+    <label>Mode
+      <select name="mode" required>
+        <option value="SEND_ONLY" selected>SEND_ONLY</option>
+        <option value="MESSENGER">MESSENGER (stored only — Messenger is not enabled in Phase 1)</option>
+      </select>
+    </label>
+    <p class="meta">MESSENGER mode is stored for a later phase. Inbound chat, history, Store, and Messenger APIs are not enabled yet.</p>
+    <button type="submit" class="primary">Create</button>
+  </form>
+</section>

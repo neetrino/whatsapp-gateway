@@ -7,11 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
-  USER
-}
-
 enum SessionStatus {
   QR_REQUIRED
   CONNECTING
@@ -44,57 +39,76 @@ enum GroupApiOperationStatus {
   OUTCOME_UNKNOWN
 }
 
-model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  role         Role     @default(USER)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+enum WhatsappAccountMode {
+  SEND_ONLY
+  MESSENGER
+}
 
-  whatsappAccount WhatsappAccount?
+model Admin {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  isActive       Boolean  @default(true)
+  sessionVersion Int      @default(0)
+  singleton      Int      @unique @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  @@map("users")
+  @@map("admins")
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  apiTokens        ApiToken[]
+  whatsappAccounts WhatsappAccount[]
+
+  @@map("projects")
 }
 
 model WhatsappAccount {
-  id                 String        @id @default(cuid())
-  userId             String        @unique
+  id                 String              @id @default(cuid())
+  projectId          String
   label              String
-  sessionName        String        @unique
-  status             SessionStatus @default(QR_REQUIRED)
+  mode               WhatsappAccountMode @default(SEND_ONLY)
+  sessionName        String              @unique
+  status             SessionStatus       @default(QR_REQUIRED)
   phoneNumber        String?
-  isActive           Boolean       @default(true)
+  isActive           Boolean             @default(true)
   lastConnectedAt    DateTime?
   lastDisconnectedAt DateTime?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
-  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  apiTokens          ApiToken[]
+  project            Project              @relation(fields: [projectId], references: [id], onDelete: Restrict)
   logs               OutboundMessageLog[]
   groupApiOperations GroupApiOperation[]
 
+  @@index([projectId])
+  @@index([projectId, isActive])
   @@map("whatsapp_accounts")
 }
 
 model ApiToken {
-  id                String    @id @default(cuid())
-  whatsappAccountId String
-  name              String
-  tokenHash         String    @unique
-  tokenPrefix       String
-  last4             String
-  lastUsedAt        DateTime?
-  revokedAt         DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  projectId   String
+  name        String
+  tokenHash   String    @unique
+  tokenPrefix String
+  last4       String
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  whatsappAccount WhatsappAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
 
-  @@index([whatsappAccountId])
+  @@index([projectId])
   @@map("api_tokens")
 }
 

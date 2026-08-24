@@ -2,18 +2,18 @@
 
 ## API tokens
 
-- Raw tokens are shown **exactly once** after create/regenerate in the dashboard.
+- Raw tokens are shown **exactly once** after create/regenerate in the dashboard via a short-lived **signed httpOnly** cookie `gw_token_reveal` (2 minutes, `Secure` in production, consume-once). The payload is bound to the **issuing Project**; Project A’s token is never rendered on Project B, and a mismatch does not consume the cookie. Never put raw tokens in URLs (`?revealed=`), logs, or query strings.
 - Database stores **`tokenHash` only** (HMAC-SHA256 with `TOKEN_PEPPER`), plus `tokenPrefix` and `last4` for display.
 - `TOKEN_PEPPER` must be high-entropy (≥ 32 chars) and treated like a root secret.
 - Revoked tokens fail closed with `TOKEN_REVOKED`.
-- Send endpoint is rate-limited (global throttler + per-route limits on login/token regen).
+- Send traffic is rate-limited **per client IP** (see below). There is no per-token bucket.
 
 ## Dashboard authentication
 
 - Passwords hashed with **argon2id** (`argon2` package).
-- Session uses **JWT in an httpOnly, SameSite=Lax cookie** — `Secure` is set only when `NODE_ENV=production`. Use `NODE_ENV=development` for local `http://localhost` (including Docker Compose with `.env`). Never `localStorage`.
+- Session JWT is read **only** from the **signed** `gw_session` cookie (`COOKIE_SECRET`). Unsigned `gw_session` cookies are ignored. Cookie is httpOnly, SameSite=Lax; `Secure` only when `NODE_ENV=production`. Use `NODE_ENV=development` for local `http://localhost` (including Docker Compose with `.env`). Never `localStorage`.
 - **CSRF**: double-submit cookie (`gw_csrf`) verified on all non-GET dashboard mutations.
-- **RBAC**: `ADMIN` vs `USER` enforced by guards; users can only access their own WhatsApp account and tokens.
+- **Identity**: singleton Admin (unique `singleton = 1`). There is no User model, Role enum, or `ADMIN_NAME`. API tokens and WhatsApp accounts belong to a Project (`ON DELETE RESTRICT`). Inactive projects cannot authorize API calls.
 
 ## WAHA isolation
 
@@ -49,5 +49,5 @@ Optional **`HEAD`** checks (no body download) may enforce `Content-Type` and max
 
 ## Rate limiting
 
-- `@nestjs/throttler` protects brute-force surfaces (login, token regeneration, baseline API traffic).
-- Tune `RATE_LIMIT_SEND` via environment variables. Login uses a fixed throttle in `AuthController` (5 attempts / 15 minutes per IP).
+- `@nestjs/throttler` tracks **client IP** (the default tracker). `RATE_LIMIT_SEND` is a per-IP baseline for API and dashboard traffic, not a per-token bucket.
+- Login uses a fixed throttle in `AuthController` (5 attempts / 15 minutes per IP). Token create/regenerate is 3 / hour per IP.
