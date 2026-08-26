@@ -19,4 +19,6 @@ process.env.MAX_VIDEO_SIZE_MB = '50';
 process.env.RATE_LIMIT_SEND = '1000';
 process.env.RATE_LIMIT_V1_SEND = '1000';
 process.env.RATE_LIMIT_V1_READ = '1000';
+process.env.MAX_CHATS_PAGE = '100';
+process.env.MAX_MESSAGES_PAGE = '100';
 process.env.IDEMPOTENCY_PROCESSING_TIMEOUT_MS = '120000';

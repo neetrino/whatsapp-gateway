@@ -223,7 +223,7 @@ describe('Dashboard project/account/token flows (e2e)', () => {
   it('creates an account, warns when two are active, then deactivates one', async () => {
     await formPost('/projects', { name: 'Beta', slug: 'beta' });
     const newPage = await htmlGet('/projects/proj_beta/accounts/new');
-    expect(newPage.text).toContain('Messenger inbox is not enabled');
+    expect(newPage.text).toContain('MESSENGER enables NOWEB Store and v1 chats/history APIs');
 
     const first = await formPost('/projects/proj_beta/accounts', {
       label: 'Primary',

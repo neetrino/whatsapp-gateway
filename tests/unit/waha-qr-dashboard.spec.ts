@@ -8,7 +8,7 @@ describe('WahaService getQrForDashboard / effectiveSessionName', () => {
   it('skips QR call when account is already connected', async () => {
     const client = { getQr: jest.fn() };
     const config = { get: jest.fn(() => 'default') };
-    const svc = new WahaService({} as never, client as never, config as never);
+    const svc = new WahaService({} as never, client as never, config as never, {} as never);
     const connected = { ...account, status: 'CONNECTED' } as WhatsappAccount;
     const r = await svc.getQrForDashboard(connected, {
       requestId: 'req_connected',
@@ -24,7 +24,7 @@ describe('WahaService getQrForDashboard / effectiveSessionName', () => {
     const config = {
       get: jest.fn((k: string) => (k === 'WAHA_SESSION_NAME' ? 'default' : undefined)),
     };
-    const svc = new WahaService({} as never, client as never, config as never);
+    const svc = new WahaService({} as never, client as never, config as never, {} as never);
     await svc.getQrForDashboard(account, { requestId: 'req_1', accountId: account.id });
     expect(client.getQr).toHaveBeenCalledWith('wa_old');
   });
@@ -34,7 +34,7 @@ describe('WahaService getQrForDashboard / effectiveSessionName', () => {
       getQr: jest.fn().mockResolvedValue({ mimeType: 'image/png', data: 'YmFi' }),
     };
     const config = { get: jest.fn() };
-    const svc = new WahaService({} as never, client as never, config as never);
+    const svc = new WahaService({} as never, client as never, config as never, {} as never);
     const r = await svc.getQrForDashboard(account, { requestId: 'req_2', accountId: account.id });
     expect(r.dataUrl).toBe('data:image/png;base64,YmFi');
     expect(r.errorCode).toBeNull();
@@ -53,7 +53,7 @@ describe('WahaService getQrForDashboard / effectiveSessionName', () => {
         ),
     };
     const config = { get: jest.fn() };
-    const svc = new WahaService({} as never, client as never, config as never);
+    const svc = new WahaService({} as never, client as never, config as never, {} as never);
     const r = await svc.getQrForDashboard(account, { requestId: 'req_3', accountId: account.id });
     expect(r.dataUrl).toBeNull();
     expect(r.errorCode).toBe('WAHA_CORE_DEFAULT_SESSION_ONLY');
@@ -67,7 +67,7 @@ describe('WahaService getQrForDashboard / effectiveSessionName', () => {
         .mockRejectedValue(new WahaApiError('Session is already connected and WORKING', 422)),
     };
     const config = { get: jest.fn() };
-    const svc = new WahaService({} as never, client as never, config as never);
+    const svc = new WahaService({} as never, client as never, config as never, {} as never);
     const r = await svc.getQrForDashboard(account, { requestId: 'req_4', accountId: account.id });
     expect(r.dataUrl).toBeNull();
     expect(r.errorCode).toBe('WAHA_ALREADY_CONNECTED');

@@ -2,7 +2,7 @@
 
 Phase 2 adds an account-scoped **v1** API authenticated by a **Project** token. Legacy `/api/messages/*` and `/api/groups*` stay unchanged: they still require exactly one active WhatsApp account on the Project.
 
-Messenger inbox, history, inbound events, and webhooks are **not** part of this API.
+Messenger inbox and Project webhooks are **not** part of this API. **MESSENGER** accounts may read chats and message history from WAHA NOWEB Store via the v1 endpoints below (no Gateway Postgres archive).
 
 ## v1 — Project token, account-scoped
 
@@ -34,11 +34,25 @@ Returns safe metadata only:
 }
 ```
 
-Never includes `sessionName`, WAHA URL, or WAHA API key. Both `SEND_ONLY` and `MESSENGER` accounts are listed; Messenger capabilities are not enabled.
+Never includes `sessionName`, WAHA URL, or WAHA API key. Both `SEND_ONLY` and `MESSENGER` accounts are listed. Chats/history require `MESSENGER` mode, a connected session, and a ready NOWEB Store.
 
 ### `GET /api/v1/accounts/:accountId/status`
 
 Same ownership rule. Returns `id`, `label`, `mode`, `status`, `isActive`, masked `phoneNumber` after a WAHA status refresh.
+
+### `GET /api/v1/accounts/:accountId/chats`
+
+Requires `MESSENGER` mode, `CONNECTED` session, and NOWEB Store enabled on the WAHA session. `SEND_ONLY` → **409 `ACCOUNT_MODE_NOT_SUPPORTED`**. Disconnected → **409 `WHATSAPP_NOT_CONNECTED`**. Store not ready after a mode switch → **503 `STORE_NOT_READY`**. Cross-project → **404 `NOT_FOUND`**.
+
+Query: `limit`, `offset`, optional `sortBy` (`messageTimestamp` | `id` | `name`), optional `sortOrder` (`asc` | `desc`). Caps: `MAX_CHATS_PAGE`.
+
+Response items: `id`, `name`, `lastMessageAt`, `unreadCount`. No `sessionName`, no raw WAHA `_data`.
+
+### `GET /api/v1/accounts/:accountId/chats/:chatId/messages`
+
+Same mode/connection/store rules as chats. Query: `limit`, `offset` only (`downloadMedia` is always false server-side). Caps: `MAX_MESSAGES_PAGE`.
+
+Message items include `body` (text/caption) truncated to `MAX_TEXT_LENGTH` with `bodyTruncated`, plus `hasMedia`, `mediaType`, `ack`, `type`, `fromMe`, `timestamp`. Media bytes/URLs are not downloaded or persisted in Gateway Postgres.
 
 ### `POST /api/v1/accounts/:accountId/messages`
 

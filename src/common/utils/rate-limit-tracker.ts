@@ -28,7 +28,11 @@ export const isV1SendPath = (path: string, method: string): boolean =>
 
 export const isV1ReadPath = (path: string, method: string): boolean => {
   if (method !== 'GET') return false;
-  return path === '/api/v1/accounts' || /^\/api\/v1\/accounts\/[^/]+\/status\/?$/.test(path);
+  if (path === '/api/v1/accounts') return true;
+  if (/^\/api\/v1\/accounts\/[^/]+\/status\/?$/.test(path)) return true;
+  if (/^\/api\/v1\/accounts\/[^/]+\/chats\/?$/.test(path)) return true;
+  if (/^\/api\/v1\/accounts\/[^/]+\/chats\/[^/]+\/messages\/?$/.test(path)) return true;
+  return false;
 };
 
 export const classifyV1Throttle = (path: string, method: string): 'send' | 'read' | undefined => {

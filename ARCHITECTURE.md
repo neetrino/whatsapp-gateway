@@ -92,7 +92,7 @@ Database CHECK + unique `singleton = 1` enforces exactly one Admin row.
 
 `sessionName` is generated (`wa_<hex>`). Never derived from project name. It is the WAHA session name (authoritative). `WAHA_SESSION_NAME` is deprecated and ignored.
 
-Phase 2 stores `mode` (`SEND_ONLY` / `MESSENGER`). Both modes may send outbound messages. Messenger inbox, history, Store, inbound events, and webhooks are **not** enabled.
+Phase 2 stores `mode` (`SEND_ONLY` / `MESSENGER`). Both modes may send outbound messages. **Slice A (Phase 3):** `MESSENGER` enables v1 chats/history reads from WAHA NOWEB Store (no Gateway Postgres archive, no Messenger UI). Mode switch is Admin dashboard + CSRF only. Inbound webhooks and Project webhook delivery are **not** enabled yet.
 
 ### `ApiToken`
 `id, projectId, name, tokenHash (unique), tokenPrefix, last4, lastUsedAt?, revokedAt?, createdAt, updatedAt`.
@@ -129,6 +129,8 @@ Body (discriminated `type`, additional properties rejected):
 ```json
 { "type": "IMAGE", "chatId": "37499111222@c.us", "mediaUrl": "https://cdn.example.com/a.jpg", "caption": "optional" }
 ```
+
+`GET /api/v1/accounts/:accountId/chats` and `GET /api/v1/accounts/:accountId/chats/:chatId/messages` require `MESSENGER`, `CONNECTED`, and a ready NOWEB Store (`503 STORE_NOT_READY` while syncing). Message bodies are truncated to `MAX_TEXT_LENGTH`; media metadata only (`downloadMedia=false`); nothing persisted in Postgres.
 
 `GET /api/v1/accounts` returns safe metadata only (`id`, `label`, `mode`, `status`, masked `phoneNumber`, `isActive`, timestamps). Never `sessionName`, WAHA URL, or WAHA API key.
 
@@ -227,10 +229,10 @@ Group **management** is available only via the authenticated JSON API (`/api/gro
 
 ## WAHA integration boundary
 
-`src/waha/waha.client.ts` is the only place that knows WAHA URL shapes. Other modules call `WahaClient` / `WahaService`. Methods include session lifecycle, send text/media, and group operations (`listGroups`, `createGroup`, `getGroup`, `refreshGroups`, `listGroupParticipants`, `addGroupParticipants`, `getGroupInviteCode`).
+`src/waha/waha.client.ts` is the only place that knows WAHA URL shapes. Other modules call `WahaClient` / `WahaService`. Methods include session lifecycle (create/update with mode-specific NOWEB Store config on create, switch, restart — not on every send/QR), send text/media, group operations, and Store reads (`listChats`, `listChatMessages` with `downloadMedia: false`).
 
 `WahaService` maps WAHA status strings (`STARTING`, `SCAN_QR_CODE`, `WORKING`, `FAILED`, `STOPPED`, …) to our `SessionStatus` enum and persists transitions on `WhatsappAccount`. Confirm REST paths against the running WAHA container's `/api/docs` before production upgrades.
 
 ## What is explicitly NOT built
 
-No projects, workspaces, tenants, Product/Lead/Deal models, employee roles, or CRM workflow. No phone-number normalization / `@c.us` builder. No Messenger UI for chats/groups. No webhook endpoint in Phase 2 — session status is refreshed on demand. Inbound events, Store, and history belong to a later phase.
+No projects, workspaces, tenants, Product/Lead/Deal models, employee roles, or CRM workflow. No phone-number normalization / `@c.us` builder. No Messenger **UI** for chats/groups. No inbound webhook endpoint or Project webhook delivery yet — session status is refreshed on demand.

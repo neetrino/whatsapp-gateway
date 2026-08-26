@@ -22,7 +22,7 @@ describe('WhatsappAccountsService', () => {
       },
     };
     const waha = {};
-    const service = new WhatsappAccountsService(prisma as never, waha as never);
+    const service = new WhatsappAccountsService(prisma as never, waha as never, {} as never);
     const first = await service.createForProject('p1', 'Send', WhatsappAccountMode.SEND_ONLY);
     const second = await service.createForProject('p1', 'Chat', WhatsappAccountMode.MESSENGER);
     expect(first.projectId).toBe('p1');
@@ -38,7 +38,7 @@ describe('WhatsappAccountsService', () => {
       project: { findUnique: jest.fn() },
       whatsappAccount: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn() },
     };
-    const service = new WhatsappAccountsService(prisma as never, {} as never);
+    const service = new WhatsappAccountsService(prisma as never, {} as never, {} as never);
     await expect(service.getByIdForProject('project-a', 'acc-from-b')).rejects.toMatchObject({
       code: ERROR_CODES.NOT_FOUND,
     });
@@ -62,7 +62,7 @@ describe('WhatsappAccountsService', () => {
         update: jest.fn().mockResolvedValue({ ...account, isActive: false }),
       },
     };
-    const service = new WhatsappAccountsService(prisma as never, {} as never);
+    const service = new WhatsappAccountsService(prisma as never, {} as never, {} as never);
     await expect(service.setActiveForProject('p1', 'acc1', false)).resolves.toMatchObject({
       isActive: false,
     });
@@ -73,5 +73,70 @@ describe('WhatsappAccountsService', () => {
       where: { id: 'acc1' },
       data: { isActive: false },
     });
+  });
+
+  it('updates DB only when WAHA session does not exist', async () => {
+    const account = {
+      id: 'acc1',
+      projectId: 'p1',
+      label: 'A',
+      mode: WhatsappAccountMode.SEND_ONLY,
+      sessionName: 'wa_1',
+      isActive: true,
+    };
+    const prisma = {
+      project: { findUnique: jest.fn() },
+      whatsappAccount: {
+        findFirst: jest.fn().mockResolvedValue(account),
+        update: jest.fn().mockResolvedValue({ ...account, mode: WhatsappAccountMode.MESSENGER }),
+      },
+    };
+    const modePolicy = {
+      sessionExists: jest.fn().mockResolvedValue(false),
+      applySessionConfig: jest.fn(),
+    };
+    const service = new WhatsappAccountsService(prisma as never, {} as never, modePolicy as never);
+    const result = await service.switchModeForProject(
+      'p1',
+      'acc1',
+      WhatsappAccountMode.MESSENGER,
+    );
+    expect(result.applied).toBe(true);
+    expect(modePolicy.applySessionConfig).not.toHaveBeenCalled();
+    expect(prisma.whatsappAccount.update).toHaveBeenCalledWith({
+      where: { id: 'acc1' },
+      data: { mode: WhatsappAccountMode.MESSENGER },
+    });
+  });
+
+  it('keeps the previous mode when WAHA PUT fails', async () => {
+    const account = {
+      id: 'acc1',
+      projectId: 'p1',
+      label: 'A',
+      mode: WhatsappAccountMode.SEND_ONLY,
+      sessionName: 'wa_1',
+      isActive: true,
+    };
+    const prisma = {
+      project: { findUnique: jest.fn() },
+      whatsappAccount: {
+        findFirst: jest.fn().mockResolvedValue(account),
+        update: jest.fn(),
+      },
+    };
+    const modePolicy = {
+      sessionExists: jest.fn().mockResolvedValue(true),
+      applySessionConfig: jest.fn().mockRejectedValue(new Error('waha down')),
+    };
+    const service = new WhatsappAccountsService(prisma as never, {} as never, modePolicy as never);
+    const result = await service.switchModeForProject(
+      'p1',
+      'acc1',
+      WhatsappAccountMode.MESSENGER,
+    );
+    expect(result.applied).toBe(false);
+    expect(result.account.mode).toBe(WhatsappAccountMode.SEND_ONLY);
+    expect(prisma.whatsappAccount.update).not.toHaveBeenCalled();
   });
 });

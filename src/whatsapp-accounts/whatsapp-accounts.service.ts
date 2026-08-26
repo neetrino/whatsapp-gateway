@@ -3,15 +3,22 @@ import { SessionStatus, WhatsappAccount, WhatsappAccountMode } from '@prisma/cli
 import { PrismaService } from '../prisma/prisma.service';
 import { AppException } from '../common/errors/app.exception';
 import { ERROR_CODES } from '../common/errors/error-codes';
+import { AccountModePolicyService } from '../waha/account-mode-policy.service';
 import { WahaService } from '../waha/waha.service';
 import type { QrViewModel } from '../waha/types/waha.types';
 import { generateSessionName } from '../common/utils/session-name';
+
+export interface SwitchModeResult {
+  account: WhatsappAccount;
+  applied: boolean;
+}
 
 @Injectable()
 export class WhatsappAccountsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly wahaService: WahaService,
+    private readonly modePolicy: AccountModePolicyService,
   ) {}
 
   async createForProject(
@@ -63,6 +70,30 @@ export class WhatsappAccountsService {
       where: { id: account.id },
       data: { isActive },
     });
+  }
+
+  async switchModeForProject(
+    projectId: string,
+    accountId: string,
+    mode: WhatsappAccountMode,
+  ): Promise<SwitchModeResult> {
+    const account = await this.getByIdForProject(projectId, accountId);
+    if (account.mode === mode) return { account, applied: true };
+
+    const exists = await this.modePolicy.sessionExists(account.sessionName);
+    if (exists) {
+      try {
+        await this.modePolicy.applySessionConfig(account.sessionName, mode);
+      } catch {
+        return { account, applied: false };
+      }
+    }
+
+    const updated = await this.prisma.whatsappAccount.update({
+      where: { id: account.id },
+      data: { mode },
+    });
+    return { account: updated, applied: true };
   }
 
   async refreshStatus(account: WhatsappAccount): Promise<WhatsappAccount> {

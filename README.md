@@ -7,7 +7,7 @@ This project is **not** NBOS, **not** a plugin, and **not** a Messenger UI.
 
 ## What this is
 
-- HTTP JSON API: preferred **v1** `GET /api/v1/accounts`, `GET /api/v1/accounts/:accountId/status`, `POST /api/v1/accounts/:accountId/messages` (Project token, account-scoped, `Idempotency-Key` on send). Legacy `POST /api/messages/send` (`chatId` + `text` only), `POST /api/messages/send-media`, and group lifecycle under `/api/groups*` remain.
+- HTTP JSON API: preferred **v1** `GET /api/v1/accounts`, `GET /api/v1/accounts/:accountId/status`, `POST /api/v1/accounts/:accountId/messages` (Project token, account-scoped, `Idempotency-Key` on send). **MESSENGER** accounts also expose `GET /api/v1/accounts/:accountId/chats` and `.../chats/:chatId/messages` (WAHA Store proxy; bodies capped, not stored in Postgres). Legacy `POST /api/messages/send` (`chatId` + `text` only), `POST /api/messages/send-media`, and group lifecycle under `/api/groups*` remain.
 - Minimal **dashboard** (server-rendered) for the singleton **Admin**: login, **Projects** (API tokens + WhatsApp accounts, QR, session actions), system health.
 - **Admin (singleton) → Project → ApiTokens[] + WhatsappAccounts[]**. Tokens and accounts belong to a Project, not to a User. There is no User/Role model and no `ADMIN_NAME`.
 

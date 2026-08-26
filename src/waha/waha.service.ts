@@ -25,6 +25,8 @@ const STATUS_MAP: Record<string, SessionStatus> = {
 export const mapWahaStatus = (raw: WahaSessionStatusRaw): SessionStatus =>
   STATUS_MAP[raw] ?? SessionStatus.ERROR;
 
+import { AccountModePolicyService } from './account-mode-policy.service';
+
 @Injectable()
 export class WahaService {
   private readonly logger = new Logger(WahaService.name);
@@ -33,6 +35,7 @@ export class WahaService {
     private readonly prisma: PrismaService,
     private readonly client: WahaClient,
     private readonly config: ConfigService<EnvironmentVariables, true>,
+    private readonly modePolicy: AccountModePolicyService,
   ) {
     const ignored = this.config.get('WAHA_SESSION_NAME', { infer: true })?.trim();
     if (ignored) {
@@ -50,7 +53,7 @@ export class WahaService {
 
   async startSession(account: WhatsappAccount): Promise<void> {
     try {
-      await this.client.startSession(this.effectiveSessionName(account));
+      await this.client.startSession(this.effectiveSessionName(account), account.mode);
     } catch (error) {
       this.logSafeError('start_session_failed', error);
     }
@@ -86,8 +89,14 @@ export class WahaService {
   }
 
   async restartSession(account: WhatsappAccount): Promise<void> {
+    const sessionName = this.effectiveSessionName(account);
     try {
-      await this.client.restartSession(this.effectiveSessionName(account));
+      const exists = await this.client.sessionExists(sessionName);
+      if (exists) {
+        await this.modePolicy.applySessionConfig(sessionName, account.mode);
+        return;
+      }
+      await this.client.startSession(sessionName, account.mode);
     } catch (error) {
       this.logSafeError('restart_session_failed', error);
       throw error;

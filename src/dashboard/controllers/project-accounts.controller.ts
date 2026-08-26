@@ -19,6 +19,7 @@ import type { RequestWithId } from '../../common/interceptors/request-id.middlew
 import { ProjectsService } from '../../projects/projects.service';
 import { WhatsappAccountsService } from '../../whatsapp-accounts/whatsapp-accounts.service';
 import { CreateWhatsappAccountDto } from '../../whatsapp-accounts/dto/create-whatsapp-account.dto';
+import { SwitchAccountModeDto } from '../../whatsapp-accounts/dto/switch-account-mode.dto';
 import { CsrfFormDto } from '../../common/dto/csrf-form.dto';
 import { baseView, type BaseViewModel } from '../view-helpers';
 
@@ -59,18 +60,33 @@ export class ProjectAccountsController {
     @Param('projectId') projectId: string,
     @Param('accountId') accountId: string,
   ): Promise<
-    BaseViewModel & { projectId: string; account: unknown; recentLogs: unknown; active: 'projects' }
+    BaseViewModel & { projectId: string; account: unknown; recentLogs: unknown; active: 'projects'; modeError?: boolean }
   > {
     const account = await this.accountsService.getByIdForProject(projectId, accountId);
     const refreshed = await this.accountsService.refreshStatus(account);
     const recentLogs = await this.accountsService.listRecentLogs(projectId, accountId);
+    const modeError = req.query.modeError === 'waha_config';
     return {
       ...baseView(req, admin, account.label),
       projectId,
       account: { ...account, ...refreshed },
       recentLogs,
       active: 'projects',
+      modeError,
     };
+  }
+
+  @Post(':accountId/switch-mode')
+  @HttpCode(HttpStatus.SEE_OTHER)
+  async switchMode(
+    @Param('projectId') projectId: string,
+    @Param('accountId') accountId: string,
+    @Body() dto: SwitchAccountModeDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    const result = await this.accountsService.switchModeForProject(projectId, accountId, dto.mode);
+    const suffix = result.applied ? '' : '?modeError=waha_config';
+    res.redirect(303, `/projects/${projectId}/accounts/${accountId}${suffix}`);
   }
 
   @Get(':accountId/qr')

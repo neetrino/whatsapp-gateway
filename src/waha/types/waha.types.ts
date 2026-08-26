@@ -46,6 +46,18 @@ export interface WahaAddParticipantsInput {
   participants: Array<{ id: string }>;
 }
 
+export interface WahaListChatsQuery {
+  limit: number;
+  offset: number;
+  sortBy?: 'messageTimestamp' | 'id' | 'name';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface WahaListChatMessagesQuery {
+  limit: number;
+  offset: number;
+}
+
 export class WahaTransportError extends Error {
   constructor(message: string) {
     super(message);

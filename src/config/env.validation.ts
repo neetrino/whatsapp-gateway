@@ -106,6 +106,16 @@ export class EnvironmentVariables {
   @IsInt()
   @Min(1_000)
   IDEMPOTENCY_PROCESSING_TIMEOUT_MS!: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  MAX_CHATS_PAGE!: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  MAX_MESSAGES_PAGE!: number;
 }
 
 export const validateEnv = (raw: Record<string, unknown>): EnvironmentVariables => {
@@ -113,6 +123,8 @@ export const validateEnv = (raw: Record<string, unknown>): EnvironmentVariables 
     RATE_LIMIT_V1_SEND: 60,
     RATE_LIMIT_V1_READ: 120,
     IDEMPOTENCY_PROCESSING_TIMEOUT_MS: 120_000,
+    MAX_CHATS_PAGE: 100,
+    MAX_MESSAGES_PAGE: 100,
     ...raw,
   };
   const validated = plainToInstance(EnvironmentVariables, withDefaults, {

@@ -6,7 +6,7 @@
   <p class="meta">
     Mode <code>{{account.mode}}</code>
     {{#ifEquals account.mode "MESSENGER"}}
-      · stored only; Messenger inbox is not enabled
+      · chats/history via v1 API when connected and Store is ready
     {{/ifEquals}}
     {{#ifEquals account.mode "SEND_ONLY"}}
       · SEND_ONLY outbound
@@ -15,6 +15,9 @@
     {{#ifEquals account.status "CONNECTED"}} · Connected{{/ifEquals}}
     {{#if account.phoneNumber}} · Phone: {{account.phoneNumber}}{{/if}}
   </p>
+  {{#if modeError}}
+    <p class="meta">Mode was not changed: WAHA rejected the session configuration update. The previous mode is unchanged.</p>
+  {{/if}}
 
   <div class="actions">
     <a href="/projects/{{projectId}}/accounts/{{account.id}}/qr" class="primary">Show QR</a>
@@ -29,6 +32,20 @@
         <button type="submit">Activate</button>
       </form>
     {{/if}}
+    {{#ifEquals account.mode "SEND_ONLY"}}
+      <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/switch-mode" class="inline">
+        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+        <input type="hidden" name="mode" value="MESSENGER" />
+        <button type="submit">Switch to MESSENGER</button>
+      </form>
+    {{/ifEquals}}
+    {{#ifEquals account.mode "MESSENGER"}}
+      <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/switch-mode" class="inline">
+        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+        <input type="hidden" name="mode" value="SEND_ONLY" />
+        <button type="submit">Switch to SEND_ONLY</button>
+      </form>
+    {{/ifEquals}}
     <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/restart" class="inline">
       <input type="hidden" name="_csrf" value="{{csrfToken}}" />
       <button type="submit">Restart session</button>

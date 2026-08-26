@@ -1,17 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { WhatsappAccountMode } from '@prisma/client';
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 import type { EnvironmentVariables } from '../config/env.validation';
 import {
   WahaAddParticipantsInput,
   WahaApiError,
   WahaCreateGroupInput,
+  WahaListChatsQuery,
+  WahaListChatMessagesQuery,
   WahaListGroupsQuery,
   WahaQrPayload,
   WahaSendTextResult,
   WahaSessionInfo,
   WahaTransportError,
 } from './types/waha.types';
+import { buildSessionConfig, isNowebStoreEnabled, type WahaSessionConfigPayload } from './session-config';
 
 @Injectable()
 export class WahaClient {
@@ -41,7 +45,7 @@ export class WahaClient {
     }
   }
 
-  async startSession(sessionName: string): Promise<void> {
+  async startSession(sessionName: string, mode: WhatsappAccountMode): Promise<void> {
     const encoded = encodeURIComponent(sessionName);
     try {
       await this.invoke('start session', {
@@ -54,14 +58,77 @@ export class WahaClient {
       if (!notFound) throw error;
     }
 
-    await this.invoke('create session', {
-      method: 'POST',
-      url: '/api/sessions',
-      data: { name: sessionName },
-    });
+    await this.createSession(buildSessionConfig(sessionName, mode));
     await this.invoke('start session', {
       method: 'POST',
       url: `/api/sessions/${encoded}/start`,
+    });
+  }
+
+  async createSession(payload: WahaSessionConfigPayload): Promise<void> {
+    await this.invoke('create session', {
+      method: 'POST',
+      url: '/api/sessions',
+      data: payload,
+    });
+  }
+
+  async updateSession(sessionName: string, payload: WahaSessionConfigPayload): Promise<void> {
+    await this.invoke('update session', {
+      method: 'PUT',
+      url: `/api/sessions/${encodeURIComponent(sessionName)}`,
+      data: payload,
+    });
+  }
+
+  async sessionExists(sessionName: string): Promise<boolean> {
+    try {
+      await this.getStatus(sessionName);
+      return true;
+    } catch (error) {
+      if (error instanceof WahaApiError && error.status === 404) return false;
+      throw error;
+    }
+  }
+
+  async isNowebStoreEnabled(sessionName: string): Promise<boolean> {
+    try {
+      const session = await this.invoke<{ config?: unknown }>('get session config', {
+        method: 'GET',
+        url: `/api/sessions/${encodeURIComponent(sessionName)}`,
+      });
+      return isNowebStoreEnabled(session.config);
+    } catch (error) {
+      if (error instanceof WahaApiError && error.status === 404) return false;
+      throw error;
+    }
+  }
+
+  async listChats(sessionName: string, query: WahaListChatsQuery): Promise<unknown> {
+    const session = encodeURIComponent(sessionName);
+    return this.invoke<unknown>('list chats', {
+      method: 'GET',
+      url: `/api/${session}/chats`,
+      params: {
+        limit: query.limit,
+        offset: query.offset,
+        ...(query.sortBy ? { sortBy: query.sortBy } : {}),
+        ...(query.sortOrder ? { sortOrder: query.sortOrder } : {}),
+      },
+    });
+  }
+
+  async listChatMessages(
+    sessionName: string,
+    chatId: string,
+    query: WahaListChatMessagesQuery,
+  ): Promise<unknown> {
+    const session = encodeURIComponent(sessionName);
+    const encodedChatId = encodeURIComponent(chatId);
+    return this.invoke<unknown>('list chat messages', {
+      method: 'GET',
+      url: `/api/${session}/chats/${encodedChatId}/messages`,
+      params: { limit: query.limit, offset: query.offset, downloadMedia: false },
     });
   }
 
