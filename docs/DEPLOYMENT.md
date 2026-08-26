@@ -28,7 +28,10 @@ Edit `.env`:
 - Strong secrets (`COOKIE_SECRET`, `JWT_SECRET`, `TOKEN_PEPPER`) — each ≥ 32 random bytes as hex/base64.
 - `DATABASE_URL` from Neon (include `sslmode=require` if required).
 - `APP_URL` / `GATEWAY_PUBLIC_URL` — public HTTPS URL.
-- `WAHA_BASE_URL=http://waha:3000` (matches `docker-compose.yml` service name).
+- `WAHA_BASE_URL=http://waha:3000` (matches `docker-compose.yml` service name **`waha`**).
+- `GATEWAY_INTERNAL_URL=http://gateway:3000` — URL WAHA uses to POST inbound events (compose service **`gateway`**; not public).
+- `WAHA_WEBHOOK_SECRET` — shared HMAC secret for WAHA → Gateway inbound events (≥ 32 chars).
+- `WEBHOOK_DELIVERY_TIMEOUT_MS`, `WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_RETRY_BASE_MS` — Gateway → Project HTTPS webhook delivery.
 - `WAHA_API_KEY` — shared secret for WAHA HTTP API (see [WAHA_SETUP.md](WAHA_SETUP.md)).
 
 ## 4. Database migrations
@@ -44,6 +47,8 @@ ADMIN_EMAIL=... ADMIN_PASSWORD=... npm run prisma:seed
 `prisma/seed.ts` upserts the **singleton Admin** from `ADMIN_EMAIL` / `ADMIN_PASSWORD` only (no `ADMIN_NAME`, no User rows, no WhatsApp account). Re-running seed verifies the existing Argon2 hash and does **not** bump `sessionVersion` unless the email or password actually changes.
 
 **Destructive test-only migration:** `prisma/migrations/20260824120000_phase1_admin_project_ownership` deletes existing `users`, WhatsApp accounts, API tokens, and related logs, then introduces Admin/Project ownership. Use it on **disposable test databases only**. Do not apply it to production data that you need to keep.
+
+**Merge note (`dev-Karo` → `main`):** `main` may still contain legacy migration `20260716120000_multi_whatsapp_per_user`. Reconcile Prisma migration history on a disposable database before merging; do not rewrite committed `dev-Karo` migration files unless explicitly requested.
 
 The production Docker image is runtime-only (no `ts-node`). Run the **seed once** from a dev/CI environment against Neon.
 

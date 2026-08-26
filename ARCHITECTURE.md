@@ -85,7 +85,7 @@ Database CHECK + unique `singleton = 1` enforces exactly one Admin row.
 ### `Project`
 `id, name, slug (unique), isActive, webhookUrl?, webhookSecretHash?, webhookSecretPrefix?, webhookSecretLast4?, webhookEnabled, createdAt, updatedAt`.
 
-Signing key storage mirrors `ApiToken`: only `webhookSecretHash` (HMAC-SHA256 with `TOKEN_PEPPER`), prefix, last4. Full key shown once via `gw_webhook_reveal` cookie.
+Signing key storage mirrors `ApiToken` peppered hash, but the **hash bytes are the HMAC signing key** shown once to the Project. Dashboard fingerprint uses hex prefix/last4 of that key (not a separate `whsec_*` token).
 
 ### `ProjectWebhookDelivery`
 Durable outbound queue: `payloadJson`, `payloadHash`, `status` (`PENDING|DELIVERED|FAILED|EXHAUSTED|SKIPPED`), `nextAttemptAt`, attempt metadata. `@@unique([projectId, eventId])`.

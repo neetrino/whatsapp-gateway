@@ -9,7 +9,6 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import { ApiTokenGuard } from '../common/guards/api-token.guard';
 import { PhoneRejectionGuard } from '../common/guards/phone-rejection.guard';
 import { Public } from '../common/decorators/public.decorator';
@@ -36,7 +35,6 @@ export class MessagesController {
   @UseGuards(ApiTokenGuard, PhoneRejectionGuard)
   @Post('send')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { ttl: 60_000, limit: 60 } })
   async send(
     @Body() dto: SendMessageDto,
     @ApiAccount() account: ApiAccountContext | undefined,
@@ -64,7 +62,6 @@ export class MessagesController {
   @UseGuards(ApiTokenGuard, PhoneRejectionGuard)
   @Post('send-by-url')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { ttl: 60_000, limit: 60 } })
   async sendByUrlPost(
     @Query() query: Record<string, unknown>,
     @Body() dto: SendMessageDto,
@@ -88,7 +85,6 @@ export class MessagesController {
   @UseGuards(ApiTokenGuard, PhoneRejectionGuard)
   @Post('send-media')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { ttl: 60_000, limit: 60 } })
   async sendMedia(
     @Body() dto: SendMediaDto,
     @ApiAccount() account: ApiAccountContext | undefined,

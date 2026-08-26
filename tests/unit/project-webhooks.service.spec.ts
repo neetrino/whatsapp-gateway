@@ -22,8 +22,8 @@ describe('ProjectWebhooksService', () => {
       where: { id: 'p1' },
       data: {
         webhookSecretHash: expect.any(String),
-        webhookSecretPrefix: 'whsec',
-        webhookSecretLast4: expect.stringMatching(/^.{4}$/),
+        webhookSecretPrefix: expect.stringMatching(/^[a-f0-9]{6}$/),
+        webhookSecretLast4: expect.stringMatching(/^[a-f0-9]{4}$/),
       },
     });
     const updateArg = prisma.project.update.mock.calls[0]?.[0] as {

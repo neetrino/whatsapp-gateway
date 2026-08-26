@@ -5,23 +5,25 @@ Status legend: `[ ]` pending, `[~]` in progress, `[x]` done, `[obsolete]` supers
 **v1 status:** Nest app, Prisma, Admin dashboard, WAHA client, send/media/group API, account-scoped `/api/v1`, Docker, docs, and tests are in place.
 WAHA REST paths in [`src/waha/waha.client.ts`](src/waha/waha.client.ts) should be verified against your running WAHA version (`/api/docs`) before production traffic.
 
-## Current ownership (Phase 2)
+## Current ownership (Phase 3 complete)
 
 - [x] Singleton `Admin` (`singleton = 1`, no User model, no Role enum, no `ADMIN_NAME`).
 - [x] `Project` owns `ApiToken[]` and `WhatsappAccount[]` (`mode`: `SEND_ONLY` | `MESSENGER`).
 - [x] Project FKs use `ON DELETE RESTRICT`.
 - [x] Dashboard: `/dashboard`, `/projects`, `/projects/:id/accounts/:accountId` (QR/restart/stop/unlink/activate/deactivate, outbound logs), `/system`.
 - [x] Token reveal: signed httpOnly `gw_token_reveal`, project-bound, consume-once.
+- [x] Webhook signing key reveal: signed httpOnly `gw_webhook_reveal`, project-bound, consume-once; DB stores hash only.
 - [x] Session: signed `gw_session` only.
 - [x] Legacy API: token → Project → exactly one active account, or `PROJECT_HAS_NO_ACTIVE_ACCOUNT` / `PROJECT_ACCOUNT_AMBIGUOUS`.
 - [x] v1 API: Project token → `apiTokenId` + `projectId` only; callers pass `accountId`.
 - [x] Durable send idempotency on `(whatsappAccountId, idempotencyKey)`.
 - [x] WAHA image pinned to `devlikeapro/waha:noweb-2026.8.1`. Database `sessionName` is authoritative. `WAHA_SESSION_NAME` ignored.
-- [x] Rate limits: named Nest throttlers; HMAC tracker; v1 is not double-limited; in-process bounded storage (single instance).
-- [x] `MESSENGER` is selectable; inbox/history/inbound/webhooks are **not** enabled (Phase 3).
+- [x] Rate limits: named Nest throttlers; HMAC tracker; v1 is not double-limited; in-process bounded storage (**single Gateway instance** — no Redis).
+- [x] **`MESSENGER`:** v1 chats/history (WAHA Store proxy), inbound WAHA events → normalized Project HTTPS webhooks (Slice A + B).
+- [x] **`SEND_ONLY`:** outbound send only — no v1 chats/history, no inbound webhook delivery.
 - [x] Destructive migration `20260824120000_phase1_admin_project_ownership` is **test/disposable-only**.
-- [x] Additive migration `20260824180000_phase2_message_idempotency` preserves existing `outbound_message_logs`.
-- [x] Additive migration `20260824190000_phase2_idempotency_reconcile_index` for SENT-log lookup.
+- [x] Additive migrations preserve production data (`phase2_*`, `phase3_webhook_delivery`).
+- [ ] **Merge note:** `main` may still contain legacy migration `20260716120000_multi_whatsapp_per_user`. Reconcile migration history before merging `dev-Karo` → `main` (do not rewrite committed `dev-Karo` history unless explicitly requested).
 
 ### Obsolete (replaced by Admin + Project)
 
@@ -114,4 +116,6 @@ WAHA REST paths in [`src/waha/waha.client.ts`](src/waha/waha.client.ts) should b
 - [x] Additive `OutboundMessageIdempotency` migration.
 - [x] Dashboard SEND_ONLY status + recent outbound logs without content.
 - [x] Legacy `/api/messages/*` and `/api/groups*` compatibility.
-- [ ] Phase 3: Messenger inbox, history, inbound events, webhooks — **out of scope**.
+- [x] Phase 3 Slice A: MESSENGER Store + v1 chats/history API.
+- [x] Phase 3 Slice B: WAHA inbound events + Project webhooks (durable delivery queue).
+- [ ] Phase 4: production cutover checklist, CI verify workflow, live WAHA smoke when Docker available.

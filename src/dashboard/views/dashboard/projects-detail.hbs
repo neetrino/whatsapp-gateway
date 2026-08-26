@@ -100,9 +100,9 @@
       <input type="hidden" name="_csrf" value="{{csrfToken}}" />
       <label>Webhook URL (HTTPS)<input name="webhookUrl" type="url" value="{{project.webhookUrl}}" placeholder="https://example.com/webhooks/whatsapp" maxlength="2048" /></label>
       <p class="meta">
-        Signing key:
-        {{#if project.webhookSecretPrefix}}
-          <code>{{project.webhookSecretPrefix}}</code> …{{project.webhookSecretLast4}}
+        Signing key fingerprint (hex HMAC key shown in full once after regenerate):
+        {{#if project.webhookSecretLast4}}
+          <code>{{project.webhookSecretPrefix}}…{{project.webhookSecretLast4}}</code>
         {{else}}
           not generated
         {{/if}}

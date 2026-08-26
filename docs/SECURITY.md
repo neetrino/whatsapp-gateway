@@ -46,13 +46,13 @@ Optional **`HEAD`** checks (no body download) may enforce `Content-Type` and max
 - Verifies `X-Webhook-Hmac` / `X-Webhook-Hmac-Algorithm: sha512` on the **raw body** using `WAHA_WEBHOOK_SECRET`.
 - Rejects stale `X-Webhook-Timestamp` (±5 minutes).
 - Unknown WAHA sessions return **200** (no retry storm); events are logged and dropped.
-- `SEND_ONLY` accounts are ignored (200 to WAHA, no Project delivery).
+- Inactive WhatsApp accounts and `SEND_ONLY` accounts are ignored (200 to WAHA, no Project delivery).
 - Gateway returns **200 to WAHA after enqueue** into `project_webhook_deliveries` (durable queue). A process crash after 200 but before Project 2xx may lose in-flight worker attempts; the row survives and the in-process worker retries via `nextAttemptAt`.
 
 ### Gateway → Project (HTTPS webhook)
 
-- Per-Project `webhookUrl` + hashed signing key (`webhookSecretHash`, `webhookSecretPrefix`, `webhookSecretLast4`). Plaintext secrets are **never** stored.
-- Signing key is generated in the Admin dashboard (**Regenerate signing key**). Shown **once** via signed httpOnly cookie `gw_webhook_reveal` (2 minutes, project-bound, consume-once) — same pattern as API tokens (`gw_token_reveal`). Never in URLs.
+- Per-Project `webhookUrl` + signing key stored as `webhookSecretHash` (HMAC-SHA256 with `TOKEN_PEPPER` over an internal random prefix). **`webhookSecretHash` is the outbound HMAC key** — a Postgres/backup leak lets an attacker forge Project webhooks (same class of risk as `TOKEN_PEPPER` + token hashes). There is no separate encrypt-at-rest layer in Phase 4.
+- Dashboard fingerprint: first 6 + last 4 hex chars of the signing key (`webhookSecretPrefix` / `webhookSecretLast4`). Full 64-char hex key shown **once** via `gw_webhook_reveal`.
 - Outbound headers: `X-Gateway-Event-Id`, `X-Gateway-Timestamp`, `X-Gateway-Signature`, `X-Gateway-Signature-Algorithm: sha512`.
 - Signature: HMAC-SHA512 over **`${timestamp}.${rawJsonBody}`** (timestamp is the `X-Gateway-Timestamp` header value). Projects must reject stale timestamps (recommended ±5 minutes).
 - Payload is normalized JSON (no raw WAHA). Stored in Postgres as `payloadJson` + `payloadHash` for retries.
@@ -67,12 +67,13 @@ Optional **`HEAD`** checks (no body download) may enforce `Content-Type` and max
 
 ## Rate limiting
 
-- `@nestjs/throttler` named throttlers: `default` / `v1-send` / `v1-read`. Skip-if ensures **one** limiter per request. `POST /internal/waha/events` is excluded from all throttlers.
+- `@nestjs/throttler` named throttlers: `default` / `v1-send` / `v1-read`. Skip-if ensures **one** limiter per request. `GET /health`, `POST /internal/waha/events`, and v1 routes excluded from the wrong buckets (`@SkipThrottle()` and/or `skipIf`).
 - Tracker: `token:<hmac>` when a Bearer token is present, else `ip:<req.ip>`.
 - `app.set('trust proxy', 1)` in `main.ts` trusts the first reverse-proxy hop (`X-Forwarded-For`). Configure the proxy to overwrite (not append blindly) that header. Clients behind the same NAT share the IP bucket when they omit a token.
-- `RATE_LIMIT_SEND` — legacy API + dashboard baseline / 60s (not applied to `/api/v1`).
+- `RATE_LIMIT_SEND` — legacy `POST /api/messages/*` + dashboard baseline / 60s (env-driven; not applied to `/api/v1`).
 - `RATE_LIMIT_V1_SEND` — `POST /api/v1/accounts/:id/messages` / 60s.
-- `RATE_LIMIT_V1_READ` — `GET /api/v1/accounts` and status / 60s.
+- `RATE_LIMIT_V1_READ` — v1 list/status/chats / 60s.
+- `/api/groups*` uses **per-route hardcoded** `@Throttle` limits (not `RATE_LIMIT_SEND`) — see `src/groups/groups.controller.ts`.
 - In-memory buckets expire after the window and are capped (`BoundedThrottlerStorage`, max 10_000 keys). Invalid-token abuse cannot retain keys indefinitely. Multi-instance deployments need Redis (not implemented).
 - Login uses a fixed throttle in `AuthController` (5 attempts / 15 minutes per IP). Token create/regenerate is 3 / hour per IP.
 - Exhausted budgets return `429 RATE_LIMITED`.

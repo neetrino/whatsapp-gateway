@@ -17,8 +17,8 @@ export const generateWebhookSecret = (pepper: string): GeneratedWebhookSecret =>
   const secretHash = hashApiToken(raw, pepper);
   return {
     signingKey: secretHash,
-    tokenPrefix: WEBHOOK_SECRET_PREFIX,
-    last4: random.slice(-4),
+    tokenPrefix: secretHash.slice(0, 6),
+    last4: secretHash.slice(-4),
     secretHash,
   };
 };

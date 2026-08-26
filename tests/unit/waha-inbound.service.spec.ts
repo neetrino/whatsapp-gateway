@@ -79,4 +79,18 @@ describe('WahaInboundService', () => {
     await service.handleEvent(rawBody, { requestId: 'req_1' });
     expect(deliveryService.enqueueDelivery).not.toHaveBeenCalled();
   });
+
+  it('drops inactive MESSENGER accounts without enqueue', async () => {
+    const { service, deliveryService, prisma } = build();
+    prisma.whatsappAccount.findUnique.mockResolvedValue({
+      id: 'acc_i',
+      projectId: 'p1',
+      mode: WhatsappAccountMode.MESSENGER,
+      isActive: false,
+    });
+    const body = { event: 'message', session: 'wa_i', payload: { id: 'm1', from: '37499111222@c.us' } };
+    const rawBody = Buffer.from(JSON.stringify(body), 'utf8');
+    await service.handleEvent(rawBody, { requestId: 'req_1' });
+    expect(deliveryService.enqueueDelivery).not.toHaveBeenCalled();
+  });
 });

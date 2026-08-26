@@ -7,7 +7,7 @@ This project is **not** NBOS, **not** a plugin, and **not** a Messenger UI.
 
 ## What this is
 
-- HTTP JSON API: preferred **v1** `GET /api/v1/accounts`, `GET /api/v1/accounts/:accountId/status`, `POST /api/v1/accounts/:accountId/messages` (Project token, account-scoped, `Idempotency-Key` on send). **MESSENGER** accounts also expose `GET /api/v1/accounts/:accountId/chats` and `.../chats/:chatId/messages` (WAHA Store proxy; bodies capped, not stored in Postgres). Legacy `POST /api/messages/send` (`chatId` + `text` only), `POST /api/messages/send-media`, and group lifecycle under `/api/groups*` remain.
+- **HTTP JSON API:** preferred **v1** `GET /api/v1/accounts`, `GET /api/v1/accounts/:accountId/status`, `POST /api/v1/accounts/:accountId/messages` (Project token, account-scoped, `Idempotency-Key` on send). **MESSENGER** accounts also expose `GET /api/v1/accounts/:accountId/chats` and `.../chats/:chatId/messages` (WAHA Store proxy; bodies capped, not stored in Postgres) and receive inbound events via per-Project HTTPS webhooks (configured in dashboard). Legacy `POST /api/messages/send` (`chatId` + `text` only), `POST /api/messages/send-media`, and group lifecycle under `/api/groups*` remain.
 - Minimal **dashboard** (server-rendered) for the singleton **Admin**: login, **Projects** (API tokens + WhatsApp accounts, QR, session actions), system health.
 - **Admin (singleton) → Project → ApiTokens[] + WhatsappAccounts[]**. Tokens and accounts belong to a Project, not to a User. There is no User/Role model and no `ADMIN_NAME`.
 
@@ -57,6 +57,17 @@ npm run start:dev
 ## Environment
 
 See [`.env.example`](.env.example). Required variables are validated at startup; the process exits with a clear error if anything is missing.
+
+Key webhook / inbound variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `GATEWAY_INTERNAL_URL` | Docker-internal base URL WAHA calls (`http://gateway:3000` in compose) |
+| `WAHA_WEBHOOK_SECRET` | HMAC secret for `POST /internal/waha/events` (≥ 32 chars) |
+| `WEBHOOK_DELIVERY_TIMEOUT_MS` | Outbound Project webhook HTTP timeout |
+| `WEBHOOK_MAX_ATTEMPTS` / `WEBHOOK_RETRY_BASE_MS` | Durable delivery retry policy |
+
+Compose service names: **`gateway`** (NestJS) and **`waha`** (WAHA). WAHA is not published to the host in production compose.
 
 ## Docker
 

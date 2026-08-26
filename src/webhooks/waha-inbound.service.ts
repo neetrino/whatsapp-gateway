@@ -73,6 +73,10 @@ export class WahaInboundService {
       this.logger.warn({ msg: 'waha_inbound_unknown_session', sessionName });
       return;
     }
+    if (!account.isActive) {
+      this.logger.log({ msg: 'waha_inbound_ignored_inactive_account', accountId: account.id });
+      return;
+    }
     if (account.mode !== WhatsappAccountMode.MESSENGER) {
       this.logger.log({ msg: 'waha_inbound_ignored_send_only', accountId: account.id });
       return;
