@@ -1,0 +1,30 @@
+<section>
+  <div class="page-header">
+    <h1>Projects</h1>
+    <a href="/projects/new" class="primary">New project</a>
+  </div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Slug</th>
+        <th>Status</th>
+        <th>Accounts</th>
+        <th>Tokens</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each projects}}
+        <tr>
+          <td><a href="/projects/{{this.id}}">{{this.name}}</a></td>
+          <td><code>{{this.slug}}</code></td>
+          <td>{{#if this.isActive}}Active{{else}}Inactive{{/if}}</td>
+          <td>{{this.accountCount}}</td>
+          <td>{{this.tokenCount}}</td>
+          <td><a href="/projects/{{this.id}}">Open</a></td>
+        </tr>
+      {{/each}}
+    </tbody>
+  </table>
+</section>

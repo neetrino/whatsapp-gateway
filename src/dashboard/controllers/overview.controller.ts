@@ -1,27 +1,25 @@
 import { Controller, Get, HttpStatus, Req, Res } from '@nestjs/common';
-import { Role, SessionStatus } from '@prisma/client';
+import { SessionStatus } from '@prisma/client';
 import type { Request, Response } from 'express';
-import { Roles } from '../../common/decorators/roles.decorator';
 import {
-  CurrentUser,
-  type AuthenticatedUser,
-} from '../../common/decorators/current-user.decorator';
+  CurrentAdmin,
+  type AuthenticatedAdmin,
+} from '../../common/decorators/current-admin.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { HealthService } from '../../health/health.service';
 import { baseView, type BaseViewModel } from '../view-helpers';
 
 interface OverviewView extends BaseViewModel {
-  totalUsers: number;
-  activeUsers: number;
+  totalProjects: number;
+  activeProjects: number;
+  totalAccounts: number;
   connectedAccounts: number;
-  disconnectedAccounts: number;
   qrRequiredAccounts: number;
   health: { gateway: string; database: string; waha: string };
   active: 'overview';
 }
 
 @Controller()
-@Roles(Role.ADMIN, Role.USER)
 export class OverviewController {
   constructor(
     private readonly prisma: PrismaService,
@@ -31,30 +29,25 @@ export class OverviewController {
   @Get('dashboard')
   async overview(
     @Req() req: Request,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
     @Res() res: Response,
   ): Promise<void> {
-    if (user.role === Role.USER) {
-      res.redirect(HttpStatus.FOUND, '/me');
-      return;
-    }
-
-    const [totalUsers, activeUsers, connected, disconnected, qrRequired, health] =
+    const [totalProjects, activeProjects, totalAccounts, connected, qrRequired, health] =
       await Promise.all([
-        this.prisma.user.count(),
-        this.prisma.user.count({ where: { isActive: true } }),
+        this.prisma.project.count(),
+        this.prisma.project.count({ where: { isActive: true } }),
+        this.prisma.whatsappAccount.count(),
         this.prisma.whatsappAccount.count({ where: { status: SessionStatus.CONNECTED } }),
-        this.prisma.whatsappAccount.count({ where: { status: SessionStatus.DISCONNECTED } }),
         this.prisma.whatsappAccount.count({ where: { status: SessionStatus.QR_REQUIRED } }),
         this.healthService.check(),
       ]);
 
     const view: OverviewView = {
-      ...baseView(req, user, 'Overview'),
-      totalUsers,
-      activeUsers,
+      ...baseView(req, admin, 'Dashboard'),
+      totalProjects,
+      activeProjects,
+      totalAccounts,
       connectedAccounts: connected,
-      disconnectedAccounts: disconnected,
       qrRequiredAccounts: qrRequired,
       health,
       active: 'overview',

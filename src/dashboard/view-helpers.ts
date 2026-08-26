@@ -1,18 +1,18 @@
 import type { Request } from 'express';
 import { CSRF_COOKIE_NAME } from '../common/guards/csrf.guard';
-import type { AuthenticatedUser } from '../common/decorators/current-user.decorator';
+import type { AuthenticatedAdmin } from '../common/decorators/current-admin.decorator';
 
 export interface BaseViewModel {
   layout: 'main';
   title: string;
   csrfToken: string;
-  currentUser: AuthenticatedUser;
+  currentAdmin: AuthenticatedAdmin;
   flash?: string;
 }
 
 export const baseView = (
   req: Request,
-  currentUser: AuthenticatedUser,
+  currentAdmin: AuthenticatedAdmin,
   title: string,
 ): BaseViewModel => {
   const cookies = (req as Request & { cookies?: Record<string, string> }).cookies;
@@ -20,6 +20,6 @@ export const baseView = (
     layout: 'main',
     title,
     csrfToken: cookies?.[CSRF_COOKIE_NAME] ?? '',
-    currentUser,
+    currentAdmin,
   };
 };

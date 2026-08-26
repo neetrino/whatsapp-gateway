@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MessageStatus, MessageType, SessionStatus } from '@prisma/client';
+import { MessageStatus, MessageType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WahaService } from '../waha/waha.service';
 import { WahaApiError, WahaTransportError } from '../waha/types/waha.types';
@@ -9,6 +9,7 @@ import { ERROR_CODES } from '../common/errors/error-codes';
 import { ulid } from 'ulid';
 import type { EnvironmentVariables } from '../config/env.validation';
 import type { ApiAccountContext } from '../common/decorators/api-account.decorator';
+import { loadConnectedAccount } from '../whatsapp-accounts/load-connected-account';
 import {
   filenameFromUrl,
   mimetypeForImagePath,
@@ -57,7 +58,11 @@ export class MessagesMediaService {
         : filenameFromUrl(href, 'video.mp4');
     const mimetype =
       input.mediaType === 'IMAGE' ? mimetypeForImagePath(pathname) : mimetypeForVideoPath(pathname);
-    const dbAccount = await this.loadAccountAndAssertConnected(account.whatsappAccountId);
+    const dbAccount = await loadConnectedAccount(
+      this.prisma,
+      account.projectId,
+      account.whatsappAccountId,
+    );
     const requestId = `req_${ulid()}`;
     const messageType = input.mediaType === 'IMAGE' ? MessageType.IMAGE : MessageType.VIDEO;
 
@@ -124,23 +129,6 @@ export class MessagesMediaService {
     const trimmed = raw.trim();
     if (trimmed.length === 0) return undefined;
     return raw;
-  }
-
-  private async loadAccountAndAssertConnected(
-    whatsappAccountId: string,
-  ): Promise<{ id: string; sessionName: string }> {
-    const acc = await this.prisma.whatsappAccount.findUnique({
-      where: { id: whatsappAccountId },
-      select: { id: true, sessionName: true, isActive: true, status: true },
-    });
-    if (!acc || !acc.isActive || acc.status !== SessionStatus.CONNECTED) {
-      throw new AppException({
-        code: ERROR_CODES.WHATSAPP_NOT_CONNECTED,
-        message: 'WhatsApp account is not connected. Please scan QR code in Gateway dashboard.',
-        status: 409,
-      });
-    }
-    return { id: acc.id, sessionName: acc.sessionName };
   }
 
   private async recordFailure(

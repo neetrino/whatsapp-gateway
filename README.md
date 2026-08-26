@@ -7,9 +7,9 @@ This project is **not** NBOS, **not** a plugin, and **not** a Messenger UI.
 
 ## What this is
 
-- HTTP JSON API: `POST /api/messages/send` (`chatId` + `text` only), `POST /api/messages/send-media` (`chatId`, `mediaType`, `mediaUrl`, optional `caption`), and group lifecycle under `/api/groups*` (list/create/get/refresh/participants/invite-link), all with `Authorization: Bearer <token>`.
-- Minimal **dashboard** (server-rendered) for users/admins: login, WhatsApp connection (QR), session actions, API token lifecycle, safe health.
-- **One user → many WhatsApp accounts → one WAHA session each.** API tokens belong to a specific account.
+- **HTTP JSON API:** preferred **v1** `GET /api/v1/accounts`, `GET /api/v1/accounts/:accountId/status`, `POST /api/v1/accounts/:accountId/messages` (Project token, account-scoped, `Idempotency-Key` on send). **MESSENGER** accounts also expose `GET /api/v1/accounts/:accountId/chats` and `.../chats/:chatId/messages` (WAHA Store proxy; bodies capped, not stored in Postgres) and receive inbound events via per-Project HTTPS webhooks (configured in dashboard). Legacy `POST /api/messages/send` (`chatId` + `text` only), `POST /api/messages/send-media`, and group lifecycle under `/api/groups*` remain.
+- Minimal **dashboard** (server-rendered) for the singleton **Admin**: login, **Projects** (API tokens + WhatsApp accounts, QR, session actions), system health.
+- **Admin (singleton) → Project → ApiTokens[] + WhatsappAccounts[]**. Tokens and accounts belong to a Project, not to a User. There is no User/Role model and no `ADMIN_NAME`.
 
 ## What this is not
 
@@ -23,7 +23,7 @@ This project is **not** NBOS, **not** a plugin, and **not** a Messenger UI.
 ```mermaid
 flowchart LR
   Client["External system / NBOS"] -->|"Bearer + JSON"| Gateway["WhatsApp Gateway\nNestJS + Prisma"]
-  Browser["Admin / User browser"] -->|"httpOnly cookie"| Gateway
+  Browser["Admin browser"] -->|"signed httpOnly gw_session"| Gateway
   Gateway -->|"Internal HTTP"| WAHA["WAHA container"]
   WAHA --> WhatsApp["WhatsApp network"]
   Gateway --> Neon["Neon PostgreSQL"]
@@ -48,15 +48,26 @@ Public exposure: **Gateway only** (HTTPS). WAHA stays on the Docker internal net
 ```bash
 npm install
 npx prisma migrate deploy
-npm run prisma:seed   # requires ADMIN_EMAIL / ADMIN_PASSWORD / ADMIN_NAME in .env
+npm run prisma:seed   # requires ADMIN_EMAIL / ADMIN_PASSWORD in .env
 npm run start:dev
 ```
 
-4. Open `http://localhost:3000/login`, sign in as the seeded admin, create users, scan QR, create API tokens.
+4. Open `http://localhost:3000/login`, sign in as the seeded Admin, create a **Project**, add WhatsApp accounts, scan QR, create API tokens.
 
 ## Environment
 
 See [`.env.example`](.env.example). Required variables are validated at startup; the process exits with a clear error if anything is missing.
+
+Key webhook / inbound variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `GATEWAY_INTERNAL_URL` | Docker-internal base URL WAHA calls (`http://gateway:3000` in compose) |
+| `WAHA_WEBHOOK_SECRET` | HMAC secret for `POST /internal/waha/events` (≥ 32 chars) |
+| `WEBHOOK_DELIVERY_TIMEOUT_MS` | Outbound Project webhook HTTP timeout |
+| `WEBHOOK_MAX_ATTEMPTS` / `WEBHOOK_RETRY_BASE_MS` | Durable delivery retry policy |
+
+Compose service names: **`gateway`** (NestJS) and **`waha`** (WAHA). WAHA is not published to the host in production compose.
 
 ## Docker
 
@@ -65,15 +76,23 @@ docker compose build
 docker compose up -d
 ```
 
-The bundled WAHA service uses **`devlikeapro/waha:noweb`** with **`WHATSAPP_DEFAULT_ENGINE=NOWEB`**. For **multiple WhatsApp accounts** (WAHA Plus / multi-session), leave **`WAHA_SESSION_NAME` unset** so each account uses its own DB `sessionName`. Only set **`WAHA_SESSION_NAME=default`** for legacy single-session WAHA Core. **Text** sending is the primary verified path; **image/video** via `POST /api/messages/send-media` depends on engine/version/tier and must be validated separately (see [docs/WAHA_SETUP.md](docs/WAHA_SETUP.md)).
+The bundled WAHA service uses the pinned image **`devlikeapro/waha:noweb-2026.8.1`** with **`WHATSAPP_DEFAULT_ENGINE=NOWEB`** (set on the WAHA container). Each Gateway account uses its database **`sessionName`** as the WAHA session. Do **not** publish the WAHA port in production. **`WAHA_SESSION_NAME` is deprecated and ignored.** Live two-session verification is **not** claimed until:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.integration.yml up -d waha
+WAHA_BASE_URL=http://127.0.0.1:3001 WAHA_INTEGRATION=1 npm run test:waha
+```
+
+See [docs/WAHA_SETUP.md](docs/WAHA_SETUP.md).
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Hetzner + reverse proxy guidance.
 
 ## External API (summary)
 
-- **Text:** `POST /api/messages/send` — `Authorization: Bearer <API_TOKEN>`, JSON `{ "chatId", "text" }` only.
-- **Media:** `POST /api/messages/send-media` — same auth, JSON `{ "chatId", "mediaType": "IMAGE" | "VIDEO", "mediaUrl": "https://...", "caption?": "..." }`. **Media delivery depends on WAHA engine, image tag, and tier** (Core NOWEB is not claimed for production image/video until separately tested). When supported, WAHA downloads the URL and sends real media (the URL is never sent as plain text).
-- **Groups:** `GET|POST /api/groups`, `POST /api/groups/refresh`, `GET /api/groups/:groupId`, participants list/add, invite-link — see [docs/API.md](docs/API.md). Create/add require `Idempotency-Key`.
+- **v1 (preferred):** `GET /api/v1/accounts`, `GET /api/v1/accounts/:id/status`, `POST /api/v1/accounts/:id/messages` with `Authorization: Bearer <PROJECT_TOKEN>` and `Idempotency-Key` on send. Discriminated body `type: TEXT | IMAGE | VIDEO`. See [docs/API.md](docs/API.md).
+- **Legacy text:** `POST /api/messages/send` — same auth, JSON `{ "chatId", "text" }` only. Requires exactly one active account on the Project.
+- **Legacy media:** `POST /api/messages/send-media`.
+- **Groups:** `/api/groups*` — see [docs/API.md](docs/API.md). Create/add require `Idempotency-Key`.
 
 Full contract: [docs/API.md](docs/API.md).
 
@@ -121,6 +140,11 @@ Image and video helpers (same auth; `mediaUrl` must be a **public HTTPS** URL) a
 ```bash
 npm test
 npm run test:e2e
+# Optional live WAHA multi-session (loopback overlay, never public bind):
+# docker compose -f docker-compose.yml -f docker-compose.integration.yml up -d waha
+# WAHA_BASE_URL=http://127.0.0.1:3001 WAHA_INTEGRATION=1 npm run test:waha
+# Optional PostgreSQL concurrency (disposable DB only — never DATABASE_URL):
+# IDEMPOTENCY_PG_INTEGRATION=1 IDEMPOTENCY_PG_URL=postgresql://... npm run test:idempotency:pg
 ```
 
 ## License

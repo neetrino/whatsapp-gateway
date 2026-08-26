@@ -9,7 +9,7 @@
 ## 1. Provision VPS
 
 - Ubuntu 22.04+ or similar on Hetzner.
-- Open inbound **443** (and **80** for ACME if needed). **Do not** publish WAHA port `3000`.
+- Open inbound **443** (and **80** for ACME if needed). **Do not** publish WAHA. Compose uses `expose: "3000"` only (no host port).
 
 ## 2. Install Docker
 
@@ -28,7 +28,10 @@ Edit `.env`:
 - Strong secrets (`COOKIE_SECRET`, `JWT_SECRET`, `TOKEN_PEPPER`) — each ≥ 32 random bytes as hex/base64.
 - `DATABASE_URL` from Neon (include `sslmode=require` if required).
 - `APP_URL` / `GATEWAY_PUBLIC_URL` — public HTTPS URL.
-- `WAHA_BASE_URL=http://waha:3000` (matches `docker-compose.yml` service name).
+- `WAHA_BASE_URL=http://waha:3000` (matches `docker-compose.yml` service name **`waha`**).
+- `GATEWAY_INTERNAL_URL=http://gateway:3000` — URL WAHA uses to POST inbound events (compose service **`gateway`**; not public).
+- `WAHA_WEBHOOK_SECRET` — shared HMAC secret for WAHA → Gateway inbound events (≥ 32 chars).
+- `WEBHOOK_DELIVERY_TIMEOUT_MS`, `WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_RETRY_BASE_MS` — Gateway → Project HTTPS webhook delivery.
 - `WAHA_API_KEY` — shared secret for WAHA HTTP API (see [WAHA_SETUP.md](WAHA_SETUP.md)).
 
 ## 4. Database migrations
@@ -38,8 +41,14 @@ From any environment with Node.js and this repo (CI, admin laptop, or a one-off 
 ```bash
 export DATABASE_URL="postgresql://..."
 npx prisma migrate deploy
-ADMIN_EMAIL=... ADMIN_PASSWORD=... ADMIN_NAME=... npm run prisma:seed
+ADMIN_EMAIL=... ADMIN_PASSWORD=... npm run prisma:seed
 ```
+
+`prisma/seed.ts` upserts the **singleton Admin** from `ADMIN_EMAIL` / `ADMIN_PASSWORD` only (no `ADMIN_NAME`, no User rows, no WhatsApp account). Re-running seed verifies the existing Argon2 hash and does **not** bump `sessionVersion` unless the email or password actually changes.
+
+**Destructive test-only migration:** `prisma/migrations/20260824120000_phase1_admin_project_ownership` deletes existing `users`, WhatsApp accounts, API tokens, and related logs, then introduces Admin/Project ownership. Use it on **disposable test databases only**. Do not apply it to production data that you need to keep.
+
+**Migration `20260716120000_multi_whatsapp_per_user`:** kept from `main` unchanged (checksum must match databases that already applied it). It only drops `whatsapp_accounts_userId_key` and creates `whatsapp_accounts_userId_idx`. Phase 1 then drops `userId`. If a database already applied Phase 1 **without** this row in `_prisma_migrations`, mark it applied (`prisma migrate resolve --applied 20260716120000_multi_whatsapp_per_user`) — do not re-run it after `userId` is gone.
 
 The production Docker image is runtime-only (no `ts-node`). Run the **seed once** from a dev/CI environment against Neon.
 
@@ -73,7 +82,7 @@ wa-gateway.example.com {
 - `proxy_pass http://127.0.0.1:3000;`
 - Forward `X-Forwarded-For`, `X-Forwarded-Proto`.
 
-Ensure `trust proxy` is enabled in production (already set in `main.ts`).
+Ensure `trust proxy` is enabled in production (already `app.set('trust proxy', 1)` in `main.ts`). The proxy must set `X-Forwarded-For` / `X-Forwarded-Proto` so v1 IP-fallback rate limits and secure cookies see the client correctly.
 
 ## 7. WAHA persistence
 

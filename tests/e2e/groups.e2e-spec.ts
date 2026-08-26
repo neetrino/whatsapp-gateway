@@ -7,6 +7,7 @@ import { ApiTokensService } from '../../src/api-tokens/api-tokens.service';
 import { WahaClient } from '../../src/waha/waha.client';
 import { SessionStatus, GroupApiOperationStatus } from '@prisma/client';
 import { generateApiToken } from '../../src/common/utils/tokens';
+import { validResolvedToken } from '../helpers/resolved-token';
 import { hashGroupRequestPayload } from '../../src/groups/idempotency';
 
 describe('Groups API (e2e)', () => {
@@ -39,9 +40,10 @@ describe('Groups API (e2e)', () => {
     $connect: jest.fn().mockResolvedValue(undefined),
     $disconnect: jest.fn().mockResolvedValue(undefined),
     $queryRaw: jest.fn().mockResolvedValue([{ ok: 1 }]),
-    user: { count: jest.fn().mockResolvedValue(0) },
+    admin: { findUnique: jest.fn() },
+    project: { count: jest.fn().mockResolvedValue(0), findUnique: jest.fn(), findMany: jest.fn() },
     whatsappAccount: {
-      findUnique: jest.fn().mockResolvedValue({
+      findFirst: jest.fn().mockResolvedValue({
         id: 'acc1',
         sessionName: 'wa_test',
         isActive: true,
@@ -109,7 +111,7 @@ describe('Groups API (e2e)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    prismaMock.whatsappAccount.findUnique.mockResolvedValue({
+    prismaMock.whatsappAccount.findFirst.mockResolvedValue({
       id: 'acc1',
       sessionName: 'wa_test',
       isActive: true,
@@ -124,12 +126,7 @@ describe('Groups API (e2e)', () => {
 
   const authed = (): { Authorization: string } => {
     const raw = generateApiToken(prefix).raw;
-    findValidByRaw.mockResolvedValue({
-      apiTokenId: 't1',
-      whatsappAccountId: 'acc1',
-      sessionName: 'wa_test',
-      revoked: false,
-    });
+    findValidByRaw.mockResolvedValue({ ...validResolvedToken });
     return authHeaderForRaw(raw);
   };
 

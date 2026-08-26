@@ -1,0 +1,9 @@
+<section class="card">
+  <h1>New project</h1>
+  <form method="post" action="/projects" class="form">
+    <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+    <label>Name<input name="name" required maxlength="100" /></label>
+    <label>Slug<input name="slug" required minlength="2" maxlength="64" placeholder="nbos" /></label>
+    <button type="submit" class="primary">Create</button>
+  </form>
+</section>

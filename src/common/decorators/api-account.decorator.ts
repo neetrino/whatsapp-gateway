@@ -3,6 +3,7 @@ import type { Request } from 'express';
 
 export interface ApiAccountContext {
   apiTokenId: string;
+  projectId: string;
   whatsappAccountId: string;
   sessionName: string;
 }

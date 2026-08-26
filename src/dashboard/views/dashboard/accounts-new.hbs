@@ -1,15 +1,16 @@
 <section class="card">
   <h1>New WhatsApp account</h1>
-  <form method="post" action="/accounts" class="form">
+  <p class="meta">Project <code>{{project.slug}}</code></p>
+  <form method="post" action="/projects/{{project.id}}/accounts" class="form">
     <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-    <label>Owner
-      <select name="userId" required>
-        {{#each users}}
-          <option value="{{this.id}}">{{this.name}} ({{this.email}})</option>
-        {{/each}}
+    <label>Label<input name="label" required maxlength="100" /></label>
+    <label>Mode
+      <select name="mode" required>
+        <option value="SEND_ONLY" selected>SEND_ONLY</option>
+        <option value="MESSENGER">MESSENGER (Store + v1 chats when connected)</option>
       </select>
     </label>
-    <label>Label<input name="label" required maxlength="100" placeholder="e.g. Sales line" /></label>
+    <p class="meta">MESSENGER enables NOWEB Store and v1 chats/history APIs after the session is connected. Inbound webhooks are a later phase.</p>
     <button type="submit" class="primary">Create</button>
   </form>
 </section>

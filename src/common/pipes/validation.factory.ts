@@ -34,18 +34,20 @@ const inferCode = (messages: string[]): ErrorCode => {
   return ERROR_CODES.VALIDATION_ERROR;
 };
 
+export const throwFromValidationErrors = (errors: ValidationError[]): AppException => {
+  const messages = collectMessages(errors);
+  const code = inferCode(messages);
+  return new AppException({
+    code,
+    message: messages[0] ?? 'Validation failed.',
+    status: 400,
+  });
+};
+
 export const VALIDATION_PIPE_OPTIONS: ValidationPipeOptions = {
   whitelist: true,
   forbidNonWhitelisted: true,
   transform: true,
   transformOptions: { enableImplicitConversion: false },
-  exceptionFactory: (errors: ValidationError[]) => {
-    const messages = collectMessages(errors);
-    const code = inferCode(messages);
-    return new AppException({
-      code,
-      message: messages[0] ?? 'Validation failed.',
-      status: 400,
-    });
-  },
+  exceptionFactory: (errors: ValidationError[]) => throwFromValidationErrors(errors),
 };

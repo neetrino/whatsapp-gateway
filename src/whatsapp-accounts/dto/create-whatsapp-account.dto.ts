@@ -1,5 +1,6 @@
-import { IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEnum, IsString, MaxLength, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { WhatsappAccountMode } from '@prisma/client';
 import { CsrfFormDto } from '../../common/dto/csrf-form.dto';
 
 export class CreateWhatsappAccountDto extends CsrfFormDto {
@@ -8,11 +9,7 @@ export class CreateWhatsappAccountDto extends CsrfFormDto {
   @MaxLength(100)
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   label!: string;
-}
 
-export class AdminCreateWhatsappAccountDto extends CreateWhatsappAccountDto {
-  @IsString()
-  @MinLength(1)
-  @MaxLength(64)
-  userId!: string;
+  @IsEnum(WhatsappAccountMode)
+  mode!: WhatsappAccountMode;
 }

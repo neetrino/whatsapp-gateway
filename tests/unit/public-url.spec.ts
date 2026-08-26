@@ -57,6 +57,12 @@ describe('validatePublicHttpsUrl', () => {
     await expect(validatePublicHttpsUrl('https://host.docker.internal/x.jpg')).rejects.toThrow();
   });
 
+  it('rejects internal service hostnames', async () => {
+    await expect(validatePublicHttpsUrl('https://gateway/hook')).rejects.toThrow();
+    await expect(validatePublicHttpsUrl('https://waha/events')).rejects.toThrow();
+    await expect(validatePublicHttpsUrl('https://metadata/')).rejects.toThrow();
+  });
+
   it('rejects URL with credentials', async () => {
     await expect(validatePublicHttpsUrl('https://user:pass@example.com/x.jpg')).rejects.toThrow(
       'credentials',

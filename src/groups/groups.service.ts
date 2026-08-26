@@ -3,7 +3,6 @@ import {
   GroupApiOperationStatus,
   GroupApiOperationType,
   Prisma,
-  SessionStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WahaClient } from '../waha/waha.client';
@@ -12,6 +11,7 @@ import { WahaApiError, WahaTransportError } from '../waha/types/waha.types';
 import { AppException } from '../common/errors/app.exception';
 import { ERROR_CODES } from '../common/errors/error-codes';
 import type { ApiAccountContext } from '../common/decorators/api-account.decorator';
+import { loadConnectedAccount } from '../whatsapp-accounts/load-connected-account';
 import {
   GROUP_ID_REGEX,
   INVITE_CODE_REGEX,
@@ -49,7 +49,7 @@ export class GroupsService {
     account: ApiAccountContext,
     query: { limit: number; offset: number; search?: string },
   ): Promise<GroupsListResult> {
-    const { sessionName } = await this.loadConnectedSession(account.whatsappAccountId);
+    const { sessionName } = await this.loadConnectedSession(account);
     try {
       const raw = await this.wahaClient.listGroups(sessionName, {
         limit: query.limit,
@@ -76,7 +76,7 @@ export class GroupsService {
 
   async getGroup(account: ApiAccountContext, groupId: string): Promise<NormalizedGroup> {
     this.assertGroupId(groupId);
-    const { sessionName } = await this.loadConnectedSession(account.whatsappAccountId);
+    const { sessionName } = await this.loadConnectedSession(account);
     try {
       const raw = await this.wahaClient.getGroup(sessionName, groupId);
       const mapped = mapWahaGroup(raw);
@@ -102,7 +102,7 @@ export class GroupsService {
   }
 
   async refreshGroups(account: ApiAccountContext): Promise<RefreshGroupsResult> {
-    const { sessionName, accountId } = await this.loadConnectedSession(account.whatsappAccountId);
+    const { sessionName, accountId } = await this.loadConnectedSession(account);
     try {
       await this.wahaClient.refreshGroups(sessionName);
       this.logger.log({
@@ -130,7 +130,7 @@ export class GroupsService {
       name: input.name,
       participants,
     });
-    const { sessionName, accountId } = await this.loadConnectedSession(account.whatsappAccountId);
+    const { sessionName, accountId } = await this.loadConnectedSession(account);
 
     const existing = await this.prisma.groupApiOperation.findUnique({
       where: {
@@ -246,7 +246,7 @@ export class GroupsService {
     groupId: string,
   ): Promise<GroupParticipantsResult> {
     this.assertGroupId(groupId);
-    const { sessionName } = await this.loadConnectedSession(account.whatsappAccountId);
+    const { sessionName } = await this.loadConnectedSession(account);
     try {
       const raw = await this.wahaClient.listGroupParticipants(sessionName, groupId);
       const participants = mapWahaParticipants(raw);
@@ -276,7 +276,7 @@ export class GroupsService {
     this.assertGroupId(groupId);
     const participants = dedupeParticipantIds(participantsInput);
     const requestHash = hashGroupRequestPayload({ groupId, participants });
-    const { sessionName, accountId } = await this.loadConnectedSession(account.whatsappAccountId);
+    const { sessionName, accountId } = await this.loadConnectedSession(account);
 
     const existing = await this.prisma.groupApiOperation.findUnique({
       where: {
@@ -374,7 +374,7 @@ export class GroupsService {
 
   async getInviteLink(account: ApiAccountContext, groupId: string): Promise<InviteLinkResult> {
     this.assertGroupId(groupId);
-    const { sessionName, accountId } = await this.loadConnectedSession(account.whatsappAccountId);
+    const { sessionName, accountId } = await this.loadConnectedSession(account);
     try {
       const raw = await this.wahaClient.getGroupInviteCode(sessionName, groupId);
       const code = extractInviteCode(raw);
@@ -590,22 +590,16 @@ export class GroupsService {
   }
 
   private async loadConnectedSession(
-    whatsappAccountId: string,
+    account: ApiAccountContext,
   ): Promise<{ accountId: string; sessionName: string }> {
-    const account = await this.prisma.whatsappAccount.findUnique({
-      where: { id: whatsappAccountId },
-      select: { id: true, sessionName: true, isActive: true, status: true },
-    });
-    if (!account || !account.isActive || account.status !== SessionStatus.CONNECTED) {
-      throw new AppException({
-        code: ERROR_CODES.WHATSAPP_NOT_CONNECTED,
-        message: 'WhatsApp account is not connected. Please scan QR code in Gateway dashboard.',
-        status: 409,
-      });
-    }
+    const loaded = await loadConnectedAccount(
+      this.prisma,
+      account.projectId,
+      account.whatsappAccountId,
+    );
     return {
-      accountId: account.id,
-      sessionName: this.wahaService.effectiveSessionName(account),
+      accountId: loaded.id,
+      sessionName: this.wahaService.effectiveSessionName(loaded),
     };
   }
 

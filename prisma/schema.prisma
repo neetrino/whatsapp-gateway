@@ -7,11 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
-  USER
-}
-
 enum SessionStatus {
   QR_REQUIRED
   CONNECTING
@@ -24,6 +19,13 @@ enum MessageStatus {
   PENDING
   SENT
   FAILED
+}
+
+enum OutboundIdempotencyStatus {
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  OUTCOME_UNKNOWN
 }
 
 enum MessageType {
@@ -44,58 +46,92 @@ enum GroupApiOperationStatus {
   OUTCOME_UNKNOWN
 }
 
-model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  role         Role     @default(USER)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+enum WhatsappAccountMode {
+  SEND_ONLY
+  MESSENGER
+}
 
-  whatsappAccounts WhatsappAccount[]
+enum WebhookDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  EXHAUSTED
+  SKIPPED
+}
 
-  @@map("users")
+model Admin {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  isActive       Boolean  @default(true)
+  sessionVersion Int      @default(0)
+  singleton      Int      @unique @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model Project {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  isActive       Boolean  @default(true)
+  webhookUrl            String?
+  webhookSecretHash     String?
+  webhookSecretPrefix   String?
+  webhookSecretLast4    String?
+  webhookEnabled        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  apiTokens           ApiToken[]
+  whatsappAccounts    WhatsappAccount[]
+  webhookDeliveries   ProjectWebhookDelivery[]
+
+  @@map("projects")
 }
 
 model WhatsappAccount {
-  id                 String        @id @default(cuid())
-  userId             String
+  id                 String              @id @default(cuid())
+  projectId          String
   label              String
-  sessionName        String        @unique
-  status             SessionStatus @default(QR_REQUIRED)
+  mode               WhatsappAccountMode @default(SEND_ONLY)
+  sessionName        String              @unique
+  status             SessionStatus       @default(QR_REQUIRED)
   phoneNumber        String?
-  isActive           Boolean       @default(true)
+  isActive           Boolean             @default(true)
   lastConnectedAt    DateTime?
   lastDisconnectedAt DateTime?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
-  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  apiTokens          ApiToken[]
-  logs               OutboundMessageLog[]
-  groupApiOperations GroupApiOperation[]
+  project                   Project                     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  logs                      OutboundMessageLog[]
+  groupApiOperations        GroupApiOperation[]
+  outboundIdempotencyKeys   OutboundMessageIdempotency[]
+  webhookDeliveries         ProjectWebhookDelivery[]
 
-  @@index([userId])
+  @@index([projectId])
+  @@index([projectId, isActive])
   @@map("whatsapp_accounts")
 }
 
 model ApiToken {
-  id                String    @id @default(cuid())
-  whatsappAccountId String
-  name              String
-  tokenHash         String    @unique
-  tokenPrefix       String
-  last4             String
-  lastUsedAt        DateTime?
-  revokedAt         DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  projectId   String
+  name        String
+  tokenHash   String    @unique
+  tokenPrefix String
+  last4       String
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  whatsappAccount WhatsappAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
 
-  @@index([whatsappAccountId])
+  @@index([projectId])
   @@map("api_tokens")
 }
 
@@ -109,13 +145,37 @@ model OutboundMessageLog {
   wahaMessageId     String?
   errorCode         String?
   errorMessage      String?
+  idempotencyKey    String?
+  requestHash       String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
   whatsappAccount WhatsappAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
 
   @@index([whatsappAccountId, createdAt])
+  @@index([whatsappAccountId, idempotencyKey, requestHash])
   @@map("outbound_message_logs")
+}
+
+model OutboundMessageIdempotency {
+  id                String                    @id @default(cuid())
+  whatsappAccountId String
+  idempotencyKey    String
+  requestHash       String
+  status            OutboundIdempotencyStatus @default(PROCESSING)
+  requestId         String?
+  messageId         String?
+  wahaMessageId     String?
+  sentAt            DateTime?
+  errorCode         String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  whatsappAccount WhatsappAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([whatsappAccountId, idempotencyKey])
+  @@index([whatsappAccountId, createdAt])
+  @@map("outbound_message_idempotency")
 }
 
 model GroupApiOperation {
@@ -136,4 +196,33 @@ model GroupApiOperation {
   @@unique([whatsappAccountId, idempotencyKey])
   @@index([whatsappAccountId, createdAt])
   @@map("group_api_operations")
+}
+
+model ProjectWebhookDelivery {
+  id                String                @id @default(cuid())
+  projectId         String
+  whatsappAccountId String
+  eventId           String
+  wahaRequestId     String?
+  eventType         String
+  payloadJson       String
+  payloadHash       String
+  status            WebhookDeliveryStatus @default(PENDING)
+  attemptCount      Int                   @default(0)
+  nextAttemptAt     DateTime?
+  lastAttemptAt     DateTime?
+  deliveredAt       DateTime?
+  lastHttpStatus    Int?
+  lastErrorCode     String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  whatsappAccount WhatsappAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, eventId])
+  @@index([projectId, createdAt])
+  @@index([whatsappAccountId, createdAt])
+  @@index([status, nextAttemptAt])
+  @@map("project_webhook_deliveries")
 }

@@ -1,15 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { Role, SessionStatus, WhatsappAccount } from '@prisma/client';
+import { SessionStatus, WhatsappAccount, WhatsappAccountMode } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppException } from '../common/errors/app.exception';
 import { ERROR_CODES } from '../common/errors/error-codes';
+import { AccountModePolicyService } from '../waha/account-mode-policy.service';
 import { WahaService } from '../waha/waha.service';
 import type { QrViewModel } from '../waha/types/waha.types';
 import { generateSessionName } from '../common/utils/session-name';
-import type { AuthenticatedUser } from '../common/decorators/current-user.decorator';
 
-export interface AccountWithUser extends WhatsappAccount {
-  user: { id: string; name: string; email: string; role: Role; isActive: boolean };
+export interface SwitchModeResult {
+  account: WhatsappAccount;
+  applied: boolean;
 }
 
 @Injectable()
@@ -17,21 +18,20 @@ export class WhatsappAccountsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly wahaService: WahaService,
+    private readonly modePolicy: AccountModePolicyService,
   ) {}
 
-  async createForUser(userId: string, label: string): Promise<WhatsappAccount> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      throw new AppException({
-        code: ERROR_CODES.NOT_FOUND,
-        message: 'User not found.',
-        status: 404,
-      });
-    }
+  async createForProject(
+    projectId: string,
+    label: string,
+    mode: WhatsappAccountMode,
+  ): Promise<WhatsappAccount> {
+    await this.assertProjectExists(projectId);
     return this.prisma.whatsappAccount.create({
       data: {
-        userId,
+        projectId,
         label,
+        mode,
         sessionName: generateSessionName(),
         status: SessionStatus.QR_REQUIRED,
         isActive: true,
@@ -39,31 +39,16 @@ export class WhatsappAccountsService {
     });
   }
 
-  async listAll(): Promise<AccountWithUser[]> {
+  async listForProject(projectId: string): Promise<WhatsappAccount[]> {
     return this.prisma.whatsappAccount.findMany({
-      include: {
-        user: { select: { id: true, name: true, email: true, role: true, isActive: true } },
-      },
+      where: { projectId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async listForUser(userId: string): Promise<AccountWithUser[]> {
-    return this.prisma.whatsappAccount.findMany({
-      where: { userId },
-      include: {
-        user: { select: { id: true, name: true, email: true, role: true, isActive: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  async getByIdForActor(id: string, actor: AuthenticatedUser): Promise<AccountWithUser> {
-    const account = await this.prisma.whatsappAccount.findUnique({
-      where: { id },
-      include: {
-        user: { select: { id: true, name: true, email: true, role: true, isActive: true } },
-      },
+  async getByIdForProject(projectId: string, accountId: string): Promise<WhatsappAccount> {
+    const account = await this.prisma.whatsappAccount.findFirst({
+      where: { id: accountId, projectId },
     });
     if (!account) {
       throw new AppException({
@@ -72,8 +57,43 @@ export class WhatsappAccountsService {
         status: 404,
       });
     }
-    this.assertActorMayAccess(account, actor);
     return account;
+  }
+
+  async setActiveForProject(
+    projectId: string,
+    accountId: string,
+    isActive: boolean,
+  ): Promise<WhatsappAccount> {
+    const account = await this.getByIdForProject(projectId, accountId);
+    return this.prisma.whatsappAccount.update({
+      where: { id: account.id },
+      data: { isActive },
+    });
+  }
+
+  async switchModeForProject(
+    projectId: string,
+    accountId: string,
+    mode: WhatsappAccountMode,
+  ): Promise<SwitchModeResult> {
+    const account = await this.getByIdForProject(projectId, accountId);
+    if (account.mode === mode) return { account, applied: true };
+
+    const exists = await this.modePolicy.sessionExists(account.sessionName);
+    if (exists) {
+      try {
+        await this.modePolicy.applySessionConfig(account.sessionName, mode);
+      } catch {
+        return { account, applied: false };
+      }
+    }
+
+    const updated = await this.prisma.whatsappAccount.update({
+      where: { id: account.id },
+      data: { mode },
+    });
+    return { account: updated, applied: true };
   }
 
   async refreshStatus(account: WhatsappAccount): Promise<WhatsappAccount> {
@@ -100,13 +120,33 @@ export class WhatsappAccountsService {
     return this.wahaService.getQrForDashboard(account, { requestId, accountId: account.id });
   }
 
-  assertActorMayAccess(account: WhatsappAccount, actor: AuthenticatedUser): void {
-    if (actor.role === Role.ADMIN) return;
-    if (account.userId !== actor.id) {
+  async listRecentLogs(projectId: string, accountId: string, take = 25) {
+    await this.getByIdForProject(projectId, accountId);
+    return this.prisma.outboundMessageLog.findMany({
+      where: { whatsappAccountId: accountId },
+      orderBy: { createdAt: 'desc' },
+      take,
+      select: {
+        requestId: true,
+        messageType: true,
+        status: true,
+        wahaMessageId: true,
+        errorCode: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  private async assertProjectExists(projectId: string): Promise<void> {
+    const exists = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true },
+    });
+    if (!exists) {
       throw new AppException({
-        code: ERROR_CODES.FORBIDDEN,
-        message: 'You may not access this WhatsApp account.',
-        status: 403,
+        code: ERROR_CODES.NOT_FOUND,
+        message: 'Project not found.',
+        status: 404,
       });
     }
   }

@@ -7,6 +7,7 @@ import { engine } from 'express-handlebars';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { join } from 'node:path';
+import { attachGatewayMiddleware } from './common/http/body-parser';
 import { AppModule } from './app.module';
 import type { EnvironmentVariables } from './config/env.validation';
 
@@ -15,12 +16,14 @@ const PUBLIC_DIR = join(__dirname, 'dashboard', 'public');
 
 const bootstrap = async (): Promise<void> => {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    bodyParser: true,
+    bodyParser: false,
   });
   const configService = app.get<ConfigService<EnvironmentVariables, true>>(ConfigService);
   const cookieSecret = configService.get('COOKIE_SECRET', { infer: true });
   const port = configService.get('PORT', { infer: true });
   const isProd = configService.get('NODE_ENV', { infer: true }) === 'production';
+
+  attachGatewayMiddleware(app);
 
   app.use(cookieParser(cookieSecret));
   app.use(

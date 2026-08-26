@@ -25,6 +25,8 @@ const STATUS_MAP: Record<string, SessionStatus> = {
 export const mapWahaStatus = (raw: WahaSessionStatusRaw): SessionStatus =>
   STATUS_MAP[raw] ?? SessionStatus.ERROR;
 
+import { AccountModePolicyService } from './account-mode-policy.service';
+
 @Injectable()
 export class WahaService {
   private readonly logger = new Logger(WahaService.name);
@@ -33,17 +35,27 @@ export class WahaService {
     private readonly prisma: PrismaService,
     private readonly client: WahaClient,
     private readonly config: ConfigService<EnvironmentVariables, true>,
-  ) {}
+    private readonly modePolicy: AccountModePolicyService,
+  ) {
+    const ignored = this.config.get('WAHA_SESSION_NAME', { infer: true })?.trim();
+    if (ignored) {
+      this.logger.warn({
+        msg: 'waha_session_name_ignored',
+        detail: 'WAHA_SESSION_NAME is deprecated and ignored. Database sessionName is authoritative.',
+      });
+    }
+  }
 
-  /** Session name sent to WAHA (Core: usually `default`; Plus: per-account DB name unless overridden). */
+  /** Session name sent to WAHA. Database `WhatsappAccount.sessionName` is authoritative. */
   effectiveSessionName(account: Pick<WhatsappAccount, 'sessionName'>): string {
-    const override = this.config.get('WAHA_SESSION_NAME', { infer: true })?.trim();
-    return override && override.length > 0 ? override : account.sessionName;
+    return account.sessionName;
   }
 
   async startSession(account: WhatsappAccount): Promise<void> {
     try {
-      await this.client.startSession(this.effectiveSessionName(account));
+      const sessionName = this.effectiveSessionName(account);
+      const configPayload = this.modePolicy.buildSessionConfig(sessionName, account.mode);
+      await this.client.startSession(sessionName, configPayload);
     } catch (error) {
       this.logSafeError('start_session_failed', error);
     }
@@ -79,8 +91,15 @@ export class WahaService {
   }
 
   async restartSession(account: WhatsappAccount): Promise<void> {
+    const sessionName = this.effectiveSessionName(account);
     try {
-      await this.client.restartSession(this.effectiveSessionName(account));
+      const exists = await this.client.sessionExists(sessionName);
+      if (exists) {
+        await this.modePolicy.applySessionConfig(sessionName, account.mode);
+        return;
+      }
+      const configPayload = this.modePolicy.buildSessionConfig(sessionName, account.mode);
+      await this.client.startSession(sessionName, configPayload);
     } catch (error) {
       this.logSafeError('restart_session_failed', error);
       throw error;
@@ -221,7 +240,7 @@ export class WahaService {
         return {
           code: 'WAHA_HTTP_404',
           summary:
-            'WAHA returned 404 (QR route or session not found). Confirm session is started and WAHA_SESSION_NAME matches this WAHA edition.',
+            'WAHA returned 404 (QR route or session not found). Confirm the session is started and the database sessionName exists in WAHA.',
         };
       }
       if (error.status === 409) {
@@ -247,7 +266,7 @@ export class WahaService {
           return {
             code: 'WAHA_CORE_DEFAULT_SESSION_ONLY',
             summary:
-              'WAHA Core accepts only the session name `default`. Set WAHA_SESSION_NAME=default on the Gateway (see docker-compose / .env.example) or use WAHA Plus for multiple named sessions.',
+              'This WAHA image accepts only the session name `default`. Pin and run devlikeapro/waha:noweb-2026.8.1 (multi-session Core) or a Plus image. Database sessionName is authoritative.',
           };
         }
         return {

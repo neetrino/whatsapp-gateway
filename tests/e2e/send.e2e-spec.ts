@@ -7,6 +7,7 @@ import { ApiTokensService } from '../../src/api-tokens/api-tokens.service';
 import { WahaClient } from '../../src/waha/waha.client';
 import { SessionStatus } from '@prisma/client';
 import { generateApiToken, hashApiToken } from '../../src/common/utils/tokens';
+import { validResolvedToken } from '../helpers/resolved-token';
 
 describe('POST /api/messages/send (e2e)', () => {
   let app: INestApplication;
@@ -23,9 +24,14 @@ describe('POST /api/messages/send (e2e)', () => {
     $connect: jest.fn().mockResolvedValue(undefined),
     $disconnect: jest.fn().mockResolvedValue(undefined),
     $queryRaw: jest.fn().mockResolvedValue([{ ok: 1 }]),
-    user: { count: jest.fn().mockResolvedValue(0) },
+    admin: { findUnique: jest.fn() },
+    project: {
+      count: jest.fn().mockResolvedValue(0),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+    },
     whatsappAccount: {
-      findUnique: jest.fn().mockResolvedValue({
+      findFirst: jest.fn().mockResolvedValue({
         id: 'acc1',
         sessionName: 'wa_test',
         isActive: true,
@@ -85,7 +91,7 @@ describe('POST /api/messages/send (e2e)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    prismaMock.whatsappAccount.findUnique.mockResolvedValue({
+    prismaMock.whatsappAccount.findFirst.mockResolvedValue({
       id: 'acc1',
       sessionName: 'wa_test',
       isActive: true,
@@ -119,12 +125,7 @@ describe('POST /api/messages/send (e2e)', () => {
   });
 
   it('returns 403 for revoked token', async () => {
-    findValidByRaw.mockResolvedValueOnce({
-      apiTokenId: 't1',
-      whatsappAccountId: 'acc1',
-      sessionName: 'wa_test',
-      revoked: true,
-    });
+    findValidByRaw.mockResolvedValueOnce({ ...validResolvedToken, revoked: true });
     const res = await request(app.getHttpServer())
       .post('/api/messages/send')
       .set(authHeaderForRaw(`${prefix}_revoked`))
@@ -136,12 +137,7 @@ describe('POST /api/messages/send (e2e)', () => {
 
   it('returns PHONE_NOT_SUPPORTED when phone is present', async () => {
     const raw = generateApiToken(prefix).raw;
-    findValidByRaw.mockResolvedValue({
-      apiTokenId: 't1',
-      whatsappAccountId: 'acc1',
-      sessionName: 'wa_test',
-      revoked: false,
-    });
+    findValidByRaw.mockResolvedValue({ ...validResolvedToken });
 
     const res = await request(app.getHttpServer())
       .post('/api/messages/send')
@@ -154,12 +150,7 @@ describe('POST /api/messages/send (e2e)', () => {
 
   it('returns INVALID_CHAT_ID for bad suffix', async () => {
     const raw = generateApiToken(prefix).raw;
-    findValidByRaw.mockResolvedValue({
-      apiTokenId: 't1',
-      whatsappAccountId: 'acc1',
-      sessionName: 'wa_test',
-      revoked: false,
-    });
+    findValidByRaw.mockResolvedValue({ ...validResolvedToken });
 
     const res = await request(app.getHttpServer())
       .post('/api/messages/send')
@@ -176,12 +167,7 @@ describe('POST /api/messages/send (e2e)', () => {
       const expectedHash = hashApiToken(raw, pepper);
       const actualHash = hashApiToken(token, pepper);
       if (actualHash !== expectedHash) return null;
-      return {
-        apiTokenId: 't1',
-        whatsappAccountId: 'acc1',
-        sessionName: 'wa_test',
-        revoked: false,
-      };
+      return { ...validResolvedToken };
     });
     sendText.mockResolvedValue({ id: 'wmsg1' });
 
@@ -202,12 +188,7 @@ describe('POST /api/messages/send (e2e)', () => {
 
   it('accepts @g.us group chatId', async () => {
     const raw = generateApiToken(prefix).raw;
-    findValidByRaw.mockResolvedValue({
-      apiTokenId: 't1',
-      whatsappAccountId: 'acc1',
-      sessionName: 'wa_test',
-      revoked: false,
-    });
+    findValidByRaw.mockResolvedValue({ ...validResolvedToken });
     sendText.mockResolvedValue({ id: 'wmsg2' });
 
     const res = await request(app.getHttpServer())
@@ -221,13 +202,8 @@ describe('POST /api/messages/send (e2e)', () => {
 
   it('returns WHATSAPP_NOT_CONNECTED when session is not CONNECTED', async () => {
     const raw = generateApiToken(prefix).raw;
-    findValidByRaw.mockResolvedValue({
-      apiTokenId: 't1',
-      whatsappAccountId: 'acc1',
-      sessionName: 'wa_test',
-      revoked: false,
-    });
-    prismaMock.whatsappAccount.findUnique.mockResolvedValueOnce({
+    findValidByRaw.mockResolvedValue({ ...validResolvedToken });
+    prismaMock.whatsappAccount.findFirst.mockResolvedValueOnce({
       id: 'acc1',
       sessionName: 'wa_test',
       isActive: true,
@@ -243,135 +219,115 @@ describe('POST /api/messages/send (e2e)', () => {
     expect(res.body.error.code).toBe('WHATSAPP_NOT_CONNECTED');
   });
 
-  it('supports GET /api/messages/send-by-url with token query parameter', async () => {
+  it('rejects inactive project tokens', async () => {
     const raw = generateApiToken(prefix).raw;
-    findValidByRaw.mockResolvedValue({
-      apiTokenId: 't1',
-      whatsappAccountId: 'acc1',
-      sessionName: 'wa_test',
-      revoked: false,
-    });
-    sendText.mockResolvedValue({ id: 'wmsg3' });
-
-    const res = await request(app.getHttpServer()).get('/api/messages/send-by-url').query({
-      token: raw,
-      chatId: '37499111222@c.us',
-      text: 'Hello from URL',
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(sendText).toHaveBeenCalledWith('wa_test', '37499111222@c.us', 'Hello from URL');
+    findValidByRaw.mockResolvedValue({ ...validResolvedToken, projectIsActive: false });
+    const res = await request(app.getHttpServer())
+      .post('/api/messages/send')
+      .set(authHeaderForRaw(raw))
+      .send({ chatId: '37499111222@c.us', text: 'Hi' });
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('PROJECT_INACTIVE');
+    expect(sendText).not.toHaveBeenCalled();
   });
 
-  it('returns INVALID_TOKEN for bad token on GET /api/messages/send-by-url', async () => {
-    findValidByRaw.mockResolvedValueOnce(null);
+  it('rejects a project with zero active accounts', async () => {
+    const raw = generateApiToken(prefix).raw;
+    findValidByRaw.mockResolvedValue({ ...validResolvedToken, activeAccounts: [] });
+    const res = await request(app.getHttpServer())
+      .post('/api/messages/send')
+      .set(authHeaderForRaw(raw))
+      .send({ chatId: '37499111222@c.us', text: 'Hi' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('PROJECT_HAS_NO_ACTIVE_ACCOUNT');
+    expect(sendText).not.toHaveBeenCalled();
+  });
+
+  it('rejects a project with more than one active account', async () => {
+    const raw = generateApiToken(prefix).raw;
+    findValidByRaw.mockResolvedValue({
+      ...validResolvedToken,
+      activeAccounts: [
+        { id: 'acc1', sessionName: 'wa_a' },
+        { id: 'acc2', sessionName: 'wa_b' },
+      ],
+    });
+    const res = await request(app.getHttpServer())
+      .post('/api/messages/send')
+      .set(authHeaderForRaw(raw))
+      .send({ chatId: '37499111222@c.us', text: 'Hi' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('PROJECT_ACCOUNT_AMBIGUOUS');
+    expect(sendText).not.toHaveBeenCalled();
+  });
+
+  it('rejects GET /api/messages/send-by-url when a token is in the query', async () => {
     const res = await request(app.getHttpServer())
       .get('/api/messages/send-by-url')
       .query({
-        token: `${prefix}_invalid`,
+        token: `${prefix}_secret`,
         chatId: '37499111222@c.us',
-        text: 'Hi',
+        text: 'Hello from URL',
       });
-
-    expect(res.status).toBe(401);
-    expect(res.body.error.code).toBe('INVALID_TOKEN');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(findValidByRaw).not.toHaveBeenCalled();
+    expect(sendText).not.toHaveBeenCalled();
   });
 
-  it('supports POST /api/messages/send-by-url with query parameters', async () => {
-    const raw = generateApiToken(prefix).raw;
-    findValidByRaw.mockResolvedValue({
-      apiTokenId: 't1',
-      whatsappAccountId: 'acc1',
-      sessionName: 'wa_test',
-      revoked: false,
-    });
-    sendText.mockResolvedValue({ id: 'wmsg4' });
+  it('rejects GET /api/messages/send-by-url without Bearer', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/messages/send-by-url')
+      .query({ chatId: '37499111222@c.us', text: 'Hi' });
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
+    expect(sendText).not.toHaveBeenCalled();
+  });
 
+  it('rejects POST /api/messages/send-by-url with token in query', async () => {
+    const raw = generateApiToken(prefix).raw;
+    findValidByRaw.mockResolvedValue({ ...validResolvedToken });
     const res = await request(app.getHttpServer())
       .post('/api/messages/send-by-url')
-      .query({
-        token: raw,
-        chatId: '37499111222%40c.us',
-        text: 'Hello%20from%20POST',
-      })
-      .send({});
-
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(sendText).toHaveBeenCalledWith('wa_test', '37499111222@c.us', 'Hello from POST');
+      .query({ token: raw })
+      .set(authHeaderForRaw(raw))
+      .send({ chatId: '37499111222@c.us', text: 'Hi' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(sendText).not.toHaveBeenCalled();
   });
 
-  it('supports POST /api/messages/send-by-url with JSON body when query is missing', async () => {
+  it('sends via POST /api/messages/send-by-url with Bearer and JSON body', async () => {
     const raw = generateApiToken(prefix).raw;
-    findValidByRaw.mockResolvedValue({
-      apiTokenId: 't1',
-      whatsappAccountId: 'acc1',
-      sessionName: 'wa_test',
-      revoked: false,
-    });
+    findValidByRaw.mockResolvedValue({ ...validResolvedToken });
     sendText.mockResolvedValue({ id: 'wmsg5' });
-
-    const res = await request(app.getHttpServer()).post('/api/messages/send-by-url').send({
-      token: raw,
-      chatId: '37499111222%40c.us',
-      text: 'Hello%20from%20JSON',
-    });
-
+    const res = await request(app.getHttpServer())
+      .post('/api/messages/send-by-url')
+      .set(authHeaderForRaw(raw))
+      .send({ chatId: '37499111222@c.us', text: 'Hello from JSON' });
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(sendText).toHaveBeenCalledWith('wa_test', '37499111222@c.us', 'Hello from JSON');
   });
 
-  it('supports POST /api/messages/send-by-url with form-urlencoded body', async () => {
+  it('uses the single active account session when other accounts are inactive', async () => {
     const raw = generateApiToken(prefix).raw;
     findValidByRaw.mockResolvedValue({
-      apiTokenId: 't1',
-      whatsappAccountId: 'acc1',
-      sessionName: 'wa_test',
-      revoked: false,
+      ...validResolvedToken,
+      activeAccounts: [{ id: 'acc-live', sessionName: 'wa_live_only' }],
     });
-    sendText.mockResolvedValue({ id: 'wmsg6' });
-
-    const res = await request(app.getHttpServer())
-      .post('/api/messages/send-by-url')
-      .type('form')
-      .send({
-        token: raw,
-        chatId: '37499111222%40c.us',
-        text: 'Hello%20from%20FORM',
-      });
-
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(sendText).toHaveBeenCalledWith('wa_test', '37499111222@c.us', 'Hello from FORM');
-  });
-
-  it('prioritizes query params over body on POST /api/messages/send-by-url', async () => {
-    const raw = generateApiToken(prefix).raw;
-    findValidByRaw.mockResolvedValue({
-      apiTokenId: 't1',
-      whatsappAccountId: 'acc1',
-      sessionName: 'wa_test',
-      revoked: false,
+    prismaMock.whatsappAccount.findFirst.mockResolvedValue({
+      id: 'acc-live',
+      sessionName: 'wa_live_only',
+      isActive: true,
+      status: SessionStatus.CONNECTED,
     });
-    sendText.mockResolvedValue({ id: 'wmsg7' });
-
+    sendText.mockResolvedValue({ id: 'wmsg-live' });
     const res = await request(app.getHttpServer())
-      .post('/api/messages/send-by-url')
-      .query({
-        token: raw,
-        chatId: '37499111222%40c.us',
-        text: 'Text%20from%20query',
-      })
-      .send({
-        token: `${raw}_body`,
-        chatId: '120363123456789012@g.us',
-        text: 'Text from body',
-      });
-
+      .post('/api/messages/send')
+      .set(authHeaderForRaw(raw))
+      .send({ chatId: '37499111222@c.us', text: 'Hi' });
     expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(sendText).toHaveBeenCalledWith('wa_test', '37499111222@c.us', 'Text from query');
+    expect(sendText).toHaveBeenCalledWith('wa_live_only', '37499111222@c.us', 'Hi');
   });
 });

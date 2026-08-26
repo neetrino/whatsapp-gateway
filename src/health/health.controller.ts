@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '../common/decorators/public.decorator';
 import { HealthService } from './health.service';
 
@@ -7,6 +8,7 @@ export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 
   @Public()
+  @SkipThrottle()
   @Get('health')
   async check(): Promise<{
     success: true;

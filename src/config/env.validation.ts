@@ -55,14 +55,20 @@ export class EnvironmentVariables {
   @IsOptional()
   WAHA_API_KEY?: string;
 
-  /** WAHA Core allows only one session named `default`. Set this for Core; omit for WAHA Plus (per-account DB session names). */
+  /**
+   * Deprecated compatibility flag. Ignored at runtime: database `sessionName` is authoritative.
+   * Kept so existing `.env` files still boot.
+   */
   @IsString()
   @IsOptional()
   WAHA_SESSION_NAME?: string;
 
   @IsString()
-  @IsOptional()
-  WAHA_WEBHOOK_SECRET?: string;
+  @MinLength(32, { message: 'WAHA_WEBHOOK_SECRET must be at least 32 characters' })
+  WAHA_WEBHOOK_SECRET!: string;
+
+  @IsUrl({ require_tld: false, require_protocol: true })
+  GATEWAY_INTERNAL_URL!: string;
 
   @IsString()
   @MinLength(2)
@@ -91,10 +97,59 @@ export class EnvironmentVariables {
   @IsInt()
   @Min(1)
   RATE_LIMIT_SEND!: number;
+
+  @IsInt()
+  @Min(1)
+  RATE_LIMIT_V1_SEND!: number;
+
+  @IsInt()
+  @Min(1)
+  RATE_LIMIT_V1_READ!: number;
+
+  @IsInt()
+  @Min(1_000)
+  IDEMPOTENCY_PROCESSING_TIMEOUT_MS!: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  MAX_CHATS_PAGE!: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  MAX_MESSAGES_PAGE!: number;
+
+  @IsInt()
+  @Min(1_000)
+  @Max(120_000)
+  WEBHOOK_DELIVERY_TIMEOUT_MS!: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  WEBHOOK_MAX_ATTEMPTS!: number;
+
+  @IsInt()
+  @Min(100)
+  @Max(60_000)
+  WEBHOOK_RETRY_BASE_MS!: number;
 }
 
 export const validateEnv = (raw: Record<string, unknown>): EnvironmentVariables => {
-  const validated = plainToInstance(EnvironmentVariables, raw, {
+  const withDefaults: Record<string, unknown> = {
+    RATE_LIMIT_V1_SEND: 60,
+    RATE_LIMIT_V1_READ: 120,
+    IDEMPOTENCY_PROCESSING_TIMEOUT_MS: 120_000,
+    MAX_CHATS_PAGE: 100,
+    MAX_MESSAGES_PAGE: 100,
+    GATEWAY_INTERNAL_URL: 'http://gateway:3000',
+    WEBHOOK_DELIVERY_TIMEOUT_MS: 10_000,
+    WEBHOOK_MAX_ATTEMPTS: 5,
+    WEBHOOK_RETRY_BASE_MS: 2_000,
+    ...raw,
+  };
+  const validated = plainToInstance(EnvironmentVariables, withDefaults, {
     enableImplicitConversion: true,
   });
   const errors = validateSync(validated, { skipMissingProperties: false });
