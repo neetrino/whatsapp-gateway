@@ -53,7 +53,9 @@ export class WahaService {
 
   async startSession(account: WhatsappAccount): Promise<void> {
     try {
-      await this.client.startSession(this.effectiveSessionName(account), account.mode);
+      const sessionName = this.effectiveSessionName(account);
+      const configPayload = this.modePolicy.buildSessionConfig(sessionName, account.mode);
+      await this.client.startSession(sessionName, configPayload);
     } catch (error) {
       this.logSafeError('start_session_failed', error);
     }
@@ -96,7 +98,8 @@ export class WahaService {
         await this.modePolicy.applySessionConfig(sessionName, account.mode);
         return;
       }
-      await this.client.startSession(sessionName, account.mode);
+      const configPayload = this.modePolicy.buildSessionConfig(sessionName, account.mode);
+      await this.client.startSession(sessionName, configPayload);
     } catch (error) {
       this.logSafeError('restart_session_failed', error);
       throw error;

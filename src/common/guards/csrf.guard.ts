@@ -13,7 +13,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 export class CsrfGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
-    if (request.path.startsWith('/api')) return true;
+    if (request.path.startsWith('/api') || request.path.startsWith('/internal')) return true;
     if (SAFE_METHODS.has(request.method)) return true;
 
     const cookies = (request as Request & { cookies?: Record<string, string> }).cookies;

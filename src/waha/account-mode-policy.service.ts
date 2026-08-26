@@ -1,13 +1,18 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { WhatsappAccountMode } from '@prisma/client';
+import type { EnvironmentVariables } from '../config/env.validation';
 import { AppException } from '../common/errors/app.exception';
 import { ERROR_CODES } from '../common/errors/error-codes';
 import { WahaClient } from './waha.client';
-import { buildSessionConfig } from './session-config';
+import { buildSessionConfig, type WahaSessionConfigPayload } from './session-config';
 
 @Injectable()
 export class AccountModePolicyService {
-  constructor(private readonly client: WahaClient) {}
+  constructor(
+    private readonly client: WahaClient,
+    private readonly config: ConfigService<EnvironmentVariables, true>,
+  ) {}
 
   assertMessengerMode(mode: WhatsappAccountMode): void {
     if (mode === WhatsappAccountMode.MESSENGER) return;
@@ -18,8 +23,15 @@ export class AccountModePolicyService {
     });
   }
 
+  buildSessionConfig(sessionName: string, mode: WhatsappAccountMode): WahaSessionConfigPayload {
+    return buildSessionConfig(sessionName, mode, {
+      inboundWebhookUrl: this.config.get('GATEWAY_INTERNAL_URL', { infer: true }),
+      inboundWebhookSecret: this.config.get('WAHA_WEBHOOK_SECRET', { infer: true }),
+    });
+  }
+
   async applySessionConfig(sessionName: string, mode: WhatsappAccountMode): Promise<void> {
-    await this.client.updateSession(sessionName, buildSessionConfig(sessionName, mode));
+    await this.client.updateSession(sessionName, this.buildSessionConfig(sessionName, mode));
   }
 
   async isStoreEnabled(sessionName: string): Promise<boolean> {

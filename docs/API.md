@@ -2,7 +2,7 @@
 
 Phase 2 adds an account-scoped **v1** API authenticated by a **Project** token. Legacy `/api/messages/*` and `/api/groups*` stay unchanged: they still require exactly one active WhatsApp account on the Project.
 
-Messenger inbox and Project webhooks are **not** part of this API. **MESSENGER** accounts may read chats and message history from WAHA NOWEB Store via the v1 endpoints below (no Gateway Postgres archive).
+Messenger inbox UI is **not** part of this API. **MESSENGER** accounts may read chats/history via v1 below. Inbound events are delivered to a per-Project HTTPS webhook configured in the Admin dashboard (not a Project-token API).
 
 ## v1 — Project token, account-scoped
 
@@ -118,6 +118,41 @@ curl -X POST "https://wa-gateway.example.com/api/v1/accounts/acc_123/messages" \
   -H "Idempotency-Key: order-42-send-1" \
   -d '{"type":"TEXT","chatId":"37499111222@c.us","text":"Hello"}'
 ```
+
+## Project webhooks (MESSENGER inbound)
+
+Configured per Project in the Admin dashboard (`/projects/:id` → **Project webhook**). Not authenticated by Project API tokens.
+
+**Flow:** WAHA (Docker network) → `POST /internal/waha/events` (HMAC `X-Webhook-Hmac` / `sha512` on raw body, `WAHA_WEBHOOK_SECRET`) → Gateway normalizes → HTTPS POST to the Project `webhookUrl` with Gateway HMAC headers:
+
+| Header | Description |
+|--------|-------------|
+| `X-Gateway-Event-Id` | Stable id for deduplication (`@@unique([projectId, eventId])`) |
+| `X-Gateway-Timestamp` | Unix ms when Gateway sent the delivery (part of the signed material) |
+| `X-Gateway-Signature` | HMAC-SHA512 hex of **`${X-Gateway-Timestamp}.${rawJsonBody}`** using the Project signing key |
+| `X-Gateway-Signature-Algorithm` | `sha512` |
+
+Verify on the Project side:
+
+1. Reject requests whose `X-Gateway-Timestamp` is outside your replay window (e.g. ±5 minutes).
+2. Recompute HMAC-SHA512 over `` `${headerTimestamp}.${rawBody}` `` with the signing key you saved from the dashboard.
+3. Compare to `X-Gateway-Signature` with a constant-time compare.
+
+**Crash window:** Gateway responds **200 to WAHA after the delivery row is inserted** (`PENDING`), not after the Project endpoint returns 2xx. Retries are handled by an in-process worker (`nextAttemptAt`); not shared across Gateway replicas.
+
+Payload shape (no raw WAHA `_data`):
+
+```json
+{
+  "eventId": "evt_…",
+  "accountId": "acc_…",
+  "type": "message.received",
+  "timestamp": "2026-08-26T09:00:00.000Z",
+  "data": { "messageId": "…", "chatId": "37499111222@c.us", "body": "Hello", "bodyTruncated": false }
+}
+```
+
+Event types: `message.received`, `message.ack`, `message.reaction`, `message.edited`, `message.revoked`, `session.status`. `SEND_ONLY` sessions are ignored. Delivery status (`PENDING` / `DELIVERED` / `FAILED` / `EXHAUSTED` / `SKIPPED`) is visible in the dashboard; normalized payloads are stored for retry but not shown in the UI.
 
 ## `POST /api/messages/send`
 

@@ -40,7 +40,25 @@ Optional **`HEAD`** checks (no body download) may enforce `Content-Type` and max
 
 ## Webhooks
 
-- v1 does **not** expose a public WAHA webhook endpoint. If added later: verify `WAHA_WEBHOOK_SECRET` header, never display events in UI.
+### WAHA → Gateway (`POST /internal/waha/events`)
+
+- Internal-only route (Docker network / `GATEWAY_INTERNAL_URL`). Not throttled by `RATE_LIMIT_SEND` (`@SkipThrottle()` + default throttler `skipIf`).
+- Verifies `X-Webhook-Hmac` / `X-Webhook-Hmac-Algorithm: sha512` on the **raw body** using `WAHA_WEBHOOK_SECRET`.
+- Rejects stale `X-Webhook-Timestamp` (±5 minutes).
+- Unknown WAHA sessions return **200** (no retry storm); events are logged and dropped.
+- `SEND_ONLY` accounts are ignored (200 to WAHA, no Project delivery).
+- Gateway returns **200 to WAHA after enqueue** into `project_webhook_deliveries` (durable queue). A process crash after 200 but before Project 2xx may lose in-flight worker attempts; the row survives and the in-process worker retries via `nextAttemptAt`.
+
+### Gateway → Project (HTTPS webhook)
+
+- Per-Project `webhookUrl` + hashed signing key (`webhookSecretHash`, `webhookSecretPrefix`, `webhookSecretLast4`). Plaintext secrets are **never** stored.
+- Signing key is generated in the Admin dashboard (**Regenerate signing key**). Shown **once** via signed httpOnly cookie `gw_webhook_reveal` (2 minutes, project-bound, consume-once) — same pattern as API tokens (`gw_token_reveal`). Never in URLs.
+- Outbound headers: `X-Gateway-Event-Id`, `X-Gateway-Timestamp`, `X-Gateway-Signature`, `X-Gateway-Signature-Algorithm: sha512`.
+- Signature: HMAC-SHA512 over **`${timestamp}.${rawJsonBody}`** (timestamp is the `X-Gateway-Timestamp` header value). Projects must reject stale timestamps (recommended ±5 minutes).
+- Payload is normalized JSON (no raw WAHA). Stored in Postgres as `payloadJson` + `payloadHash` for retries.
+- **SSRF:** `validatePublicHttpsUrl` runs on save **and before every delivery attempt**; axios `maxRedirects: 0`. Blocks `gateway`, `waha`, `metadata`, private IPs, etc.
+- Delivery statuses: `PENDING`, `DELIVERED`, `FAILED`, `EXHAUSTED`, `SKIPPED`. Unique `(projectId, eventId)`.
+- Dashboard shows delivery counts/recent metadata only — not payload bodies.
 
 ## Environment secrets
 
@@ -49,7 +67,7 @@ Optional **`HEAD`** checks (no body download) may enforce `Content-Type` and max
 
 ## Rate limiting
 
-- `@nestjs/throttler` named throttlers: `default` / `v1-send` / `v1-read`. Skip-if ensures **one** limiter per request.
+- `@nestjs/throttler` named throttlers: `default` / `v1-send` / `v1-read`. Skip-if ensures **one** limiter per request. `POST /internal/waha/events` is excluded from all throttlers.
 - Tracker: `token:<hmac>` when a Bearer token is present, else `ip:<req.ip>`.
 - `app.set('trust proxy', 1)` in `main.ts` trusts the first reverse-proxy hop (`X-Forwarded-For`). Configure the proxy to overwrite (not append blindly) that header. Clients behind the same NAT share the IP bucket when they omit a token.
 - `RATE_LIMIT_SEND` — legacy API + dashboard baseline / 60s (not applied to `/api/v1`).

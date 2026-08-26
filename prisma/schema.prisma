@@ -51,6 +51,14 @@ enum WhatsappAccountMode {
   MESSENGER
 }
 
+enum WebhookDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  EXHAUSTED
+  SKIPPED
+}
+
 model Admin {
   id             String   @id @default(cuid())
   email          String   @unique
@@ -65,15 +73,21 @@ model Admin {
 }
 
 model Project {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  isActive       Boolean  @default(true)
+  webhookUrl            String?
+  webhookSecretHash     String?
+  webhookSecretPrefix   String?
+  webhookSecretLast4    String?
+  webhookEnabled        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  apiTokens        ApiToken[]
-  whatsappAccounts WhatsappAccount[]
+  apiTokens           ApiToken[]
+  whatsappAccounts    WhatsappAccount[]
+  webhookDeliveries   ProjectWebhookDelivery[]
 
   @@map("projects")
 }
@@ -96,6 +110,7 @@ model WhatsappAccount {
   logs                      OutboundMessageLog[]
   groupApiOperations        GroupApiOperation[]
   outboundIdempotencyKeys   OutboundMessageIdempotency[]
+  webhookDeliveries         ProjectWebhookDelivery[]
 
   @@index([projectId])
   @@index([projectId, isActive])
@@ -181,4 +196,33 @@ model GroupApiOperation {
   @@unique([whatsappAccountId, idempotencyKey])
   @@index([whatsappAccountId, createdAt])
   @@map("group_api_operations")
+}
+
+model ProjectWebhookDelivery {
+  id                String                @id @default(cuid())
+  projectId         String
+  whatsappAccountId String
+  eventId           String
+  wahaRequestId     String?
+  eventType         String
+  payloadJson       String
+  payloadHash       String
+  status            WebhookDeliveryStatus @default(PENDING)
+  attemptCount      Int                   @default(0)
+  nextAttemptAt     DateTime?
+  lastAttemptAt     DateTime?
+  deliveredAt       DateTime?
+  lastHttpStatus    Int?
+  lastErrorCode     String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  whatsappAccount WhatsappAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, eventId])
+  @@index([projectId, createdAt])
+  @@index([whatsappAccountId, createdAt])
+  @@index([status, nextAttemptAt])
+  @@map("project_webhook_deliveries")
 }

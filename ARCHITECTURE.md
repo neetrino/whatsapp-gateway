@@ -83,7 +83,12 @@ Project (1) ──── (n) ApiToken
 Database CHECK + unique `singleton = 1` enforces exactly one Admin row.
 
 ### `Project`
-`id, name, slug (unique), isActive, createdAt, updatedAt`.
+`id, name, slug (unique), isActive, webhookUrl?, webhookSecretHash?, webhookSecretPrefix?, webhookSecretLast4?, webhookEnabled, createdAt, updatedAt`.
+
+Signing key storage mirrors `ApiToken`: only `webhookSecretHash` (HMAC-SHA256 with `TOKEN_PEPPER`), prefix, last4. Full key shown once via `gw_webhook_reveal` cookie.
+
+### `ProjectWebhookDelivery`
+Durable outbound queue: `payloadJson`, `payloadHash`, `status` (`PENDING|DELIVERED|FAILED|EXHAUSTED|SKIPPED`), `nextAttemptAt`, attempt metadata. `@@unique([projectId, eventId])`.
 
 ### `WhatsappAccount`
 `id, projectId, label, mode (SEND_ONLY|MESSENGER), sessionName (unique), status (enum), phoneNumber?, isActive, lastConnectedAt?, lastDisconnectedAt?, createdAt, updatedAt`.
@@ -92,7 +97,7 @@ Database CHECK + unique `singleton = 1` enforces exactly one Admin row.
 
 `sessionName` is generated (`wa_<hex>`). Never derived from project name. It is the WAHA session name (authoritative). `WAHA_SESSION_NAME` is deprecated and ignored.
 
-Phase 2 stores `mode` (`SEND_ONLY` / `MESSENGER`). Both modes may send outbound messages. **Slice A (Phase 3):** `MESSENGER` enables v1 chats/history reads from WAHA NOWEB Store (no Gateway Postgres archive, no Messenger UI). Mode switch is Admin dashboard + CSRF only. Inbound webhooks and Project webhook delivery are **not** enabled yet.
+Phase 2 stores `mode` (`SEND_ONLY` / `MESSENGER`). Both modes may send outbound messages. **Slice A:** `MESSENGER` enables v1 chats/history reads from WAHA NOWEB Store (no Gateway Postgres archive). **Slice B:** WAHA inbound events → durable `ProjectWebhookDelivery` queue → normalized HTTPS Project webhooks (hashed signing key, HMAC `timestamp.body`, SSRF on every attempt, in-process retry worker). Gateway returns **200 to WAHA after enqueue**, not after Project 2xx. Mode switch is Admin dashboard + CSRF only. No Messenger UI.
 
 ### `ApiToken`
 `id, projectId, name, tokenHash (unique), tokenPrefix, last4, lastUsedAt?, revokedAt?, createdAt, updatedAt`.
@@ -235,4 +240,4 @@ Group **management** is available only via the authenticated JSON API (`/api/gro
 
 ## What is explicitly NOT built
 
-No projects, workspaces, tenants, Product/Lead/Deal models, employee roles, or CRM workflow. No phone-number normalization / `@c.us` builder. No Messenger **UI** for chats/groups. No inbound webhook endpoint or Project webhook delivery yet — session status is refreshed on demand.
+No projects, workspaces, tenants, Product/Lead/Deal models, employee roles, or CRM workflow. No phone-number normalization / `@c.us` builder. No Messenger **UI** for chats/groups.

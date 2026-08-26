@@ -3,6 +3,7 @@ import { Prisma, type Project } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppException } from '../common/errors/app.exception';
 import { ERROR_CODES } from '../common/errors/error-codes';
+import { validatePublicHttpsUrl, InvalidPublicUrlError } from '../common/utils/public-url';
 import { assertValidProjectSlug } from './project-slug';
 
 export interface ProjectCounts {
@@ -66,6 +67,40 @@ export class ProjectsService {
   async setActive(id: string, isActive: boolean): Promise<Project> {
     await this.getById(id);
     return this.prisma.project.update({ where: { id }, data: { isActive } });
+  }
+
+  async updateWebhookSettings(
+    id: string,
+    input: { webhookUrl?: string; webhookEnabled?: boolean },
+  ): Promise<Project> {
+    await this.getById(id);
+    const data: { webhookUrl?: string | null; webhookEnabled?: boolean } = {};
+
+    if (input.webhookEnabled !== undefined) {
+      data.webhookEnabled = input.webhookEnabled;
+    }
+    if (input.webhookUrl !== undefined) {
+      if (input.webhookUrl.length === 0) {
+        data.webhookUrl = null;
+      } else {
+        try {
+          const validated = await validatePublicHttpsUrl(input.webhookUrl);
+          data.webhookUrl = validated.href;
+        } catch (error) {
+          const message =
+            error instanceof InvalidPublicUrlError
+              ? error.message
+              : 'Invalid project webhook URL.';
+          throw new AppException({
+            code: ERROR_CODES.INVALID_WEBHOOK_URL,
+            message,
+            status: 400,
+          });
+        }
+      }
+    }
+
+    return this.prisma.project.update({ where: { id }, data });
   }
 
   private rethrowSlugConflict(error: unknown): void {

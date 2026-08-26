@@ -13,6 +13,11 @@ const v1ThrottleKind = (context: ExecutionContext): 'send' | 'read' | undefined 
   return classifyV1Throttle(path, method);
 };
 
+const isWahaInboundPath = (context: ExecutionContext): boolean => {
+  const { path, method } = requestPath(context.switchToHttp().getRequest<Record<string, unknown>>());
+  return method === 'POST' && path === '/internal/waha/events';
+};
+
 const liveLimit = (key: string, fallback: number): number => {
   const n = Number(process.env[key]);
   return Number.isFinite(n) && n >= 1 ? n : fallback;
@@ -34,7 +39,8 @@ export const buildThrottlerOptions = (
         name: 'default',
         ttl: 60_000,
         limit: () => liveLimit('RATE_LIMIT_SEND', sendLimit),
-        skipIf: (context: ExecutionContext) => v1ThrottleKind(context) !== undefined,
+        skipIf: (context: ExecutionContext) =>
+          v1ThrottleKind(context) !== undefined || isWahaInboundPath(context),
       },
       {
         name: 'v1-send',

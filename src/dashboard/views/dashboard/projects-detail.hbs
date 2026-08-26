@@ -9,8 +9,15 @@
 
   {{#if revealed}}
     <div class="banner">
-      <strong>Save this token now.</strong> It will not be shown again.
+      <strong>Save this API token now.</strong> It will not be shown again.
       <pre class="token-display">{{revealed}}</pre>
+    </div>
+  {{/if}}
+
+  {{#if revealedWebhook}}
+    <div class="banner">
+      <strong>Save this webhook signing key now.</strong> It will not be shown again.
+      <pre class="token-display">{{revealedWebhook}}</pre>
     </div>
   {{/if}}
 
@@ -80,6 +87,59 @@
                 </form>
               {{/unless}}
             </td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Project webhook</h2>
+    <p class="meta">MESSENGER accounts deliver normalized inbound events to this HTTPS endpoint. Raw WAHA payloads are never forwarded.</p>
+    <form method="post" action="/projects/{{project.id}}/webhook" class="form">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <label>Webhook URL (HTTPS)<input name="webhookUrl" type="url" value="{{project.webhookUrl}}" placeholder="https://example.com/webhooks/whatsapp" maxlength="2048" /></label>
+      <p class="meta">
+        Signing key:
+        {{#if project.webhookSecretPrefix}}
+          <code>{{project.webhookSecretPrefix}}</code> …{{project.webhookSecretLast4}}
+        {{else}}
+          not generated
+        {{/if}}
+      </p>
+      <label><input type="checkbox" name="webhookEnabled" value="true" {{#if project.webhookEnabled}}checked{{/if}} /> Enabled</label>
+      <button type="submit" class="primary">Save webhook</button>
+    </form>
+    <form method="post" action="/projects/{{project.id}}/webhook/regenerate" class="inline">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <button type="submit">Regenerate signing key</button>
+    </form>
+    <h3>Delivery stats</h3>
+    <ul class="meta">
+      {{#each webhookStats.counts}}
+        <li>{{this.status}}: {{this._count._all}}</li>
+      {{/each}}
+    </ul>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Event</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Attempts</th>
+          <th>HTTP</th>
+          <th>When</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each webhookStats.recent}}
+          <tr>
+            <td><code>{{this.eventId}}</code></td>
+            <td>{{this.eventType}}</td>
+            <td>{{this.status}}</td>
+            <td>{{this.attemptCount}}</td>
+            <td>{{#if this.lastHttpStatus}}{{this.lastHttpStatus}}{{else}}—{{/if}}</td>
+            <td>{{this.createdAt}}</td>
           </tr>
         {{/each}}
       </tbody>

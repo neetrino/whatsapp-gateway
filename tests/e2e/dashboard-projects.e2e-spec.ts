@@ -7,6 +7,7 @@ import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { WahaClient } from '../../src/waha/waha.client';
 import { configureDashboardTestApp } from '../helpers/dashboard-app';
+import { attachGatewayMiddleware } from '../../src/common/http/body-parser';
 import { cookiePairsFromResponse, signedCookiePair } from '../helpers/signed-cookie';
 
 describe('Dashboard project/account/token flows (e2e)', () => {
@@ -49,6 +50,11 @@ describe('Dashboard project/account/token flows (e2e)', () => {
         const row = {
           id: `proj_${String(data.slug)}`,
           isActive: true,
+          webhookUrl: null,
+          webhookSecretHash: null,
+          webhookSecretPrefix: null,
+          webhookSecretLast4: null,
+          webhookEnabled: false,
           createdAt: new Date(),
           updatedAt: new Date(),
           ...data,
@@ -132,6 +138,12 @@ describe('Dashboard project/account/token flows (e2e)', () => {
     outboundMessageLog: {
       findMany: jest.fn().mockResolvedValue([]),
     },
+    projectWebhookDelivery: {
+      create: jest.fn(),
+      update: jest.fn(),
+      groupBy: jest.fn().mockResolvedValue([]),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
   };
 
   beforeAll(async () => {
@@ -154,7 +166,8 @@ describe('Dashboard project/account/token flows (e2e)', () => {
       })
       .compile();
 
-    app = moduleRef.createNestApplication<NestExpressApplication>();
+    app = moduleRef.createNestApplication<NestExpressApplication>({ bodyParser: false });
+    attachGatewayMiddleware(app);
     configureDashboardTestApp(app);
     await app.init();
     const now = new Date();
@@ -163,6 +176,11 @@ describe('Dashboard project/account/token flows (e2e)', () => {
       name: 'Acme',
       slug: 'acme',
       isActive: true,
+      webhookUrl: null,
+      webhookSecretHash: null,
+      webhookSecretPrefix: null,
+      webhookSecretLast4: null,
+      webhookEnabled: false,
       createdAt: now,
       updatedAt: now,
     });
@@ -171,6 +189,11 @@ describe('Dashboard project/account/token flows (e2e)', () => {
       name: 'Beta',
       slug: 'beta',
       isActive: true,
+      webhookUrl: null,
+      webhookSecretHash: null,
+      webhookSecretPrefix: null,
+      webhookSecretLast4: null,
+      webhookEnabled: false,
       createdAt: now,
       updatedAt: now,
     });
@@ -268,12 +291,12 @@ describe('Dashboard project/account/token flows (e2e)', () => {
     const withReveal = `${authCookies}; ${reveal}`;
     const other = await htmlGet('/projects/proj_beta', withReveal);
     expect(other.status).toBe(200);
-    expect(other.text).not.toContain('Save this token now');
+    expect(other.text).not.toContain('Save this API token now');
     expect(other.text).not.toMatch(/gw_test_[A-Za-z0-9_-]+/);
     expect(cookiePairsFromResponse(other.headers, ['gw_token_reveal'])).toBe('');
 
     const first = await htmlGet('/projects/proj_acme', withReveal);
-    expect(first.text).toContain('Save this token now');
+    expect(first.text).toContain('Save this API token now');
     expect(first.text).toMatch(/gw_test_[A-Za-z0-9_-]+/);
     const rawMatch = first.text.match(/gw_test_[A-Za-z0-9_-]+/);
     const raw = rawMatch?.[0] ?? '';
@@ -283,7 +306,7 @@ describe('Dashboard project/account/token flows (e2e)', () => {
       '/projects/proj_acme',
       `${authCookies}; ${cookiePairsFromResponse(first.headers, ['gw_token_reveal'])}`,
     );
-    expect(second.text).not.toContain('Save this token now');
+    expect(second.text).not.toContain('Save this API token now');
     expect(second.text).not.toContain(raw);
   });
 });

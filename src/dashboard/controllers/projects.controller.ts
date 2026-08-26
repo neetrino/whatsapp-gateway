@@ -23,8 +23,15 @@ import { AuthService } from '../../auth/auth.service';
 import { CreateProjectDto } from '../../projects/dto/create-project.dto';
 import { UpdateProjectDto } from '../../projects/dto/update-project.dto';
 import { CreateTokenDto } from '../../api-tokens/dto/create-token.dto';
+import { UpdateProjectWebhookDto } from '../../projects/dto/update-project-webhook.dto';
+import { ProjectWebhooksService } from '../../projects/project-webhooks.service';
+import { ProjectWebhookDeliveryService } from '../../webhooks/project-webhook-delivery.service';
 import { CsrfFormDto } from '../../common/dto/csrf-form.dto';
 import { consumeTokenRevealCookie, setTokenRevealCookie } from '../../auth/token-reveal';
+import {
+  consumeWebhookRevealCookie,
+  setWebhookRevealCookie,
+} from '../../webhooks/webhook-reveal';
 import { baseView, type BaseViewModel } from '../view-helpers';
 
 @Controller('projects')
@@ -34,6 +41,8 @@ export class ProjectsDashboardController {
     private readonly tokensService: ApiTokensService,
     private readonly accountsService: WhatsappAccountsService,
     private readonly authService: AuthService,
+    private readonly webhookDeliveryService: ProjectWebhookDeliveryService,
+    private readonly projectWebhooksService: ProjectWebhooksService,
   ) {}
 
   @Get()
@@ -75,16 +84,25 @@ export class ProjectsDashboardController {
       tokens: unknown;
       accounts: unknown;
       revealed?: string;
+      revealedWebhook?: string;
       accountAmbiguous: boolean;
+      webhookStats: unknown;
       active: 'projects';
     }
   > {
     const project = await this.projectsService.getById(id);
-    const [tokens, accounts] = await Promise.all([
+    const [tokens, accounts, webhookStats] = await Promise.all([
       this.tokensService.listForProject(id),
       this.accountsService.listForProject(id),
+      this.webhookDeliveryService.getDeliveryStats(id),
     ]);
     const revealed = consumeTokenRevealCookie(
+      req,
+      res,
+      this.authService.secureCookies(),
+      id,
+    );
+    const revealedWebhook = consumeWebhookRevealCookie(
       req,
       res,
       this.authService.secureCookies(),
@@ -97,9 +115,42 @@ export class ProjectsDashboardController {
       tokens,
       accounts,
       revealed,
+      revealedWebhook,
       accountAmbiguous: activeAccountCount > 1,
+      webhookStats,
       active: 'projects',
     };
+  }
+
+  @Post(':id/webhook')
+  @HttpCode(HttpStatus.SEE_OTHER)
+  async updateWebhook(
+    @Param('id') id: string,
+    @Body() dto: UpdateProjectWebhookDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.projectsService.updateWebhookSettings(id, {
+      webhookUrl: dto.webhookUrl,
+      webhookEnabled: dto.webhookEnabled,
+    });
+    res.redirect(303, `/projects/${id}`);
+  }
+
+  @Post(':id/webhook/regenerate')
+  @HttpCode(HttpStatus.SEE_OTHER)
+  @Throttle({ default: { ttl: 3_600_000, limit: 3 } })
+  async regenerateWebhookSecret(
+    @Param('id') id: string,
+    @Body() _dto: CsrfFormDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    const generated = await this.projectWebhooksService.regenerateSecret(id);
+    setWebhookRevealCookie(
+      res,
+      { projectId: id, signingKey: generated.signingKey },
+      this.authService.secureCookies(),
+    );
+    res.redirect(303, `/projects/${id}`);
   }
 
   @Post(':id/update')

@@ -7,6 +7,7 @@ services:
     environment:
       # NODE_ENV from .env (use development for http://localhost cookies)
       - WAHA_BASE_URL=http://waha:3000
+      - GATEWAY_INTERNAL_URL=http://gateway:3000
     depends_on:
       - waha
     ports:

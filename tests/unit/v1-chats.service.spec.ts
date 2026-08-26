@@ -72,7 +72,9 @@ describe('V1ChatsService', () => {
   it('rejects SEND_ONLY accounts', async () => {
     const { service } = build({
       account: { ...messengerAccount, mode: WhatsappAccountMode.SEND_ONLY },
-      modePolicy: new AccountModePolicyService({} as never),
+      modePolicy: new AccountModePolicyService({} as never, {
+        get: jest.fn(),
+      } as never),
     });
     await expect(service.listChats(project, 'acc1', {})).rejects.toMatchObject({
       code: ERROR_CODES.ACCOUNT_MODE_NOT_SUPPORTED,

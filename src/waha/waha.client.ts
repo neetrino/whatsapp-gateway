@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { WhatsappAccountMode } from '@prisma/client';
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 import type { EnvironmentVariables } from '../config/env.validation';
 import {
@@ -15,7 +14,7 @@ import {
   WahaSessionInfo,
   WahaTransportError,
 } from './types/waha.types';
-import { buildSessionConfig, isNowebStoreEnabled, type WahaSessionConfigPayload } from './session-config';
+import { isNowebStoreEnabled, type WahaSessionConfigPayload } from './session-config';
 
 @Injectable()
 export class WahaClient {
@@ -45,7 +44,7 @@ export class WahaClient {
     }
   }
 
-  async startSession(sessionName: string, mode: WhatsappAccountMode): Promise<void> {
+  async startSession(sessionName: string, configPayload: WahaSessionConfigPayload): Promise<void> {
     const encoded = encodeURIComponent(sessionName);
     try {
       await this.invoke('start session', {
@@ -58,7 +57,7 @@ export class WahaClient {
       if (!notFound) throw error;
     }
 
-    await this.createSession(buildSessionConfig(sessionName, mode));
+    await this.createSession(configPayload);
     await this.invoke('start session', {
       method: 'POST',
       url: `/api/sessions/${encoded}/start`,
