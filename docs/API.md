@@ -1,5 +1,110 @@
 # Public HTTP API
 
+Phase 2 adds an account-scoped **v1** API authenticated by a **Project** token. Legacy `/api/messages/*` and `/api/groups*` stay unchanged: they still require exactly one active WhatsApp account on the Project.
+
+Messenger inbox, history, inbound events, and webhooks are **not** part of this API.
+
+## v1 — Project token, account-scoped
+
+All v1 routes require `Authorization: Bearer <PROJECT_API_TOKEN>`. The guard validates the token hash (`TOKEN_PEPPER`), rejects revoked tokens and inactive Projects, and attaches **only** `apiTokenId` + `projectId`. It never selects an account.
+
+Ownership: every account is loaded with `{ id: accountId, projectId: authenticatedProjectId }`. A Project A token against a Project B account returns **404 `NOT_FOUND`**. Inactive Project → **403 `PROJECT_INACTIVE`**. Inactive account on send → **409 `ACCOUNT_INACTIVE`**. Disconnected session on send → **409 `WHATSAPP_NOT_CONNECTED`**.
+
+Rate limits: one named Nest throttler per route class — v1 send uses **only** `RATE_LIMIT_V1_SEND`, v1 list/status use **only** `RATE_LIMIT_V1_READ`. They are not also counted against `RATE_LIMIT_SEND`. Keys are HMAC of the Bearer token (never the raw token). If no Bearer is present, the client IP is used. `trust proxy` is `1` in `main.ts` so a reverse proxy’s `X-Forwarded-For` is honored for one hop. Behind NAT, IP fallback is coarse — use Project tokens. Storage is in-process (bounded, TTL eviction); multiple Gateway replicas do not share counters unless Redis is added later.
+
+### `GET /api/v1/accounts`
+
+Returns safe metadata only:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "acc_...",
+      "label": "Outbound",
+      "mode": "SEND_ONLY",
+      "status": "CONNECTED",
+      "phoneNumber": "•••••••1222",
+      "isActive": true,
+      "createdAt": "2026-08-01T00:00:00.000Z",
+      "updatedAt": "2026-08-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+Never includes `sessionName`, WAHA URL, or WAHA API key. Both `SEND_ONLY` and `MESSENGER` accounts are listed; Messenger capabilities are not enabled.
+
+### `GET /api/v1/accounts/:accountId/status`
+
+Same ownership rule. Returns `id`, `label`, `mode`, `status`, `isActive`, masked `phoneNumber` after a WAHA status refresh.
+
+### `POST /api/v1/accounts/:accountId/messages`
+
+**Required header:** `Idempotency-Key` (8–128 chars: `A-Za-z0-9._:-`).
+
+Discriminated JSON (`forbidNonWhitelisted`). `chatId` uses the same regex as legacy send. `phone` is forbidden.
+
+**TEXT**
+
+```json
+{ "type": "TEXT", "chatId": "37499111222@c.us", "text": "Hello" }
+```
+
+**IMAGE / VIDEO**
+
+```json
+{
+  "type": "IMAGE",
+  "chatId": "37499111222@c.us",
+  "mediaUrl": "https://cdn.example.com/photo.jpg",
+  "caption": "optional"
+}
+```
+
+`mediaUrl` is validated with the same SSRF rules as `POST /api/messages/send-media` (HTTPS, DNS/private addresses, redirects, MIME/type, size). Text/caption length limits are `MAX_TEXT_LENGTH` / `MAX_CAPTION_LENGTH`.
+
+Success:
+
+```json
+{
+  "success": true,
+  "data": {
+    "requestId": "req_01HXABC123",
+    "messageId": "waha_or_gateway_message_id",
+    "status": "sent",
+    "sentAt": "2026-08-24T13:30:00.000Z"
+  }
+}
+```
+
+Gateway uses the account’s database `sessionName` as the WAHA session. Both `SEND_ONLY` and `MESSENGER` accounts may send outbound messages.
+
+#### Idempotency
+
+Uniqueness is `(whatsappAccountId, idempotencyKey)`. A SHA-256 **request hash** is stored (hashes of text/URL/caption — never the raw values).
+
+| Previous state | Same key + same body | Same key + different body |
+|----------------|----------------------|---------------------------|
+| `SUCCEEDED` | Replay stored result, no second WAHA send | `409 IDEMPOTENCY_KEY_REUSED` |
+| `PROCESSING` (fresh) | `409 IDEMPOTENT_OPERATION_IN_PROGRESS` | `409 IDEMPOTENCY_KEY_REUSED` |
+| `PROCESSING` older than `IDEMPOTENCY_PROCESSING_TIMEOUT_MS` | If a matching log is `SENT`, replay that result and backfill `SUCCEEDED`. Otherwise CAS-promote to `OUTCOME_UNKNOWN`, then look once more for a `SENT` log (race with persistence) before returning `503`. Never overwrite `SUCCEEDED` | `409 IDEMPOTENCY_KEY_REUSED` |
+| `FAILED` | Repeat the previous failure from the stored `errorCode` (same HTTP status; do not send again) | `409 IDEMPOTENCY_KEY_REUSED` |
+| `OUTCOME_UNKNOWN` | If a matching log is `SENT`, backfill `SUCCEEDED` and replay; otherwise `503` — **not safely retryable** | `409 IDEMPOTENCY_KEY_REUSED` |
+
+A unique constraint plus `P2002` handling prevents concurrent identical keys from sending twice. Idempotency reservation and the initial `PENDING` log are written in one Prisma transaction **before** WAHA. After WAHA returns successfully, `OutboundMessageLog` → `SENT` and `OutboundMessageIdempotency` → `SUCCEEDED` are written in a **second** Prisma transaction. That commit is **not** atomic with the WAHA HTTP call — a crash between provider success and the database commit is an unavoidable provider/DB boundary. The next same-key call reconciles from a `SENT` log if one exists; otherwise it returns `OUTCOME_UNKNOWN`. HTTP 408/502/504 and transport failures after dispatch are `OUTCOME_UNKNOWN`, not safe retries.
+
+Replay of `SUCCEEDED` returns the stored result before current `MAX_TEXT_LENGTH` / `MAX_CAPTION_LENGTH` checks, connection checks, or media URL validation. Strict DTO shape is still validated before the service. Replay of `FAILED` repeats the previous failure using the persisted safe `errorCode` (never raw provider text): `ACCOUNT_INACTIVE` / `WHATSAPP_NOT_CONNECTED` → 409, `VALIDATION_ERROR` / `INVALID_MEDIA_URL` → 400, `IMAGE_SEND_FAILED` / `VIDEO_SEND_FAILED` / `MESSAGE_SEND_FAILED` → 502, `MESSAGE_OUTCOME_UNKNOWN` → 503.
+
+```bash
+curl -X POST "https://wa-gateway.example.com/api/v1/accounts/acc_123/messages" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer gw_live_xxxxxxxxx" \
+  -H "Idempotency-Key: order-42-send-1" \
+  -d '{"type":"TEXT","chatId":"37499111222@c.us","text":"Hello"}'
+```
+
 ## `POST /api/messages/send`
 
 Sends a WhatsApp message through the WAHA session linked to the **API token**.  
@@ -264,8 +369,8 @@ Values may be `ok` or `unavailable` for `database` / `waha` when dependencies fa
 
 ## Groups API
 
-All group endpoints require `Authorization: Bearer <API_TOKEN>` (same token binding as message send).  
-Session is resolved internally via the token → WhatsApp account → `WahaService.effectiveSessionName`.  
+All group endpoints require `Authorization: Bearer <API_TOKEN>` using the **legacy** Project-token rule (exactly one active WhatsApp account). There is **no** v1 account-scoped Groups API.
+Session is resolved internally via the token → WhatsApp account → database `sessionName`.
 Clients must **not** send `session`, `accountId`, or WAHA credentials.
 
 ### `GET /api/groups`

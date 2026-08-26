@@ -14,6 +14,9 @@ interface PrismaStub {
   project: {
     findUnique: jest.Mock;
   };
+  whatsappAccount: {
+    findMany: jest.Mock;
+  };
 }
 
 const PEPPER = 'pepper-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
@@ -33,6 +36,9 @@ const buildPrisma = (): PrismaStub => ({
   },
   project: {
     findUnique: jest.fn(),
+  },
+  whatsappAccount: {
+    findMany: jest.fn().mockResolvedValue([]),
   },
 });
 
@@ -64,6 +70,24 @@ describe('ApiTokensService', () => {
     expect(created.last4).toHaveLength(4);
   });
 
+  it('findProjectByRaw does not load WhatsApp accounts', async () => {
+    const prisma = buildPrisma();
+    prisma.apiToken.findUnique.mockResolvedValue({
+      id: 'tok1',
+      revokedAt: null,
+      project: { id: 'p1', isActive: true },
+    });
+    const service = new ApiTokensService(prisma as never, buildConfig() as never);
+    const result = await service.findProjectByRaw(`${PREFIX}_abcdef`);
+    expect(result).toEqual({
+      apiTokenId: 'tok1',
+      projectId: 'p1',
+      projectIsActive: true,
+      revoked: false,
+    });
+    expect(prisma.whatsappAccount.findMany).not.toHaveBeenCalled();
+  });
+
   it('findValidByRaw returns null when no row matches the hash', async () => {
     const prisma = buildPrisma();
     prisma.apiToken.findUnique.mockResolvedValue(null);
@@ -79,9 +103,9 @@ describe('ApiTokensService', () => {
       project: {
         id: 'p1',
         isActive: true,
-        whatsappAccounts: [{ id: 'acc1', sessionName: 'wa_x' }],
       },
     });
+    prisma.whatsappAccount.findMany.mockResolvedValue([{ id: 'acc1', sessionName: 'wa_x' }]);
     const service = new ApiTokensService(prisma as never, buildConfig() as never);
     const result = await service.findValidByRaw(`${PREFIX}_abcdef`);
     expect(result?.revoked).toBe(true);

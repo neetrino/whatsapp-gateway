@@ -6,11 +6,14 @@
   <p class="meta">
     Mode <code>{{account.mode}}</code>
     {{#ifEquals account.mode "MESSENGER"}}
-      · stored only; Messenger is not enabled in Phase 1
+      · stored only; Messenger inbox is not enabled
     {{/ifEquals}}
-    · Session <code>{{account.sessionName}}</code>
-    {{#if account.phoneNumber}} · Phone: {{account.phoneNumber}}{{/if}}
+    {{#ifEquals account.mode "SEND_ONLY"}}
+      · SEND_ONLY outbound
+    {{/ifEquals}}
     · {{#if account.isActive}}Active{{else}}Inactive{{/if}}
+    {{#ifEquals account.status "CONNECTED"}} · Connected{{/ifEquals}}
+    {{#if account.phoneNumber}} · Phone: {{account.phoneNumber}}{{/if}}
   </p>
 
   <div class="actions">
@@ -40,4 +43,33 @@
     </form>
     <a href="/projects/{{projectId}}">Back to project</a>
   </div>
+</section>
+
+<section class="card">
+  <h2>Recent outbound operations</h2>
+  <p class="meta">Safe metadata only. Message text, captions, and media URLs are never stored.</p>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Type</th>
+        <th>Status</th>
+        <th>Request</th>
+        <th>Error</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each recentLogs}}
+        <tr>
+          <td>{{this.createdAt}}</td>
+          <td>{{this.messageType}}</td>
+          <td><span class="status status-{{this.status}}">{{this.status}}</span></td>
+          <td><code>{{this.requestId}}</code></td>
+          <td>{{#if this.errorCode}}<code>{{this.errorCode}}</code>{{else}}—{{/if}}</td>
+        </tr>
+      {{else}}
+        <tr><td colspan="5">No outbound operations yet.</td></tr>
+      {{/each}}
+    </tbody>
+  </table>
 </section>

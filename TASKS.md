@@ -2,23 +2,26 @@
 
 Status legend: `[ ]` pending, `[~]` in progress, `[x]` done, `[obsolete]` superseded — do not implement.
 
-**v1 status:** Nest app, Prisma, Admin dashboard, WAHA client, send/media/group API, Docker, docs, and tests are in place.
+**v1 status:** Nest app, Prisma, Admin dashboard, WAHA client, send/media/group API, account-scoped `/api/v1`, Docker, docs, and tests are in place.
 WAHA REST paths in [`src/waha/waha.client.ts`](src/waha/waha.client.ts) should be verified against your running WAHA version (`/api/docs`) before production traffic.
 
-## Current ownership (Phase 1)
+## Current ownership (Phase 2)
 
 - [x] Singleton `Admin` (`singleton = 1`, no User model, no Role enum, no `ADMIN_NAME`).
 - [x] `Project` owns `ApiToken[]` and `WhatsappAccount[]` (`mode`: `SEND_ONLY` | `MESSENGER`).
-- [x] Project FKs use `ON DELETE RESTRICT` (no cascade project delete; no audited delete workflow).
-- [x] Dashboard: `/dashboard`, `/projects`, `/projects/:id/accounts/:accountId` (QR/restart/stop/unlink/activate/deactivate), `/system`.
-- [x] Token reveal: signed httpOnly `gw_token_reveal`, project-bound, consume-once, never in URLs/logs.
-- [x] Session: signed `gw_session` only (unsigned cookie fallback removed).
+- [x] Project FKs use `ON DELETE RESTRICT`.
+- [x] Dashboard: `/dashboard`, `/projects`, `/projects/:id/accounts/:accountId` (QR/restart/stop/unlink/activate/deactivate, outbound logs), `/system`.
+- [x] Token reveal: signed httpOnly `gw_token_reveal`, project-bound, consume-once.
+- [x] Session: signed `gw_session` only.
 - [x] Legacy API: token → Project → exactly one active account, or `PROJECT_HAS_NO_ACTIVE_ACCOUNT` / `PROJECT_ACCOUNT_AMBIGUOUS`.
-- [x] Message/media/group loaders query by account id **and** `projectId`.
-- [x] Seed upserts Admin only; verifies Argon2 before rehash; bumps `sessionVersion` only when credentials change.
-- [x] `MESSENGER` is selectable in the UI with a Phase 1 “stored only, not enabled” notice.
+- [x] v1 API: Project token → `apiTokenId` + `projectId` only; callers pass `accountId`.
+- [x] Durable send idempotency on `(whatsappAccountId, idempotencyKey)`.
+- [x] WAHA image pinned to `devlikeapro/waha:noweb-2026.8.1`. Database `sessionName` is authoritative. `WAHA_SESSION_NAME` ignored.
+- [x] Rate limits: named Nest throttlers; HMAC tracker; v1 is not double-limited; in-process bounded storage (single instance).
+- [x] `MESSENGER` is selectable; inbox/history/inbound/webhooks are **not** enabled (Phase 3).
 - [x] Destructive migration `20260824120000_phase1_admin_project_ownership` is **test/disposable-only**.
-- [x] Rate limiting is IP-based (`@nestjs/throttler`); `RATE_LIMIT_SEND` is not a per-token bucket.
+- [x] Additive migration `20260824180000_phase2_message_idempotency` preserves existing `outbound_message_logs`.
+- [x] Additive migration `20260824190000_phase2_idempotency_reconcile_index` for SENT-log lookup.
 
 ### Obsolete (replaced by Admin + Project)
 
@@ -78,7 +81,7 @@ WAHA REST paths in [`src/waha/waha.client.ts`](src/waha/waha.client.ts) should b
 - [x] `ApiTokenGuard`: extract Bearer, hash, lookup, revoke/project/active-account checks, lastUsedAt update.
 - [x] `SendMessageDto` with `forbidNonWhitelisted`, `phone` rejection, chatId regex, text length.
 - [x] `MessagesService.send`: log PENDING → call WAHA → log SENT/FAILED → return envelope.
-- [x] IP-based throttler (`RATE_LIMIT_SEND`); not per-token.
+- [x] Token-hash throttler (`RATE_LIMIT_SEND` baseline); v1 uses `RATE_LIMIT_V1_SEND` / `RATE_LIMIT_V1_READ`.
 - [x] Map errors to standardized codes (`WAHA_UNAVAILABLE`, `MESSAGE_SEND_FAILED`, etc.).
 
 ## Phase 7 — Dashboard
@@ -93,10 +96,22 @@ WAHA REST paths in [`src/waha/waha.client.ts`](src/waha/waha.client.ts) should b
 ## Phase 8 — Docker, docs, tests
 
 - [x] Multi-stage `Dockerfile`.
-- [x] `docker-compose.yml` (gateway + waha + waha_sessions volume).
+- [x] `docker-compose.yml` (gateway + pinned `devlikeapro/waha:noweb-2026.8.1` + `waha_sessions` volume; WAHA not published).
 - [x] `.env.example` with every variable.
 - [x] `README.md`.
 - [x] `docs/API.md`, `docs/NBOS_INTEGRATION.md`, `docs/DEPLOYMENT.md`, `docs/SECURITY.md`, `docs/WAHA_SETUP.md`, `docs/OPERATIONS.md`.
-- [x] Unit tests: tokens, messages, accounts, projects, auth, token reveal, loaders.
-- [x] E2E tests: send, send-media, groups, dashboard-access, dashboard projects/tokens/CSRF/reveal.
+- [x] Unit tests: tokens, messages, accounts, projects, auth, token reveal, loaders, v1 idempotency, project token guard.
+- [x] E2E tests: send, send-media, groups, dashboard-access, dashboard projects/tokens/CSRF/reveal, v1 accounts/send, v1 rate limit.
+- [x] `npm run test:waha` live multi-session check (skipped unless `WAHA_INTEGRATION=1`).
 - [x] `npm run typecheck` / `npm test` / `npm run test:e2e` expected green. Windows checkout may still fail Prettier `endOfLine: lf`.
+
+## Phase 2 product — SEND_ONLY + Project-token v1
+
+- [x] Pin WAHA `noweb-2026.8.1`; database `sessionName` authoritative; remove `WAHA_SESSION_NAME=default` override.
+- [x] `ProjectApiTokenGuard` for `/api/v1` (no account selection).
+- [x] `GET /api/v1/accounts`, `GET /api/v1/accounts/:accountId/status`, `POST /api/v1/accounts/:accountId/messages`.
+- [x] Strict TEXT/IMAGE/VIDEO DTO; SSRF; no content in logs/DB.
+- [x] Additive `OutboundMessageIdempotency` migration.
+- [x] Dashboard SEND_ONLY status + recent outbound logs without content.
+- [x] Legacy `/api/messages/*` and `/api/groups*` compatibility.
+- [ ] Phase 3: Messenger inbox, history, inbound events, webhooks — **out of scope**.

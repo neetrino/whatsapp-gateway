@@ -1,0 +1,10 @@
+# Integration-only overlay. Binds WAHA to loopback for live tests.
+# Production compose must keep WAHA on `expose` only — never merge this file there.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.integration.yml up -d waha
+#   WAHA_BASE_URL=http://127.0.0.1:3001 WAHA_INTEGRATION=1 npm run test:waha
+
+services:
+  waha:
+    ports:
+      - "127.0.0.1:3001:3000"

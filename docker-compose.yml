@@ -7,15 +7,15 @@ services:
     environment:
       # NODE_ENV from .env (use development for http://localhost cookies)
       - WAHA_BASE_URL=http://waha:3000
-      # WAHA Core allows only one session named "default" (NOWEB image: devlikeapro/waha:noweb)
-      - WAHA_SESSION_NAME=default
     depends_on:
       - waha
     ports:
       - "3000:3000"
 
   waha:
-    image: devlikeapro/waha:noweb
+    # Pinned: WAHA 2026.8.1 NOWEB. Core includes multi-session after the Plus merge (2026-06).
+    # Do not float on :noweb / :latest — session and send contracts are version-specific.
+    image: devlikeapro/waha:noweb-2026.8.1
     restart: unless-stopped
     environment:
       - WAHA_API_KEY=${WAHA_API_KEY}

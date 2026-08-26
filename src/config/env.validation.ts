@@ -55,7 +55,10 @@ export class EnvironmentVariables {
   @IsOptional()
   WAHA_API_KEY?: string;
 
-  /** WAHA Core allows only one session named `default`. Set this for Core; omit for WAHA Plus (per-account DB session names). */
+  /**
+   * Deprecated compatibility flag. Ignored at runtime: database `sessionName` is authoritative.
+   * Kept so existing `.env` files still boot.
+   */
   @IsString()
   @IsOptional()
   WAHA_SESSION_NAME?: string;
@@ -91,10 +94,28 @@ export class EnvironmentVariables {
   @IsInt()
   @Min(1)
   RATE_LIMIT_SEND!: number;
+
+  @IsInt()
+  @Min(1)
+  RATE_LIMIT_V1_SEND!: number;
+
+  @IsInt()
+  @Min(1)
+  RATE_LIMIT_V1_READ!: number;
+
+  @IsInt()
+  @Min(1_000)
+  IDEMPOTENCY_PROCESSING_TIMEOUT_MS!: number;
 }
 
 export const validateEnv = (raw: Record<string, unknown>): EnvironmentVariables => {
-  const validated = plainToInstance(EnvironmentVariables, raw, {
+  const withDefaults: Record<string, unknown> = {
+    RATE_LIMIT_V1_SEND: 60,
+    RATE_LIMIT_V1_READ: 120,
+    IDEMPOTENCY_PROCESSING_TIMEOUT_MS: 120_000,
+    ...raw,
+  };
+  const validated = plainToInstance(EnvironmentVariables, withDefaults, {
     enableImplicitConversion: true,
   });
   const errors = validateSync(validated, { skipMissingProperties: false });

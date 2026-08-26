@@ -18,19 +18,21 @@ A standalone HTTP service that lets external systems (e.g. NBOS) send WhatsApp m
 1. Exactly one human `Admin` can sign in to the dashboard.
 2. A `Project` is an external application (NBOS, Reminder Service, OMMM, CRM X). Projects never log in.
 3. One `Project` may own many `ApiToken`s and many `WhatsappAccount`s.
-4. An `ApiToken` is bound to a `Project`. Legacy unversioned send/group APIs resolve exactly one active account on that project, or fail closed.
-5. External systems pass only `chatId` and `text`. Gateway sends `text` exactly as received.
+4. An `ApiToken` is bound to a `Project`. `/api/v1` uses the token only to identify the Project; callers pass `accountId`. Legacy unversioned send/group APIs still resolve exactly one active account on that project, or fail closed.
+5. External systems pass only `chatId` and `text` (or media URL). Gateway sends `text` exactly as received.
 
 ## Top-level architecture
 
 ```
 External system / NBOS
-   │  POST /api/messages/send  { chatId, text }   (Bearer <API_TOKEN>)
+   │  POST /api/v1/accounts/:accountId/messages   (Bearer <PROJECT_TOKEN>, Idempotency-Key)
+   │  POST /api/messages/send                     (legacy: Bearer → exactly one active account)
    ▼
 WhatsApp Gateway  (NestJS, Prisma, Neon Postgres)
+   │  Project token → accountId + projectId ownership → WhatsappAccount.sessionName
    │  internal HTTP
    ▼
-WAHA  (devlikeapro/waha, Docker)
+WAHA  (devlikeapro/waha:noweb-2026.8.1, Docker, not published)
    │  WhatsApp protocol
    ▼
 WhatsApp recipient / group
@@ -54,7 +56,8 @@ WAHA session storage: persistent Docker volume mounted at `/app/.sessions`.
 | `whatsapp-accounts`  | Accounts belong to a Project. Status, restart/stop/unlink, QR. Mode is stored (`SEND_ONLY` / `MESSENGER`). |
 | `api-tokens`         | Tokens belong to a Project. HMAC-SHA256 with `TOKEN_PEPPER`. Show-once via signed cookie.          |
 | `waha`               | Isolated WAHA boundary. Only place that knows WAHA URL shape and status strings.                |
-| `messages`           | `POST /api/messages/send` (+ media). ApiToken guard. Strict DTO. Outbound log lifecycle.          |
+| `messages`           | Legacy `POST /api/messages/send` (+ media). ApiToken guard. Strict DTO. Outbound log lifecycle.          |
+| `v1`                 | Project-token `/api/v1/accounts` list/status/send. Account-scoped. Durable idempotency. No Messenger.   |
 | `groups`             | Group lifecycle API: list/create/get/refresh/participants/invite-link. Idempotent mutations.     |
 | `health`             | `GET /health` returning `{ gateway, database, waha }`.                                          |
 | `dashboard`          | Handlebars Admin pages: Dashboard, Projects, System/Health. QR poll JSON.                       |
@@ -67,8 +70,9 @@ Strict rule: WAHA-specific URLs, headers, and status strings live only inside `s
 Admin (singleton)
 Project (1) ──── (n) ApiToken
         └── (n) WhatsappAccount
-                    ├── (n) OutboundMessageLog   [no text, no rawPayload]
-                    └── (n) GroupApiOperation    [idempotency for create/add]
+                    ├── (n) OutboundMessageLog          [no text, no mediaUrl, no rawPayload]
+                    ├── (n) OutboundMessageIdempotency  [request hash only]
+                    └── (n) GroupApiOperation           [idempotency for create/add]
 ```
 
 `ApiToken` and `WhatsappAccount` reference `Project` with **`ON DELETE RESTRICT`**. There is no audited project-delete workflow, so deleting a Project that still has tokens or accounts is rejected by the database. Outbound logs and group operations still cascade when a WhatsApp account is removed.
@@ -86,11 +90,9 @@ Database CHECK + unique `singleton = 1` enforces exactly one Admin row.
 
 `SessionStatus`: `QR_REQUIRED | CONNECTING | CONNECTED | DISCONNECTED | ERROR`.
 
-`sessionName` is generated (`wa_<hex>`). Never derived from project name.
+`sessionName` is generated (`wa_<hex>`). Never derived from project name. It is the WAHA session name (authoritative). `WAHA_SESSION_NAME` is deprecated and ignored.
 
-Phase 1 stores `mode` but does not enable Messenger/Store/inbound events.
-
-With `WAHA_SESSION_NAME=default` (WAHA Core), multiple DB accounts cannot yet operate as independent WAHA sessions.
+Phase 2 stores `mode` (`SEND_ONLY` / `MESSENGER`). Both modes may send outbound messages. Messenger inbox, history, Store, inbound events, and webhooks are **not** enabled.
 
 ### `ApiToken`
 `id, projectId, name, tokenHash (unique), tokenPrefix, last4, lastUsedAt?, revokedAt?, createdAt, updatedAt`.
@@ -98,13 +100,39 @@ With `WAHA_SESSION_NAME=default` (WAHA Core), multiple DB accounts cannot yet op
 Storage rule: only `tokenHash` (HMAC-SHA256 with `TOKEN_PEPPER`), `tokenPrefix`, `last4`. The full token is shown to the Admin exactly once after create or regenerate, via a short-lived signed httpOnly cookie (never in a URL).
 
 ### `OutboundMessageLog`
-`id, whatsappAccountId, requestId (unique), chatId, status (PENDING|SENT|FAILED), wahaMessageId?, errorCode?, errorMessage?, createdAt, updatedAt`.
+`id, whatsappAccountId, requestId (unique), chatId, messageType, status (PENDING|SENT|FAILED), wahaMessageId?, errorCode?, errorMessage?, idempotencyKey?, requestHash?, createdAt, updatedAt`.
 
-This log exists for safe operational tracking. It is not exposed as a chat / message history UI. There is no `text`, no `rawPayload`.
+This log exists for safe operational tracking. It is not exposed as a chat / message history UI. There is no `text`, no `mediaUrl`, no `caption`, no `rawPayload`.
+
+### `OutboundMessageIdempotency`
+`id, whatsappAccountId, idempotencyKey, requestHash, status (PROCESSING|SUCCEEDED|FAILED|OUTCOME_UNKNOWN), requestId?, messageId?, wahaMessageId?, sentAt?, errorCode?, timestamps`. Unique on `(whatsappAccountId, idempotencyKey)`. Never stores message text or URLs (hash of canonical request only).
 
 ## API contract for external systems
 
-`POST /api/messages/send`
+Preferred (Phase 2): account-scoped **v1**.
+
+`POST /api/v1/accounts/:accountId/messages`
+
+Headers:
+- `Authorization: Bearer <PROJECT_API_TOKEN>`
+- `Idempotency-Key: <8-128 chars [A-Za-z0-9._:-]>`
+- `Content-Type: application/json`
+
+The guard authenticates the Project only. It does **not** pick an account. Ownership is `{ id: accountId, projectId }`. Cross-project ids return 404.
+
+Body (discriminated `type`, additional properties rejected):
+
+```json
+{ "type": "TEXT", "chatId": "37499111222@c.us", "text": "Hello" }
+```
+
+```json
+{ "type": "IMAGE", "chatId": "37499111222@c.us", "mediaUrl": "https://cdn.example.com/a.jpg", "caption": "optional" }
+```
+
+`GET /api/v1/accounts` returns safe metadata only (`id`, `label`, `mode`, `status`, masked `phoneNumber`, `isActive`, timestamps). Never `sessionName`, WAHA URL, or WAHA API key.
+
+Legacy `POST /api/messages/send` remains. Token → Project → exactly one active account, or `PROJECT_HAS_NO_ACTIVE_ACCOUNT` / `PROJECT_ACCOUNT_AMBIGUOUS`.
 
 Headers:
 - `Authorization: Bearer <API_TOKEN>`
@@ -154,8 +182,11 @@ Standardized error codes:
 | 400  | `VALIDATION_ERROR`       | Missing `chatId` / `text`.                                      |
 | 400  | `PHONE_NOT_SUPPORTED`    | Body contains `phone`.                                          |
 | 400  | `INVALID_CHAT_ID`        | `chatId` does not end with `@c.us` or `@g.us`.                  |
-| 409  | `WHATSAPP_NOT_CONNECTED` | Account not active or session status is not `CONNECTED`.       |
-| 503  | `WAHA_UNAVAILABLE`       | Network error / timeout reaching WAHA.                          |
+| 409  | `ACCOUNT_INACTIVE`       | v1: the targeted account exists but `isActive = false`.         |
+| 409  | `WHATSAPP_NOT_CONNECTED` | Session status is not `CONNECTED`.                              |
+| 409  | `IDEMPOTENCY_KEY_REUSED` | Same key, different request hash.                               |
+| 503  | `MESSAGE_OUTCOME_UNKNOWN`| Timeout/stale PROCESSING after WAHA may have accepted the send. |
+| 503  | `WAHA_UNAVAILABLE`       | Network error / timeout reaching WAHA (legacy).                 |
 | 502  | `MESSAGE_SEND_FAILED`    | WAHA returned non-2xx.                                          |
 
 ## Send flow
@@ -182,17 +213,14 @@ Standardized error codes:
 - Dashboard: argon2id password hashes, JWT (HS256, `JWT_SECRET`) in httpOnly SameSite=Lax cookie **`gw_session` signed with `COOKIE_SECRET`**. Unsigned `gw_session` cookies are ignored. `Secure` when `NODE_ENV=production` only. JWT payload is Admin `sub` + `sessionVersion`. Every protected request reloads Admin from the database and rejects missing/inactive/mismatched sessions. CSRF: double-submit cookie verified by guard for all non-GET dashboard routes. `helmet()` globally.
 - API: Bearer only. Tokens in URL/query are rejected. Cookies are not honored on `/api/*`.
 - Ownership: singleton Admin dashboard. Tokens and accounts are scoped to a Project. Project A cannot access Project B. There is no User model, Role enum, or `ADMIN_NAME`.
-- Throttling (`@nestjs/throttler`) is **IP-based** (the library’s default tracker). There is no per-token send bucket:
-  - `login`: 5 / 15 min per IP (fixed in `AuthController`).
-  - API/dashboard baseline: `RATE_LIMIT_SEND` requests / 60s per IP.
-  - token create/regenerate: 3 / hour per IP.
+- Throttling (`@nestjs/throttler`) uses **named throttlers**: `default` (`RATE_LIMIT_SEND`) for legacy/dashboard, `v1-send` (`RATE_LIMIT_V1_SEND`), `v1-read` (`RATE_LIMIT_V1_READ`). Exactly one applies per request; v1 is not double-counted. Login is 5 / 15 min per IP; token create/regenerate is 3 / hour per IP. Tracker is **HMAC-SHA256(TOKEN_PEPPER, raw token)** when a Bearer token is present, otherwise client IP. Raw tokens are never used as keys. Storage is in-process `BoundedThrottlerStorage` (TTL eviction + hard max keys). **Single Gateway instance only** unless a shared Redis store is added. `app.set('trust proxy', 1)` is set in `main.ts`. Behind NAT/shared egress, IP fallback collapses many clients into one bucket — prefer Project tokens on v1.
 - Privacy: no `text`, no full token, no `rawPayload`, no QR contents in logs. Logger has a redaction list.
 - Tokens: stored as `tokenHash`, `tokenPrefix`, `last4` only. Full token returned exactly once via a project-bound signed httpOnly cookie (never `?revealed=`). A token issued for Project A is not rendered or consumed on Project B.
 - WAHA: not publicly exposed. Internal Docker network only.
 
 ## Dashboard visibility rules
 
-Admin sees: projects, WhatsApp accounts (label, mode, sessionName, status, phoneNumber if connected), QR codes, API token metadata, system health, action buttons.
+Admin sees: projects, WhatsApp accounts (label, mode, status, active/connected, phoneNumber if connected), QR codes, recent outbound operational logs (no content), API token metadata, system health, action buttons. `sessionName` is not shown on the account page (database/WAHA diagnostics only).
 
 Strictly absent: User/Role UI, chats UI, conversations UI, message history UI, webhook logs, raw WAHA payloads, Messenger UI.
 Group **management** is available only via the authenticated JSON API (`/api/groups*`), not as a Messenger dashboard. An e2e test asserts legacy dashboard paths like `/chats`, `/groups`, `/webhooks` still return 404.
@@ -205,4 +233,4 @@ Group **management** is available only via the authenticated JSON API (`/api/gro
 
 ## What is explicitly NOT built
 
-No projects, workspaces, tenants, Product/Lead/Deal models, employee roles, or CRM workflow. No phone-number normalization / `@c.us` builder. No Messenger UI for chats/groups. No webhook endpoint in v1 — session status is refreshed on demand. Product-to-group binding and client invite messaging belong to NBOS.
+No projects, workspaces, tenants, Product/Lead/Deal models, employee roles, or CRM workflow. No phone-number normalization / `@c.us` builder. No Messenger UI for chats/groups. No webhook endpoint in Phase 2 — session status is refreshed on demand. Inbound events, Store, and history belong to a later phase.

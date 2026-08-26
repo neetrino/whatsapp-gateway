@@ -129,6 +129,9 @@ describe('Dashboard project/account/token flows (e2e)', () => {
       ),
       update: jest.fn(),
     },
+    outboundMessageLog: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
   };
 
   beforeAll(async () => {
@@ -220,7 +223,7 @@ describe('Dashboard project/account/token flows (e2e)', () => {
   it('creates an account, warns when two are active, then deactivates one', async () => {
     await formPost('/projects', { name: 'Beta', slug: 'beta' });
     const newPage = await htmlGet('/projects/proj_beta/accounts/new');
-    expect(newPage.text).toContain('Messenger is not enabled in Phase 1');
+    expect(newPage.text).toContain('Messenger inbox is not enabled');
 
     const first = await formPost('/projects/proj_beta/accounts', {
       label: 'Primary',
@@ -266,13 +269,13 @@ describe('Dashboard project/account/token flows (e2e)', () => {
     const other = await htmlGet('/projects/proj_beta', withReveal);
     expect(other.status).toBe(200);
     expect(other.text).not.toContain('Save this token now');
-    expect(other.text).not.toMatch(/gw_test_[A-Za-z0-9]+/);
+    expect(other.text).not.toMatch(/gw_test_[A-Za-z0-9_-]+/);
     expect(cookiePairsFromResponse(other.headers, ['gw_token_reveal'])).toBe('');
 
     const first = await htmlGet('/projects/proj_acme', withReveal);
     expect(first.text).toContain('Save this token now');
-    expect(first.text).toMatch(/gw_test_[A-Za-z0-9]+/);
-    const rawMatch = first.text.match(/gw_test_[A-Za-z0-9]+/);
+    expect(first.text).toMatch(/gw_test_[A-Za-z0-9_-]+/);
+    const rawMatch = first.text.match(/gw_test_[A-Za-z0-9_-]+/);
     const raw = rawMatch?.[0] ?? '';
     expect(raw.length).toBeGreaterThan(10);
 

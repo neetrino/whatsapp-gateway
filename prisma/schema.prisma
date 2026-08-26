@@ -21,6 +21,13 @@ enum MessageStatus {
   FAILED
 }
 
+enum OutboundIdempotencyStatus {
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  OUTCOME_UNKNOWN
+}
+
 enum MessageType {
   TEXT
   IMAGE
@@ -85,9 +92,10 @@ model WhatsappAccount {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
-  project            Project              @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  logs               OutboundMessageLog[]
-  groupApiOperations GroupApiOperation[]
+  project                   Project                     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  logs                      OutboundMessageLog[]
+  groupApiOperations        GroupApiOperation[]
+  outboundIdempotencyKeys   OutboundMessageIdempotency[]
 
   @@index([projectId])
   @@index([projectId, isActive])
@@ -122,13 +130,37 @@ model OutboundMessageLog {
   wahaMessageId     String?
   errorCode         String?
   errorMessage      String?
+  idempotencyKey    String?
+  requestHash       String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
   whatsappAccount WhatsappAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
 
   @@index([whatsappAccountId, createdAt])
+  @@index([whatsappAccountId, idempotencyKey, requestHash])
   @@map("outbound_message_logs")
+}
+
+model OutboundMessageIdempotency {
+  id                String                    @id @default(cuid())
+  whatsappAccountId String
+  idempotencyKey    String
+  requestHash       String
+  status            OutboundIdempotencyStatus @default(PROCESSING)
+  requestId         String?
+  messageId         String?
+  wahaMessageId     String?
+  sentAt            DateTime?
+  errorCode         String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  whatsappAccount WhatsappAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([whatsappAccountId, idempotencyKey])
+  @@index([whatsappAccountId, createdAt])
+  @@map("outbound_message_idempotency")
 }
 
 model GroupApiOperation {

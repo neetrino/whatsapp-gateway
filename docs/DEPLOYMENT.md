@@ -9,7 +9,7 @@
 ## 1. Provision VPS
 
 - Ubuntu 22.04+ or similar on Hetzner.
-- Open inbound **443** (and **80** for ACME if needed). **Do not** publish WAHA port `3000`.
+- Open inbound **443** (and **80** for ACME if needed). **Do not** publish WAHA. Compose uses `expose: "3000"` only (no host port).
 
 ## 2. Install Docker
 
@@ -77,7 +77,7 @@ wa-gateway.example.com {
 - `proxy_pass http://127.0.0.1:3000;`
 - Forward `X-Forwarded-For`, `X-Forwarded-Proto`.
 
-Ensure `trust proxy` is enabled in production (already set in `main.ts`).
+Ensure `trust proxy` is enabled in production (already `app.set('trust proxy', 1)` in `main.ts`). The proxy must set `X-Forwarded-For` / `X-Forwarded-Proto` so v1 IP-fallback rate limits and secure cookies see the client correctly.
 
 ## 7. WAHA persistence
 

@@ -19,15 +19,14 @@ describe('WahaService getQrForDashboard / effectiveSessionName', () => {
     expect(r.errorSummary).toBe('Session is already connected. QR is not required.');
   });
 
-  it('calls WAHA getQr with WAHA_SESSION_NAME when configured', async () => {
+  it('calls WAHA getQr with the database sessionName', async () => {
     const client = { getQr: jest.fn().mockResolvedValue({ mimeType: 'image/png', data: 'QQ==' }) };
     const config = {
       get: jest.fn((k: string) => (k === 'WAHA_SESSION_NAME' ? 'default' : undefined)),
     };
     const svc = new WahaService({} as never, client as never, config as never);
     await svc.getQrForDashboard(account, { requestId: 'req_1', accountId: account.id });
-    expect(client.getQr).toHaveBeenCalledWith('default');
-    expect(config.get).toHaveBeenCalledWith('WAHA_SESSION_NAME', { infer: true });
+    expect(client.getQr).toHaveBeenCalledWith('wa_old');
   });
 
   it('normalizes PNG payload to a data URL', async () => {

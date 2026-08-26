@@ -309,4 +309,25 @@ describe('POST /api/messages/send (e2e)', () => {
     expect(res.body.success).toBe(true);
     expect(sendText).toHaveBeenCalledWith('wa_test', '37499111222@c.us', 'Hello from JSON');
   });
+
+  it('uses the single active account session when other accounts are inactive', async () => {
+    const raw = generateApiToken(prefix).raw;
+    findValidByRaw.mockResolvedValue({
+      ...validResolvedToken,
+      activeAccounts: [{ id: 'acc-live', sessionName: 'wa_live_only' }],
+    });
+    prismaMock.whatsappAccount.findFirst.mockResolvedValue({
+      id: 'acc-live',
+      sessionName: 'wa_live_only',
+      isActive: true,
+      status: SessionStatus.CONNECTED,
+    });
+    sendText.mockResolvedValue({ id: 'wmsg-live' });
+    const res = await request(app.getHttpServer())
+      .post('/api/messages/send')
+      .set(authHeaderForRaw(raw))
+      .send({ chatId: '37499111222@c.us', text: 'Hi' });
+    expect(res.status).toBe(200);
+    expect(sendText).toHaveBeenCalledWith('wa_live_only', '37499111222@c.us', 'Hi');
+  });
 });

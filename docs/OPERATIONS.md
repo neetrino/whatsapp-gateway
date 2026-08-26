@@ -38,13 +38,13 @@ Expect brief `WAHA_UNAVAILABLE` responses while WAHA is restarting.
 
 ## WAHA engine change (e.g. WEBJS → NOWEB)
 
-Session files under the `waha_sessions` volume may **not** be portable across engines. If QR or status misbehaves after switching to **NOWEB** (`devlikeapro/waha:noweb`, `WHATSAPP_DEFAULT_ENGINE=NOWEB`):
+Session files under the `waha_sessions` volume may **not** be portable across engines. If QR or status misbehaves after switching to **NOWEB** (`devlikeapro/waha:noweb-2026.8.1`, `WHATSAPP_DEFAULT_ENGINE=NOWEB`):
 
 1. `docker compose down`
 2. Remove only the WAHA volume: `docker volume rm <project>_waha_sessions` (keep the database).
 3. `docker compose up --build` and scan QR again.
 
-See [WAHA_SETUP.md](WAHA_SETUP.md) for the canonical NOWEB + Core `default` session notes.
+See [WAHA_SETUP.md](WAHA_SETUP.md) for the pinned multi-session image and integration-only loopback overlay.
 
 
 ## Database migrations

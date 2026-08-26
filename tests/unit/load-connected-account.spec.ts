@@ -20,7 +20,38 @@ describe('loadConnectedAccount', () => {
     });
     expect(prisma.whatsappAccount.findFirst).toHaveBeenCalledWith({
       where: { id: 'acc1', projectId: 'p1' },
-      select: { id: true, sessionName: true, isActive: true, status: true },
+      select: {
+        id: true,
+        sessionName: true,
+        isActive: true,
+        status: true,
+        label: true,
+        mode: true,
+        phoneNumber: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  });
+
+  it('returns ACCOUNT_INACTIVE when the account is inactive', async () => {
+    const prisma = {
+      whatsappAccount: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'acc1',
+          sessionName: 'wa_a',
+          isActive: false,
+          status: SessionStatus.CONNECTED,
+          label: 'A',
+          mode: 'SEND_ONLY',
+          phoneNumber: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      },
+    };
+    await expect(loadConnectedAccount(prisma as never, 'p1', 'acc1')).rejects.toMatchObject({
+      code: ERROR_CODES.ACCOUNT_INACTIVE,
     });
   });
 

@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ValidationPipe } from '@nestjs/common';
 import { validateEnv } from './config/env.validation';
 import type { EnvironmentVariables } from './config/env.validation';
+import { buildThrottlerOptions } from './config/throttler.config';
 import { PrismaModule } from './prisma/prisma.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ResponseEnvelopeInterceptor } from './common/interceptors/response-envelope.interceptor';
@@ -22,25 +23,20 @@ import { MessagesModule } from './messages/messages.module';
 import { HealthModule } from './health/health.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { GroupsModule } from './groups/groups.module';
+import { V1Module } from './v1/v1.module';
 import { AppController } from './app.controller';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      ignoreEnvFile: process.env.NODE_ENV === 'test',
       validate: (raw) => validateEnv(raw),
     }),
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService<EnvironmentVariables, true>) => ({
-        throttlers: [
-          {
-            name: 'default',
-            ttl: 60_000,
-            limit: configService.get('RATE_LIMIT_SEND', { infer: true }),
-          },
-        ],
-      }),
+      useFactory: (configService: ConfigService<EnvironmentVariables, true>) =>
+        buildThrottlerOptions(configService),
     }),
     PrismaModule,
     AuthModule,
@@ -52,6 +48,7 @@ import { AppController } from './app.controller';
     GroupsModule,
     HealthModule,
     DashboardModule,
+    V1Module,
   ],
   controllers: [AppController],
   providers: [

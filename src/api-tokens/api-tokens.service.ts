@@ -22,11 +22,14 @@ export interface IssuedApiToken extends ApiTokenMetadata {
   raw: string;
 }
 
-export interface ResolvedApiToken {
+export interface ResolvedProjectToken {
   apiTokenId: string;
   projectId: string;
   projectIsActive: boolean;
   revoked: boolean;
+}
+
+export interface ResolvedApiToken extends ResolvedProjectToken {
   activeAccounts: Array<{ id: string; sessionName: string }>;
 }
 
@@ -103,22 +106,15 @@ export class ApiTokensService {
     return { ...toMetadata(updated), raw: generated.raw };
   }
 
-  async findValidByRaw(rawToken: string): Promise<ResolvedApiToken | null> {
+  async findProjectByRaw(rawToken: string): Promise<ResolvedProjectToken | null> {
     const pepper = this.configService.get('TOKEN_PEPPER', { infer: true });
     const tokenHash = hashApiToken(rawToken, pepper);
     const found = await this.prisma.apiToken.findUnique({
       where: { tokenHash },
-      include: {
-        project: {
-          select: {
-            id: true,
-            isActive: true,
-            whatsappAccounts: {
-              where: { isActive: true },
-              select: { id: true, sessionName: true },
-            },
-          },
-        },
+      select: {
+        id: true,
+        revokedAt: true,
+        project: { select: { id: true, isActive: true } },
       },
     });
     if (!found) return null;
@@ -127,8 +123,17 @@ export class ApiTokensService {
       projectId: found.project.id,
       projectIsActive: found.project.isActive,
       revoked: found.revokedAt !== null,
-      activeAccounts: found.project.whatsappAccounts,
     };
+  }
+
+  async findValidByRaw(rawToken: string): Promise<ResolvedApiToken | null> {
+    const projectToken = await this.findProjectByRaw(rawToken);
+    if (!projectToken) return null;
+    const activeAccounts = await this.prisma.whatsappAccount.findMany({
+      where: { projectId: projectToken.projectId, isActive: true },
+      select: { id: true, sessionName: true },
+    });
+    return { ...projectToken, activeAccounts };
   }
 
   async touchLastUsed(tokenId: string): Promise<void> {

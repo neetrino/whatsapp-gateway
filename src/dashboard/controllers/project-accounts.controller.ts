@@ -58,13 +58,17 @@ export class ProjectAccountsController {
     @CurrentAdmin() admin: AuthenticatedAdmin,
     @Param('projectId') projectId: string,
     @Param('accountId') accountId: string,
-  ): Promise<BaseViewModel & { projectId: string; account: unknown; active: 'projects' }> {
+  ): Promise<
+    BaseViewModel & { projectId: string; account: unknown; recentLogs: unknown; active: 'projects' }
+  > {
     const account = await this.accountsService.getByIdForProject(projectId, accountId);
     const refreshed = await this.accountsService.refreshStatus(account);
+    const recentLogs = await this.accountsService.listRecentLogs(projectId, accountId);
     return {
       ...baseView(req, admin, account.label),
       projectId,
       account: { ...account, ...refreshed },
+      recentLogs,
       active: 'projects',
     };
   }

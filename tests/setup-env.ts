@@ -17,3 +17,6 @@ process.env.MAX_CAPTION_LENGTH = '4096';
 process.env.MAX_IMAGE_SIZE_MB = '10';
 process.env.MAX_VIDEO_SIZE_MB = '50';
 process.env.RATE_LIMIT_SEND = '1000';
+process.env.RATE_LIMIT_V1_SEND = '1000';
+process.env.RATE_LIMIT_V1_READ = '1000';
+process.env.IDEMPOTENCY_PROCESSING_TIMEOUT_MS = '120000';
