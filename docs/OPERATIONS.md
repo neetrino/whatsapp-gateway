@@ -81,7 +81,7 @@ Run against production `DATABASE_URL` from CI or a secure admin shell.
 
 1. **Never** run `20260824120000_phase1_admin_project_ownership` on production data you need to keep (destructive).
 2. Apply additive migrations in timestamp order on Neon (`phase2_*`, `phase3_webhook_delivery`, …).
-3. Before merging `dev-Karo` → `main`, reconcile that `main` does not contain conflicting legacy migration `20260716120000_multi_whatsapp_per_user` — rebase migration history on a disposable DB first.
+3. `20260716120000_multi_whatsapp_per_user` is in the tree (from `main`, SQL unchanged). Prod DBs that already applied it are fine. DBs that ran Phase 1 without that row: `prisma migrate resolve --applied 20260716120000_multi_whatsapp_per_user`.
 
 ## Security rotations
 

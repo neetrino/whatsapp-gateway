@@ -48,7 +48,7 @@ ADMIN_EMAIL=... ADMIN_PASSWORD=... npm run prisma:seed
 
 **Destructive test-only migration:** `prisma/migrations/20260824120000_phase1_admin_project_ownership` deletes existing `users`, WhatsApp accounts, API tokens, and related logs, then introduces Admin/Project ownership. Use it on **disposable test databases only**. Do not apply it to production data that you need to keep.
 
-**Merge note (`dev-Karo` → `main`):** `main` may still contain legacy migration `20260716120000_multi_whatsapp_per_user`. Reconcile Prisma migration history on a disposable database before merging; do not rewrite committed `dev-Karo` migration files unless explicitly requested.
+**Migration `20260716120000_multi_whatsapp_per_user`:** kept from `main` unchanged (checksum must match databases that already applied it). It only drops `whatsapp_accounts_userId_key` and creates `whatsapp_accounts_userId_idx`. Phase 1 then drops `userId`. If a database already applied Phase 1 **without** this row in `_prisma_migrations`, mark it applied (`prisma migrate resolve --applied 20260716120000_multi_whatsapp_per_user`) — do not re-run it after `userId` is gone.
 
 The production Docker image is runtime-only (no `ts-node`). Run the **seed once** from a dev/CI environment against Neon.
 

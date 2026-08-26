@@ -8,6 +8,7 @@ services:
       # NODE_ENV from .env (use development for http://localhost cookies)
       - WAHA_BASE_URL=http://waha:3000
       - GATEWAY_INTERNAL_URL=http://gateway:3000
+      # Do not set WAHA_SESSION_NAME — database WhatsappAccount.sessionName is authoritative.
     depends_on:
       - waha
     ports:

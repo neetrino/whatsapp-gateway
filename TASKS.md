@@ -23,7 +23,7 @@ WAHA REST paths in [`src/waha/waha.client.ts`](src/waha/waha.client.ts) should b
 - [x] **`SEND_ONLY`:** outbound send only — no v1 chats/history, no inbound webhook delivery.
 - [x] Destructive migration `20260824120000_phase1_admin_project_ownership` is **test/disposable-only**.
 - [x] Additive migrations preserve production data (`phase2_*`, `phase3_webhook_delivery`).
-- [ ] **Merge note:** `main` may still contain legacy migration `20260716120000_multi_whatsapp_per_user`. Reconcile migration history before merging `dev-Karo` → `main` (do not rewrite committed `dev-Karo` history unless explicitly requested).
+- [x] `main` migration `20260716120000_multi_whatsapp_per_user` is in the tree unchanged. Phase 1 SQL already handles both unique `userId` and `userId` index.
 
 ### Obsolete (replaced by Admin + Project)
 
