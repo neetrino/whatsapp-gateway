@@ -138,7 +138,7 @@ export class ProjectsDashboardController {
 
   @Post(':id/webhook/regenerate')
   @HttpCode(HttpStatus.SEE_OTHER)
-  @Throttle({ default: { ttl: 3_600_000, limit: 3 } })
+  @Throttle({ default: { ttl: 3_600_000, limit: 100 } })
   async regenerateWebhookSecret(
     @Param('id') id: string,
     @Body() _dto: CsrfFormDto,
@@ -188,7 +188,7 @@ export class ProjectsDashboardController {
 
   @Post(':id/tokens')
   @HttpCode(HttpStatus.SEE_OTHER)
-  @Throttle({ default: { ttl: 3_600_000, limit: 3 } })
+  @Throttle({ default: { ttl: 3_600_000, limit: 100 } })
   async createToken(
     @Param('id') id: string,
     @Body() dto: CreateTokenDto,
@@ -218,7 +218,7 @@ export class ProjectsDashboardController {
 
   @Post(':id/tokens/:tokenId/regenerate')
   @HttpCode(HttpStatus.SEE_OTHER)
-  @Throttle({ default: { ttl: 3_600_000, limit: 3 } })
+  @Throttle({ default: { ttl: 3_600_000, limit: 100 } })
   async regenerateToken(
     @Param('id') id: string,
     @Param('tokenId') tokenId: string,
