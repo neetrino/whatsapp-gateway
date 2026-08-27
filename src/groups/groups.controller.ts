@@ -40,7 +40,7 @@ export class GroupsController {
   @UseGuards(ApiTokenGuard)
   @Get()
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { ttl: 60_000, limit: 60 } })
+  @Throttle({ default: { ttl: 60_000, limit: 1200 } })
   async list(
     @Query() query: ListGroupsQueryDto,
     @ApiAccount() account: ApiAccountContext | undefined,
@@ -53,7 +53,7 @@ export class GroupsController {
   @UseGuards(ApiTokenGuard)
   @Post()
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Throttle({ default: { ttl: 60_000, limit: 200 } })
   async create(
     @Body() dto: CreateGroupDto,
     @Headers() headers: Record<string, unknown>,
@@ -72,7 +72,7 @@ export class GroupsController {
   @UseGuards(ApiTokenGuard)
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { ttl: 60_000, limit: 1 } })
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   async refresh(
     @ApiAccount() account: ApiAccountContext | undefined,
   ): Promise<{ success: true; data: RefreshGroupsResult }> {
@@ -84,7 +84,7 @@ export class GroupsController {
   @UseGuards(ApiTokenGuard)
   @Get(':groupId')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { ttl: 60_000, limit: 60 } })
+  @Throttle({ default: { ttl: 60_000, limit: 1200 } })
   async getOne(
     @Param() params: GroupIdParamDto,
     @ApiAccount() account: ApiAccountContext | undefined,
@@ -97,7 +97,7 @@ export class GroupsController {
   @UseGuards(ApiTokenGuard)
   @Get(':groupId/participants')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { ttl: 60_000, limit: 60 } })
+  @Throttle({ default: { ttl: 60_000, limit: 1200 } })
   async listParticipants(
     @Param() params: GroupIdParamDto,
     @ApiAccount() account: ApiAccountContext | undefined,
@@ -113,7 +113,7 @@ export class GroupsController {
   @UseGuards(ApiTokenGuard)
   @Post(':groupId/participants')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  @Throttle({ default: { ttl: 60_000, limit: 400 } })
   async addParticipants(
     @Param() params: GroupIdParamDto,
     @Body() dto: AddGroupParticipantsDto,
@@ -134,7 +134,7 @@ export class GroupsController {
   @UseGuards(ApiTokenGuard)
   @Get(':groupId/invite-link')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @Throttle({ default: { ttl: 60_000, limit: 600 } })
   async inviteLink(
     @Param() params: GroupIdParamDto,
     @ApiAccount() account: ApiAccountContext | undefined,
