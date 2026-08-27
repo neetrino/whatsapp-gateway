@@ -15,7 +15,16 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
-# ── Stage 3: minimal runtime ───────────────────────────────────────────────────
+# ── Stage 3: production node_modules only (keeps fat install out of runtime layers)
+FROM node:20-alpine AS prod-deps
+WORKDIR /app
+RUN apk add --no-cache openssl
+COPY package.json package-lock.json* ./
+COPY --from=deps /app/node_modules ./node_modules
+COPY prisma ./prisma
+RUN npx prisma generate && npm prune --omit=dev
+
+# ── Stage 4: minimal runtime ───────────────────────────────────────────────────
 FROM node:20-alpine AS runtime
 ENV NODE_ENV=production \
     PORT=3000
@@ -24,14 +33,12 @@ RUN apk add --no-cache openssl tini && \
     addgroup -S app && adduser -S app -G app
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY package.json ./
 
-RUN npx prisma generate && \
-    npm prune --omit=dev && \
-    chown -R app:app /app
+RUN chown -R app:app /app
 
 USER app
 EXPOSE 3000
