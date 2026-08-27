@@ -1,11 +1,6 @@
 services:
   gateway:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      # Coolify + Docker 29: default provenance/SBOM makes unpack exit 255.
-      provenance: false
-      sbom: false
+    build: .
     image: nbos-whatsapp-gateway:latest
     restart: unless-stopped
     env_file: .env
