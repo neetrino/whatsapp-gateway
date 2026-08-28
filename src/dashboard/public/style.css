@@ -1198,7 +1198,7 @@ ul.meta li {
   align-items: stretch;
   gap: 36px;
   margin: 0 0 24px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: none;
 }
 
 .detail-tab {
@@ -1210,10 +1210,22 @@ ul.meta li {
   border-radius: 0;
   box-shadow: none;
   color: var(--muted);
-  padding: 14px 0 16px;
+  padding: 14px 0 6px;
   font-weight: 500;
   font-size: 20px;
   line-height: 1.25;
+  transition: color var(--dur) var(--ease-soft);
+}
+
+.detail-tab::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
 }
 
 .detail-tab:hover {
@@ -1231,17 +1243,6 @@ ul.meta li {
   background: none;
   font-weight: 600;
   box-shadow: none;
-}
-
-.detail-tab.is-active::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 3px;
-  background: var(--accent);
-  border-radius: 2px 2px 0 0;
 }
 
 /* ── Side sheets (NBOS-style right detail sheet) ── */
