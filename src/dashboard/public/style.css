@@ -376,6 +376,17 @@ h3 {
   transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
 
+.form select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23e8f0ec' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 24px center;
+  background-size: 12px 8px;
+  cursor: pointer;
+}
+
 .form input:focus,
 .form select:focus {
   outline: none;
@@ -1219,6 +1230,10 @@ button.icon-btn--qr:active {
 
 .side-sheet__body .actions {
   margin-top: 8px;
+}
+
+#sheet-create-account .actions {
+  justify-content: flex-end;
 }
 
 /* ── Responsive ── */
