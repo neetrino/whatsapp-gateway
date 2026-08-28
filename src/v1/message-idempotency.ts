@@ -149,9 +149,14 @@ const resolveStaleProcessing = async (
     },
   });
   if (moved.count === 0) {
-    const latest = await prisma.outboundMessageIdempotency.findUnique({ where: { id: existing.id } });
+    const latest = await prisma.outboundMessageIdempotency.findUnique({
+      where: { id: existing.id },
+    });
     if (!latest) throw unknownOutcome('Idempotency record disappeared.');
-    if (latest.status === OutboundIdempotencyStatus.PROCESSING && isStaleProcessing(latest, staleMs)) {
+    if (
+      latest.status === OutboundIdempotencyStatus.PROCESSING &&
+      isStaleProcessing(latest, staleMs)
+    ) {
       throw unknownOutcome(
         'Previous send outcome is unknown after a stale PROCESSING record. Do not retry with a new key.',
       );
@@ -243,7 +248,9 @@ export const markIdempotencyFailed = async (
     data: { status: outcome, errorCode },
   });
   if (retry.count > 0) return;
-  throw unknownOutcome('Could not persist terminal idempotency state. Treat the outcome as unknown.');
+  throw unknownOutcome(
+    'Could not persist terminal idempotency state. Treat the outcome as unknown.',
+  );
 };
 
 const settleNonSuccess = (existing: OutboundMessageIdempotency): never => {

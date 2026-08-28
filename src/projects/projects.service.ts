@@ -88,9 +88,7 @@ export class ProjectsService {
           data.webhookUrl = validated.href;
         } catch (error) {
           const message =
-            error instanceof InvalidPublicUrlError
-              ? error.message
-              : 'Invalid project webhook URL.';
+            error instanceof InvalidPublicUrlError ? error.message : 'Invalid project webhook URL.';
           throw new AppException({
             code: ERROR_CODES.INVALID_WEBHOOK_URL,
             message,

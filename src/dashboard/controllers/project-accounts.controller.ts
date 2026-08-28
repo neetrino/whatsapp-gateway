@@ -32,10 +32,7 @@ export class ProjectAccountsController {
 
   @Get('new')
   @HttpCode(HttpStatus.SEE_OTHER)
-  async newPage(
-    @Param('projectId') projectId: string,
-    @Res() res: Response,
-  ): Promise<void> {
+  async newPage(@Param('projectId') projectId: string, @Res() res: Response): Promise<void> {
     await this.projectsService.getById(projectId);
     res.redirect(303, `/projects/${projectId}#create-account`);
   }
@@ -59,7 +56,13 @@ export class ProjectAccountsController {
     @Param('projectId') projectId: string,
     @Param('accountId') accountId: string,
   ): Promise<
-    BaseViewModel & { projectId: string; account: unknown; recentLogs: unknown; active: 'projects'; modeError?: boolean }
+    BaseViewModel & {
+      projectId: string;
+      account: unknown;
+      recentLogs: unknown;
+      active: 'projects';
+      modeError?: boolean;
+    }
   > {
     const account = await this.accountsService.getByIdForProject(projectId, accountId);
     const refreshed = await this.accountsService.refreshStatus(account);

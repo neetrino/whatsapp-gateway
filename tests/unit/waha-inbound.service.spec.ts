@@ -24,7 +24,11 @@ describe('WahaInboundService', () => {
         }),
       },
     };
-    const service = new WahaInboundService(prisma as never, config as never, deliveryService as never);
+    const service = new WahaInboundService(
+      prisma as never,
+      config as never,
+      deliveryService as never,
+    );
     return { service, deliveryService, prisma };
   };
 
@@ -32,7 +36,11 @@ describe('WahaInboundService', () => {
     const { service } = build();
     const rawBody = Buffer.from('{}', 'utf8');
     expect(() =>
-      service.verifyRequest(rawBody, { hmac: 'bad', hmacAlgorithm: 'sha512', timestamp: String(Date.now()) }),
+      service.verifyRequest(rawBody, {
+        hmac: 'bad',
+        hmacAlgorithm: 'sha512',
+        timestamp: String(Date.now()),
+      }),
     ).toThrow(expect.objectContaining({ status: 401 }));
   });
 
@@ -74,7 +82,11 @@ describe('WahaInboundService', () => {
       mode: WhatsappAccountMode.SEND_ONLY,
       isActive: true,
     });
-    const body = { event: 'message', session: 'wa_s', payload: { id: 'm1', from: '37499111222@c.us' } };
+    const body = {
+      event: 'message',
+      session: 'wa_s',
+      payload: { id: 'm1', from: '37499111222@c.us' },
+    };
     const rawBody = Buffer.from(JSON.stringify(body), 'utf8');
     await service.handleEvent(rawBody, { requestId: 'req_1' });
     expect(deliveryService.enqueueDelivery).not.toHaveBeenCalled();
@@ -88,7 +100,11 @@ describe('WahaInboundService', () => {
       mode: WhatsappAccountMode.MESSENGER,
       isActive: false,
     });
-    const body = { event: 'message', session: 'wa_i', payload: { id: 'm1', from: '37499111222@c.us' } };
+    const body = {
+      event: 'message',
+      session: 'wa_i',
+      payload: { id: 'm1', from: '37499111222@c.us' },
+    };
     const rawBody = Buffer.from(JSON.stringify(body), 'utf8');
     await service.handleEvent(rawBody, { requestId: 'req_1' });
     expect(deliveryService.enqueueDelivery).not.toHaveBeenCalled();

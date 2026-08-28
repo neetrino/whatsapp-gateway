@@ -47,7 +47,11 @@ describe('ProjectWebhookDeliveryService', () => {
       },
       projectWebhookDelivery: {
         create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
-          if (deliveries.some((row) => row.projectId === data.projectId && row.eventId === data.eventId)) {
+          if (
+            deliveries.some(
+              (row) => row.projectId === data.projectId && row.eventId === data.eventId,
+            )
+          ) {
             throw new Error('unique');
           }
           const row = {
@@ -88,11 +92,13 @@ describe('ProjectWebhookDeliveryService', () => {
             },
           };
         }),
-        update: jest.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
-          const idx = deliveries.findIndex((row) => row.id === where.id);
-          deliveries[idx] = { ...deliveries[idx], ...data };
-          return deliveries[idx];
-        }),
+        update: jest.fn(
+          async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+            const idx = deliveries.findIndex((row) => row.id === where.id);
+            deliveries[idx] = { ...deliveries[idx], ...data };
+            return deliveries[idx];
+          },
+        ),
         groupBy: jest.fn(),
       },
     };

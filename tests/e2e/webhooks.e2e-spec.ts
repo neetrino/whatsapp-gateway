@@ -18,18 +18,12 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 
 import { computeWahaWebhookHmac } from '../../src/webhooks/waha-hmac';
 
-
-
 describe('WAHA inbound + project webhooks (e2e)', () => {
-
   let app: NestExpressApplication;
 
   let wahaWebhookSecret: string;
 
-
-
   const prismaMock = {
-
     onModuleInit: async () => {},
 
     onModuleDestroy: async () => {},
@@ -43,11 +37,9 @@ describe('WAHA inbound + project webhooks (e2e)', () => {
     admin: { findUnique: jest.fn() },
 
     project: {
-
       count: jest.fn().mockResolvedValue(0),
 
       findUnique: jest.fn().mockResolvedValue({
-
         webhookEnabled: false,
 
         webhookUrl: null,
@@ -55,25 +47,32 @@ describe('WAHA inbound + project webhooks (e2e)', () => {
         webhookSecretHash: null,
 
         isActive: true,
-
       }),
 
       findMany: jest.fn(),
-
     },
 
-    whatsappAccount: { findFirst: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+    whatsappAccount: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
 
     apiToken: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
 
-    outboundMessageLog: { create: jest.fn(), updateMany: jest.fn(), findFirst: jest.fn(), findMany: jest.fn() },
+    outboundMessageLog: {
+      create: jest.fn(),
+      updateMany: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
 
     outboundMessageIdempotency: { findUnique: jest.fn(), create: jest.fn(), updateMany: jest.fn() },
 
     groupApiOperation: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
 
     projectWebhookDelivery: {
-
       create: jest.fn().mockResolvedValue({ id: 'd1' }),
 
       update: jest.fn(),
@@ -83,17 +82,12 @@ describe('WAHA inbound + project webhooks (e2e)', () => {
       findUnique: jest.fn(),
 
       groupBy: jest.fn().mockResolvedValue([]),
-
     },
 
     $transaction: jest.fn(),
-
   };
 
-
-
   beforeAll(async () => {
-
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
 
       .overrideProvider(PrismaService)
@@ -113,25 +107,16 @@ describe('WAHA inbound + project webhooks (e2e)', () => {
       .get<ConfigService<EnvironmentVariables, true>>(ConfigService)
 
       .get('WAHA_WEBHOOK_SECRET', { infer: true });
-
   });
-
-
 
   afterAll(async () => {
-
     await app.close();
-
   });
 
-
-
   beforeEach(() => {
-
     jest.clearAllMocks();
 
     prismaMock.whatsappAccount.findUnique.mockResolvedValue({
-
       id: 'acc_m',
 
       projectId: 'p1',
@@ -139,21 +124,15 @@ describe('WAHA inbound + project webhooks (e2e)', () => {
       mode: WhatsappAccountMode.MESSENGER,
 
       isActive: true,
-
     });
-
   });
 
-
-
   const postEvent = (body: Record<string, unknown>) => {
-
     const rawString = JSON.stringify(body);
 
     const rawBody = Buffer.from(rawString, 'utf8');
 
     return request(app.getHttpServer())
-
       .post('/internal/waha/events')
 
       .set('X-Webhook-Hmac', computeWahaWebhookHmac(rawBody, wahaWebhookSecret))
@@ -167,21 +146,15 @@ describe('WAHA inbound + project webhooks (e2e)', () => {
       .set('Content-Type', 'application/json')
 
       .send(rawString);
-
   };
 
-
-
   it('accepts signed WAHA events for known MESSENGER sessions', async () => {
-
     const res = await postEvent({
-
       event: 'message',
 
       session: 'wa_m',
 
       payload: {
-
         id: 'm1',
 
         timestamp: 1_727_745_026,
@@ -191,9 +164,7 @@ describe('WAHA inbound + project webhooks (e2e)', () => {
         fromMe: false,
 
         body: 'Hello',
-
       },
-
     });
 
     expect(res.status).toBe(200);
@@ -201,15 +172,10 @@ describe('WAHA inbound + project webhooks (e2e)', () => {
     expect(res.body.received).toBe(true);
 
     expect(prismaMock.projectWebhookDelivery.create).toHaveBeenCalled();
-
   });
 
-
-
   it('rejects invalid HMAC', async () => {
-
     const res = await request(app.getHttpServer())
-
       .post('/internal/waha/events')
 
       .set('X-Webhook-Hmac', 'invalid')
@@ -221,13 +187,9 @@ describe('WAHA inbound + project webhooks (e2e)', () => {
       .send({ event: 'message', session: 'wa_m', payload: {} });
 
     expect(res.status).toBe(401);
-
   });
 
-
-
   it('drops unknown sessions with 200', async () => {
-
     prismaMock.whatsappAccount.findUnique.mockResolvedValue(null);
 
     const res = await postEvent({ event: 'message', session: 'missing', payload: {} });
@@ -235,15 +197,10 @@ describe('WAHA inbound + project webhooks (e2e)', () => {
     expect(res.status).toBe(200);
 
     expect(prismaMock.projectWebhookDelivery.create).not.toHaveBeenCalled();
-
   });
 
-
-
   it('drops SEND_ONLY sessions with 200', async () => {
-
     prismaMock.whatsappAccount.findUnique.mockResolvedValue({
-
       id: 'acc_s',
 
       projectId: 'p1',
@@ -251,7 +208,6 @@ describe('WAHA inbound + project webhooks (e2e)', () => {
       mode: WhatsappAccountMode.SEND_ONLY,
 
       isActive: true,
-
     });
 
     const res = await postEvent({ event: 'message', session: 'wa_s', payload: { id: 'm1' } });
@@ -259,10 +215,7 @@ describe('WAHA inbound + project webhooks (e2e)', () => {
     expect(res.status).toBe(200);
 
     expect(prismaMock.projectWebhookDelivery.create).not.toHaveBeenCalled();
-
   });
-
-
 
   it('skips RATE_LIMIT_SEND throttling', async () => {
     for (let i = 0; i < 80; i += 1) {
@@ -275,4 +228,3 @@ describe('WAHA inbound + project webhooks (e2e)', () => {
     }
   });
 });
-

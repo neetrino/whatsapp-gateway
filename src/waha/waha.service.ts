@@ -41,7 +41,8 @@ export class WahaService {
     if (ignored) {
       this.logger.warn({
         msg: 'waha_session_name_ignored',
-        detail: 'WAHA_SESSION_NAME is deprecated and ignored. Database sessionName is authoritative.',
+        detail:
+          'WAHA_SESSION_NAME is deprecated and ignored. Database sessionName is authoritative.',
       });
     }
   }

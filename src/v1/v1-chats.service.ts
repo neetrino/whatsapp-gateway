@@ -16,10 +16,7 @@ import {
   toChatMessagesException,
   toChatsListException,
 } from '../waha/waha-chats.errors';
-import {
-  assertAccountReady,
-  loadOwnedAccount,
-} from '../whatsapp-accounts/load-connected-account';
+import { assertAccountReady, loadOwnedAccount } from '../whatsapp-accounts/load-connected-account';
 import type { ListChatMessagesQueryDto, ListChatsQueryDto } from './dto/list-chats-query.dto';
 
 @Injectable()
@@ -65,7 +62,10 @@ export class V1ChatsService {
     await this.assertStoreReady(account.sessionName);
     const maxText = this.configService.get('MAX_TEXT_LENGTH', { infer: true });
     try {
-      const raw = await this.client.listChatMessages(account.sessionName, chatId, { limit, offset });
+      const raw = await this.client.listChatMessages(account.sessionName, chatId, {
+        limit,
+        offset,
+      });
       return mapWahaMessagesPage(raw, chatId, limit, offset, maxText);
     } catch (error) {
       throw toChatMessagesException(error);

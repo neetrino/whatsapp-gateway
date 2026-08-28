@@ -4,8 +4,7 @@ import {
   setTokenRevealCookie,
 } from '../../src/auth/token-reveal';
 
-const packedFor = (projectId: string, raw: string): string =>
-  JSON.stringify({ projectId, raw });
+const packedFor = (projectId: string, raw: string): string => JSON.stringify({ projectId, raw });
 
 describe('token reveal cookie', () => {
   it('stores a project-bound payload in a signed cookie, not a URL', () => {

@@ -28,10 +28,7 @@ import { ProjectWebhooksService } from '../../projects/project-webhooks.service'
 import { ProjectWebhookDeliveryService } from '../../webhooks/project-webhook-delivery.service';
 import { CsrfFormDto } from '../../common/dto/csrf-form.dto';
 import { consumeTokenRevealCookie, setTokenRevealCookie } from '../../auth/token-reveal';
-import {
-  consumeWebhookRevealCookie,
-  setWebhookRevealCookie,
-} from '../../webhooks/webhook-reveal';
+import { consumeWebhookRevealCookie, setWebhookRevealCookie } from '../../webhooks/webhook-reveal';
 import { baseView, type BaseViewModel } from '../view-helpers';
 
 @Controller('projects')
@@ -92,12 +89,7 @@ export class ProjectsDashboardController {
       this.accountsService.listForProject(id),
       this.webhookDeliveryService.getDeliveryStats(id),
     ]);
-    const revealed = consumeTokenRevealCookie(
-      req,
-      res,
-      this.authService.secureCookies(),
-      id,
-    );
+    const revealed = consumeTokenRevealCookie(req, res, this.authService.secureCookies(), id);
     const revealedWebhook = consumeWebhookRevealCookie(
       req,
       res,
@@ -192,11 +184,7 @@ export class ProjectsDashboardController {
   ): Promise<void> {
     await this.projectsService.getById(id);
     const issued = await this.tokensService.create(id, dto.name);
-    setTokenRevealCookie(
-      res,
-      { projectId: id, raw: issued.raw },
-      this.authService.secureCookies(),
-    );
+    setTokenRevealCookie(res, { projectId: id, raw: issued.raw }, this.authService.secureCookies());
     res.redirect(303, `/projects/${id}`);
   }
 
@@ -234,11 +222,7 @@ export class ProjectsDashboardController {
     @Res() res: Response,
   ): Promise<void> {
     const issued = await this.tokensService.regenerate(id, tokenId);
-    setTokenRevealCookie(
-      res,
-      { projectId: id, raw: issued.raw },
-      this.authService.secureCookies(),
-    );
+    setTokenRevealCookie(res, { projectId: id, raw: issued.raw }, this.authService.secureCookies());
     res.redirect(303, `/projects/${id}`);
   }
 }

@@ -1,5 +1,4 @@
 import {
-  mapWahaChat,
   mapWahaChatsPage,
   mapWahaMessage,
   mapWahaMessagesPage,

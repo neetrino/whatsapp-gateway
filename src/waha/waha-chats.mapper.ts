@@ -118,15 +118,13 @@ export const mapWahaMessage = (
     bodyTruncated: bodyPack.bodyTruncated,
     hasMedia,
     mediaType: hasMedia ? inferMediaType(record) : null,
-    ack: readString(record.ackName) ?? (readNumber(record.ack) !== undefined ? String(record.ack) : null),
+    ack:
+      readString(record.ackName) ??
+      (readNumber(record.ack) !== undefined ? String(record.ack) : null),
   };
 };
 
-export const mapWahaChatsPage = (
-  raw: unknown,
-  limit: number,
-  offset: number,
-): V1ChatsPage => ({
+export const mapWahaChatsPage = (raw: unknown, limit: number, offset: number): V1ChatsPage => ({
   items: unwrapWahaList(raw)
     .map((item) => mapWahaChat(item))
     .filter((item): item is V1ChatPublic => item !== null),

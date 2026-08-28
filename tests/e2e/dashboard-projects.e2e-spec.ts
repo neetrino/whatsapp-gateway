@@ -62,8 +62,8 @@ describe('Dashboard project/account/token flows (e2e)', () => {
         projects.set(String(row.id), row);
         return row;
       }),
-      findUnique: jest.fn(async ({ where }: { where: { id: string } }) =>
-        projects.get(where.id) ?? null,
+      findUnique: jest.fn(
+        async ({ where }: { where: { id: string } }) => projects.get(where.id) ?? null,
       ),
       findMany: jest.fn(async () =>
         [...projects.values()].map((project) => ({
@@ -75,13 +75,15 @@ describe('Dashboard project/account/token flows (e2e)', () => {
           },
         })),
       ),
-      update: jest.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
-        const current = projects.get(where.id);
-        if (!current) return null;
-        const next = { ...current, ...data, updatedAt: new Date() };
-        projects.set(where.id, next);
-        return next;
-      }),
+      update: jest.fn(
+        async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+          const current = projects.get(where.id);
+          if (!current) return null;
+          const next = { ...current, ...data, updatedAt: new Date() };
+          projects.set(where.id, next);
+          return next;
+        },
+      ),
       count: jest.fn(async () => projects.size),
     },
     whatsappAccount: {
@@ -103,16 +105,19 @@ describe('Dashboard project/account/token flows (e2e)', () => {
       findMany: jest.fn(async ({ where }: { where?: Record<string, unknown> }) =>
         [...accounts.values()].filter((row) => matches(row, where)),
       ),
-      findFirst: jest.fn(async ({ where }: { where?: Record<string, unknown> }) =>
-        [...accounts.values()].find((row) => matches(row, where)) ?? null,
+      findFirst: jest.fn(
+        async ({ where }: { where?: Record<string, unknown> }) =>
+          [...accounts.values()].find((row) => matches(row, where)) ?? null,
       ),
-      update: jest.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
-        const current = accounts.get(where.id);
-        if (!current) return null;
-        const next = { ...current, ...data, updatedAt: new Date() };
-        accounts.set(where.id, next);
-        return next;
-      }),
+      update: jest.fn(
+        async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+          const current = accounts.get(where.id);
+          if (!current) return null;
+          const next = { ...current, ...data, updatedAt: new Date() };
+          accounts.set(where.id, next);
+          return next;
+        },
+      ),
     },
     apiToken: {
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
@@ -130,8 +135,9 @@ describe('Dashboard project/account/token flows (e2e)', () => {
       findMany: jest.fn(async ({ where }: { where?: Record<string, unknown> }) =>
         [...tokens.values()].filter((row) => matches(row, where)),
       ),
-      findFirst: jest.fn(async ({ where }: { where?: Record<string, unknown> }) =>
-        [...tokens.values()].find((row) => matches(row, where)) ?? null,
+      findFirst: jest.fn(
+        async ({ where }: { where?: Record<string, unknown> }) =>
+          [...tokens.values()].find((row) => matches(row, where)) ?? null,
       ),
       update: jest.fn(),
     },
@@ -225,7 +231,10 @@ describe('Dashboard project/account/token flows (e2e)', () => {
     expect(list.status).toBe(200);
     expect(list.text).toContain('Acme');
 
-    const updated = await formPost('/projects/proj_acme/update', { name: 'Acme App', slug: 'acme' });
+    const updated = await formPost('/projects/proj_acme/update', {
+      name: 'Acme App',
+      slug: 'acme',
+    });
     expect(updated.status).toBe(303);
     const detail = await htmlGet('/projects/proj_acme');
     expect(detail.text).toContain('Acme App');
