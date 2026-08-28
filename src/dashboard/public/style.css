@@ -170,7 +170,7 @@ code {
 /* ── Layout ── */
 .container {
   max-width: var(--content-max);
-  margin: 40px auto 64px;
+  margin: 64px auto 64px;
   padding: 0 var(--content-pad);
 }
 
@@ -1548,7 +1548,7 @@ button.icon-btn--qr:active {
   }
 
   .container {
-    margin-top: 28px;
+    margin-top: 44px;
   }
 
   h1 { font-size: 24px; }
