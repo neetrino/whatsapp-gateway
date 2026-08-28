@@ -1,11 +1,78 @@
 <section>
   <div class="page-header">
-    <h1>{{account.label}}</h1>
+    <div class="page-header__heading">
+      <a
+        href="/projects/{{projectId}}"
+        class="back-btn"
+        aria-label="Back to project"
+        title="Back to project"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </a>
+      <h1>{{account.label}}</h1>
+    </div>
     <span class="status status-{{account.status}}">{{account.status}}</span>
   </div>
 
   <div class="panel-section">
-    <h2 class="panel-section-title">Account</h2>
+    <div class="panel-section__header">
+      <h2 class="panel-section-title">Account</h2>
+      <div class="panel-section__tools">
+        <form
+          method="post"
+          action="/projects/{{projectId}}/accounts/{{account.id}}/{{#if account.isActive}}deactivate{{else}}activate{{/if}}"
+          class="switch-form"
+        >
+          <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+          <label class="switch">
+            <input
+              type="checkbox"
+              role="switch"
+              data-active-switch
+              {{#if account.isActive}}checked{{/if}}
+              aria-label="{{#if account.isActive}}Deactivate{{else}}Activate{{/if}} {{account.label}}"
+            />
+            <span class="switch__track" aria-hidden="true"></span>
+          </label>
+        </form>
+        <a
+          href="/projects/{{projectId}}/accounts/{{account.id}}/qr"
+          class="icon-btn icon-btn--qr"
+          aria-label="Show QR for {{account.label}}"
+          title="QR"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M2 2h8v8H2V2zm1.6 1.6v4.8h4.8V3.6H3.6z"/>
+            <rect x="4.7" y="4.7" width="2.6" height="2.6"/>
+            <path fill-rule="evenodd" d="M14 2h8v8h-8V2zm1.6 1.6v4.8h4.8V3.6h-4.8z"/>
+            <rect x="16.7" y="4.7" width="2.6" height="2.6"/>
+            <path fill-rule="evenodd" d="M2 14h8v8H2v-8zm1.6 1.6v4.8h4.8v-4.8H3.6z"/>
+            <rect x="4.7" y="16.7" width="2.6" height="2.6"/>
+            <rect x="11.2" y="2.4" width="1.6" height="1.6"/>
+            <rect x="11.2" y="5.2" width="1.6" height="1.6"/>
+            <rect x="11.2" y="8" width="1.6" height="1.6"/>
+            <rect x="2.4" y="11.2" width="1.6" height="1.6"/>
+            <rect x="5.2" y="11.2" width="1.6" height="1.6"/>
+            <rect x="8" y="11.2" width="1.6" height="1.6"/>
+            <rect x="11.2" y="11.2" width="1.6" height="1.6"/>
+            <rect x="14.4" y="11.2" width="1.6" height="1.6"/>
+            <rect x="17.2" y="11.2" width="1.6" height="1.6"/>
+            <rect x="20" y="11.2" width="1.6" height="1.6"/>
+            <rect x="11.2" y="14.4" width="1.6" height="1.6"/>
+            <rect x="14.4" y="14.4" width="1.6" height="1.6"/>
+            <rect x="20" y="14.4" width="1.6" height="1.6"/>
+            <rect x="11.2" y="17.2" width="1.6" height="1.6"/>
+            <rect x="17.2" y="17.2" width="1.6" height="1.6"/>
+            <rect x="14.4" y="20" width="1.6" height="1.6"/>
+            <rect x="17.2" y="20" width="1.6" height="1.6"/>
+            <rect x="20" y="17.2" width="1.6" height="1.6"/>
+            <rect x="20" y="20" width="1.6" height="1.6"/>
+          </svg>
+        </a>
+      </div>
+    </div>
     <p class="meta">
       Mode <code>{{account.mode}}</code>
       {{#ifEquals account.mode "MESSENGER"}}
@@ -22,18 +89,6 @@
       <p class="meta">Mode was not changed: WAHA rejected the session configuration update. The previous mode is unchanged.</p>
     {{/if}}
     <div class="actions">
-      <a href="/projects/{{projectId}}/accounts/{{account.id}}/qr" class="primary">Show QR</a>
-      {{#if account.isActive}}
-        <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/deactivate" class="inline">
-          <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-          <button type="submit" class="danger">Deactivate</button>
-        </form>
-      {{else}}
-        <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/activate" class="inline">
-          <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-          <button type="submit">Activate</button>
-        </form>
-      {{/if}}
       {{#ifEquals account.mode "SEND_ONLY"}}
         <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/switch-mode" class="inline">
           <input type="hidden" name="_csrf" value="{{csrfToken}}" />
@@ -60,7 +115,6 @@
         <input type="hidden" name="_csrf" value="{{csrfToken}}" />
         <button type="submit" class="danger">Unlink</button>
       </form>
-      <a href="/projects/{{projectId}}">Back to project</a>
     </div>
   </div>
 
@@ -93,3 +147,13 @@
     </table>
   </div>
 </section>
+
+<script>
+(function () {
+  document.querySelectorAll('[data-active-switch]').forEach(function (input) {
+    input.addEventListener('change', function () {
+      if (input.form) input.form.submit();
+    });
+  });
+})();
+</script>

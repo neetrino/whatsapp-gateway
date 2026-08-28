@@ -394,15 +394,46 @@ h3 {
 
 .page-header__heading {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   flex-wrap: wrap;
   gap: 12px 16px;
   min-width: 0;
 }
 
 .page-header h1,
-.page-header h2 {
+.page-header h2,
+.page-header__heading h1 {
   margin: 0;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(62, 207, 142, 0.28);
+  flex-shrink: 0;
+  text-decoration: none;
+  transition: background 0.15s var(--ease), transform 0.12s var(--ease), box-shadow 0.15s var(--ease);
+}
+
+.back-btn:hover {
+  background: var(--accent-hover);
+  color: #fff;
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(62, 207, 142, 0.32);
+}
+
+.back-btn:active {
+  transform: translateY(0);
 }
 
 .page-header__slug {
@@ -537,6 +568,14 @@ h3 {
 
 .panel-section__header .panel-section-title {
   margin: 0;
+}
+
+.panel-section__tools {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .container .card {
@@ -1616,7 +1655,8 @@ body.sheet-open {
   z-index: 2;
 }
 
-button.icon-btn {
+button.icon-btn,
+a.icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1631,16 +1671,20 @@ button.icon-btn {
   color: var(--text);
   box-shadow: none;
   cursor: pointer;
+  text-decoration: none;
   transition: background 0.15s var(--ease), border-color 0.15s var(--ease), color 0.15s var(--ease), transform 0.15s var(--ease);
 }
 
-button.icon-btn:hover {
+button.icon-btn:hover,
+a.icon-btn:hover {
   background: var(--panel-hover);
   border-color: var(--accent);
   color: var(--accent);
+  text-decoration: none;
 }
 
-button.icon-btn--qr {
+button.icon-btn--qr,
+a.icon-btn--qr {
   width: 38px;
   height: 38px;
   border: none;
@@ -1650,14 +1694,16 @@ button.icon-btn--qr {
   box-shadow: none;
 }
 
-button.icon-btn--qr:hover {
+button.icon-btn--qr:hover,
+a.icon-btn--qr:hover {
   background: var(--qr-btn-bg-hover);
   border: none;
   color: var(--qr-btn-text-hover);
   transform: translateY(-1px);
 }
 
-button.icon-btn--qr:active {
+button.icon-btn--qr:active,
+a.icon-btn--qr:active {
   transform: translateY(0);
 }
 
