@@ -1079,7 +1079,27 @@ body.sheet-open {
   margin-top: 8px;
   background: transparent;
   box-shadow: none;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
   overflow: visible;
+}
+
+.side-sheet__body .data-table thead th:first-child {
+  border-top-left-radius: 14px;
+}
+
+.side-sheet__body .data-table thead th:last-child {
+  border-top-right-radius: 14px;
+}
+
+.side-sheet__body .data-table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: 14px;
+}
+
+.side-sheet__body .data-table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: 14px;
 }
 
 .side-sheet__body .data-table thead,
