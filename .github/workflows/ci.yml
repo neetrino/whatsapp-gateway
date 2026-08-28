@@ -28,9 +28,13 @@ jobs:
 
       - name: Prisma validate
         run: npx prisma validate
+        env:
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci?schema=public
 
       - name: Generate Prisma client
         run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci?schema=public
 
       - name: Typecheck
         run: npm run typecheck
