@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WahaClient } from '../waha/waha.client';
 import { WahaService } from '../waha/waha.service';
@@ -12,7 +12,14 @@ import {
   INVITE_CODE_REGEX,
   WHATSAPP_INVITE_BASE_URL,
 } from './constants/group.constants';
-import { extractGroupId, extractGroupName, mapWahaGroup, mapWahaGroups } from './mappers/waha-group.mapper';
+import {
+  describeRawGroupsShape,
+  extractGroupId,
+  extractGroupName,
+  isWahaGroupsJidMap,
+  mapWahaGroup,
+  mapWahaGroups,
+} from './mappers/waha-group.mapper';
 import { extractInviteCode, mapWahaParticipants } from './mappers/waha-participant.mapper';
 import { IdempotencyScope } from '../common/db-enums';
 import { IdempotencyStore } from '../common/idempotency/idempotency.store';
@@ -31,6 +38,8 @@ import type {
 
 @Injectable()
 export class GroupsService {
+  private readonly logger = new Logger(GroupsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly wahaClient: WahaClient,
@@ -52,11 +61,17 @@ export class GroupsService {
         exclude: 'participants',
       });
       let groups = mapWahaGroups(raw);
+      if (groups.length === 0) {
+        this.logger.warn({ msg: 'waha_groups_mapped_empty', ...describeRawGroupsShape(raw) });
+      }
       if (query.search) {
         const needle = query.search.toLowerCase();
         groups = groups.filter(
           (g) => g.name.toLowerCase().includes(needle) || g.id.toLowerCase().includes(needle),
         );
+      }
+      if (isWahaGroupsJidMap(raw)) {
+        groups = groups.slice(query.offset, query.offset + query.limit);
       }
       return {
         groups,

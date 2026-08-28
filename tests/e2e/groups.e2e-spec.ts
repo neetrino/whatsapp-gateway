@@ -74,4 +74,21 @@ describe('GET /api/groups (e2e)', () => {
       expect.objectContaining({ limit: 1, offset: 0 }),
     );
   });
+
+  it('maps a NOWEB JID-keyed object and paginates locally', async () => {
+    const raw = generateApiToken(prefix).raw;
+    findValidByRaw.mockResolvedValue({ ...validResolvedToken });
+    listGroups.mockResolvedValue({
+      '120363111111111111@g.us': { id: '120363111111111111@g.us', subject: 'Alpha' },
+      '120363222222222222@g.us': { id: '120363222222222222@g.us', subject: 'Beta' },
+    });
+    const res = await request(app.getHttpServer())
+      .get('/api/groups?limit=1&offset=0')
+      .set('Authorization', `Bearer ${raw}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.groups).toEqual([
+      expect.objectContaining({ id: '120363111111111111@g.us', name: 'Alpha' }),
+    ]);
+    expect(res.body.data.pagination).toEqual({ limit: 1, offset: 0, count: 1 });
+  });
 });

@@ -17,38 +17,59 @@ const asNumber = (value: unknown): number | null => {
   return null;
 };
 
-export const extractGroupId = (raw: unknown): string | null => {
-  const record = asRecord(raw);
-  if (!record) {
-    if (typeof raw === 'string' && GROUP_ID_REGEX.test(raw.trim())) return raw.trim();
-    return null;
-  }
+const readJid = (value: unknown): string | undefined => {
+  const direct = asString(value);
+  if (direct) return direct;
+  const record = asRecord(value);
+  if (!record) return undefined;
+  const serialized = asString(record._serialized) ?? asString(record.serialized);
+  if (serialized) return serialized;
+  const user = asString(record.user);
+  const server = asString(record.server);
+  if (user && server) return `${user}@${server}`;
+  return undefined;
+};
 
-  const direct =
-    asString(record.id) ??
-    asString(record.gid) ??
-    asString(record.groupId) ??
-    asString(record.chatId);
-  if (direct && GROUP_ID_REGEX.test(direct)) return direct;
+const firstMatchingGroupId = (...candidates: unknown[]): string | null => {
+  for (const candidate of candidates) {
+    const id = readJid(candidate);
+    if (id && GROUP_ID_REGEX.test(id)) return id;
+  }
+  return null;
+};
+
+export const extractGroupId = (raw: unknown): string | null => {
+  if (typeof raw === 'string' && GROUP_ID_REGEX.test(raw.trim())) return raw.trim();
+  const record = asRecord(raw);
+  if (!record) return null;
+
+  const direct = firstMatchingGroupId(
+    record.id,
+    record.JID,
+    record.jid,
+    record.gid,
+    record.groupId,
+    record.chatId,
+  );
+  if (direct) return direct;
 
   const nested = asRecord(record.group) ?? asRecord(record.groupMetadata);
-  if (nested) {
-    const nestedId = asString(nested.id) ?? asString(nested.gid);
-    if (nestedId && GROUP_ID_REGEX.test(nestedId)) return nestedId;
-  }
-
-  return null;
+  if (!nested) return null;
+  return firstMatchingGroupId(nested.id, nested.JID, nested.jid, nested.gid);
 };
 
 export const extractGroupName = (raw: unknown, fallback = ''): string => {
   const record = asRecord(raw);
   if (!record) return fallback;
+  const nested = asRecord(record.group);
   return (
     asString(record.subject) ??
+    asString(record.Subject) ??
     asString(record.name) ??
+    asString(record.Name) ??
     asString(record.title) ??
-    asString(asRecord(record.group)?.subject) ??
-    asString(asRecord(record.group)?.name) ??
+    asString(nested?.subject) ??
+    asString(nested?.name) ??
     fallback
   );
 };
@@ -92,22 +113,52 @@ export const mapWahaGroup = (raw: unknown): NormalizedGroup | null => {
   };
 };
 
+const valuesFromJidMap = (record: Record<string, unknown>): unknown[] => {
+  const values: unknown[] = [];
+  for (const [key, value] of Object.entries(record)) {
+    if (!GROUP_ID_REGEX.test(key)) continue;
+    values.push(asRecord(value) ? value : { id: key });
+  }
+  return values;
+};
+
+export const isWahaGroupsJidMap = (raw: unknown): boolean => {
+  const record = asRecord(raw);
+  if (!record) return false;
+  return Object.keys(record).some((key) => GROUP_ID_REGEX.test(key));
+};
+
 export const unwrapGroupsArray = (raw: unknown): unknown[] => {
   if (Array.isArray(raw)) return raw;
   const record = asRecord(raw);
   if (!record) return [];
   if (Array.isArray(record.groups)) return record.groups;
   if (Array.isArray(record.data)) return record.data;
+  const nested = asRecord(record.data);
+  if (nested && Array.isArray(nested.groups)) return nested.groups;
   if (Array.isArray(record.chats)) return record.chats;
-  return [];
+  return valuesFromJidMap(record);
 };
 
 export const mapWahaGroups = (raw: unknown): NormalizedGroup[] => {
-  const items = unwrapGroupsArray(raw);
   const mapped: NormalizedGroup[] = [];
-  for (const item of items) {
+  for (const item of unwrapGroupsArray(raw)) {
     const group = mapWahaGroup(item);
     if (group) mapped.push(group);
   }
   return mapped;
+};
+
+export const describeRawGroupsShape = (
+  raw: unknown,
+): { kind: string; size: number; jidKeyed: number } => {
+  if (Array.isArray(raw)) return { kind: 'array', size: raw.length, jidKeyed: 0 };
+  const record = asRecord(raw);
+  if (!record) return { kind: typeof raw, size: 0, jidKeyed: 0 };
+  const keys = Object.keys(record);
+  return {
+    kind: 'object',
+    size: keys.length,
+    jidKeyed: keys.filter((key) => GROUP_ID_REGEX.test(key)).length,
+  };
 };
