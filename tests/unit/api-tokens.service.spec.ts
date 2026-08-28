@@ -139,6 +139,34 @@ describe('ApiTokensService', () => {
     expect(prisma.apiToken.update.mock.calls[0]?.[0].data.revokedAt).toBeNull();
   });
 
+  it('restore clears revokedAt on a revoked token', async () => {
+    const prisma = buildPrisma();
+    prisma.apiToken.findFirst.mockResolvedValue({
+      id: 'tok1',
+      projectId: 'p1',
+      name: 'My token',
+      tokenPrefix: 'gw_ab',
+      last4: 'cdef',
+      lastUsedAt: null,
+      revokedAt: new Date(),
+      createdAt: new Date(),
+    });
+    prisma.apiToken.update.mockResolvedValue({
+      id: 'tok1',
+      projectId: 'p1',
+      name: 'My token',
+      tokenPrefix: 'gw_ab',
+      last4: 'cdef',
+      lastUsedAt: null,
+      revokedAt: null,
+      createdAt: new Date(),
+    });
+    const service = new ApiTokensService(prisma as never, buildConfig() as never);
+    const result = await service.restore('p1', 'tok1');
+    expect(result.revokedAt).toBeNull();
+    expect(prisma.apiToken.update.mock.calls[0]?.[0].data.revokedAt).toBeNull();
+  });
+
   it('cannot manage a token that belongs to another project', async () => {
     const prisma = buildPrisma();
     prisma.apiToken.findFirst.mockResolvedValue(null);

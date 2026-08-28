@@ -39,29 +39,37 @@
     </div>
   {{/if}}
 
-  <div class="card">
-    <h2>Edit project</h2>
+  <div class="panel-section">
+    <div class="panel-section__header">
+      <h2 class="panel-section-title">Edit project</h2>
+      <form
+        method="post"
+        action="/projects/{{project.id}}/{{#if project.isActive}}deactivate{{else}}activate{{/if}}"
+        class="switch-form"
+      >
+        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+        <label class="switch">
+          <input
+            type="checkbox"
+            role="switch"
+            data-active-switch
+            {{#if project.isActive}}checked{{/if}}
+            aria-label="{{#if project.isActive}}Deactivate{{else}}Activate{{/if}} project"
+          />
+          <span class="switch__track" aria-hidden="true"></span>
+        </label>
+      </form>
+    </div>
     <form method="post" action="/projects/{{project.id}}/update" class="form inline-form">
       <input type="hidden" name="_csrf" value="{{csrfToken}}" />
       <label>Name<input name="name" value="{{project.name}}" required maxlength="100" /></label>
       <label>Slug<input name="slug" value="{{project.slug}}" required minlength="2" maxlength="64" /></label>
       <button type="submit" class="primary">Save</button>
     </form>
-    {{#if project.isActive}}
-      <form method="post" action="/projects/{{project.id}}/deactivate" class="inline">
-        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-        <button type="submit" class="danger">Deactivate</button>
-      </form>
-    {{else}}
-      <form method="post" action="/projects/{{project.id}}/activate" class="inline">
-        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-        <button type="submit" class="primary">Activate</button>
-      </form>
-    {{/if}}
   </div>
 
-  <div class="card">
-    <h2>API tokens</h2>
+  <div class="panel-section">
+    <h2 class="panel-section-title">API tokens</h2>
     <form method="post" action="/projects/{{project.id}}/tokens" class="form inline-form">
       <input type="hidden" name="_csrf" value="{{csrfToken}}" />
       <label>Name<input name="name" maxlength="100" placeholder="e.g. NBOS production" /></label>
@@ -74,7 +82,7 @@
           <th>Prefix</th>
           <th>Last 4</th>
           <th>Last used</th>
-          <th>Revoked</th>
+          <th class="col-revoked">Revoked</th>
           <th></th>
         </tr>
       </thead>
@@ -85,13 +93,27 @@
             <td><code>{{this.tokenPrefix}}</code></td>
             <td><code>…{{this.last4}}</code></td>
             <td>{{#if this.lastUsedAt}}{{this.lastUsedAt}}{{else}}—{{/if}}</td>
-            <td>{{#if this.revokedAt}}Yes{{else}}No{{/if}}</td>
+            <td class="col-revoked">
+              <form
+                method="post"
+                action="/projects/{{../project.id}}/tokens/{{this.id}}/{{#if this.revokedAt}}restore{{else}}revoke{{/if}}"
+                class="switch-form"
+              >
+                <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
+                <label class="switch switch--revoke">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    data-active-switch
+                    {{#if this.revokedAt}}checked{{/if}}
+                    aria-label="{{#if this.revokedAt}}Restore{{else}}Revoke{{/if}} token {{this.name}}"
+                  />
+                  <span class="switch__track" aria-hidden="true"></span>
+                </label>
+              </form>
+            </td>
             <td>
               {{#unless this.revokedAt}}
-                <form method="post" action="/projects/{{../project.id}}/tokens/{{this.id}}/revoke" class="inline">
-                  <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
-                  <button type="submit" class="danger">Revoke</button>
-                </form>
                 <form method="post" action="/projects/{{../project.id}}/tokens/{{this.id}}/regenerate" class="inline">
                   <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
                   <button type="submit">Regenerate</button>

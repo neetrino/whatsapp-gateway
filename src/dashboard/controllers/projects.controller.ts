@@ -216,6 +216,18 @@ export class ProjectsDashboardController {
     res.redirect(303, `/projects/${id}`);
   }
 
+  @Post(':id/tokens/:tokenId/restore')
+  @HttpCode(HttpStatus.SEE_OTHER)
+  async restoreToken(
+    @Param('id') id: string,
+    @Param('tokenId') tokenId: string,
+    @Body() _dto: CsrfFormDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.tokensService.restore(id, tokenId);
+    res.redirect(303, `/projects/${id}`);
+  }
+
   @Post(':id/tokens/:tokenId/regenerate')
   @HttpCode(HttpStatus.SEE_OTHER)
   @Throttle({ default: { ttl: 3_600_000, limit: 100 } })

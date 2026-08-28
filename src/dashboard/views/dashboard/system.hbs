@@ -1,11 +1,17 @@
 <section>
-  <h1>System / Health</h1>
-  <div class="health-panel">
+  <div class="page-header">
+    <h1>System / Health</h1>
+  </div>
+  <div class="panel-section">
+    <h2 class="panel-section-title">Health</h2>
     <table class="health-table">
       <tr><th>Gateway</th><td><span class="status status-{{health.gateway}}">{{health.gateway}}</span></td></tr>
       <tr><th>Database</th><td><span class="status status-{{health.database}}">{{health.database}}</span></td></tr>
       <tr><th>WAHA</th><td><span class="status status-{{health.waha}}">{{health.waha}}</span></td></tr>
     </table>
   </div>
-  <p class="meta">Pinned WAHA image <code>devlikeapro/waha:noweb-2026.8.1</code> with <code>WHATSAPP_DEFAULT_ENGINE=NOWEB</code>. Each WhatsApp account uses its database <code>sessionName</code> as an independent WAHA session. WAHA is not published publicly.</p>
+  <div class="panel-section">
+    <h2 class="panel-section-title">Runtime</h2>
+    <p class="meta">Pinned WAHA image <code>devlikeapro/waha:noweb-2026.8.1</code> with <code>WHATSAPP_DEFAULT_ENGINE=NOWEB</code>. Each WhatsApp account uses its database <code>sessionName</code> as an independent WAHA session. WAHA is not published publicly.</p>
+  </div>
 </section>

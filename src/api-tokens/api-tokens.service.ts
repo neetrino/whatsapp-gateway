@@ -87,6 +87,16 @@ export class ApiTokensService {
     return toMetadata(updated);
   }
 
+  async restore(projectId: string, tokenId: string): Promise<ApiTokenMetadata> {
+    const token = await this.requireProjectToken(projectId, tokenId);
+    if (!token.revokedAt) return toMetadata(token);
+    const updated = await this.prisma.apiToken.update({
+      where: { id: tokenId },
+      data: { revokedAt: null },
+    });
+    return toMetadata(updated);
+  }
+
   async regenerate(projectId: string, tokenId: string): Promise<IssuedApiToken> {
     await this.requireProjectToken(projectId, tokenId);
     const prefix = this.configService.get('API_TOKEN_PREFIX', { infer: true });

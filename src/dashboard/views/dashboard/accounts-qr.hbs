@@ -1,34 +1,39 @@
 <section>
-  <h1>Account QR Authentication for {{account.label}}</h1>
-  <p>Status: <span class="status status-{{account.status}}" id="status-pill">{{account.status}}</span></p>
-  <div class="qr-block">
-    {{#if qrDataUrl}}
-      <img src="{{qrDataUrl}}" alt="WhatsApp QR code" />
-    {{else}}
-      {{#ifEquals account.status "CONNECTED"}}
-        <p class="meta">WhatsApp is connected. QR is not required.</p>
+  <div class="page-header">
+    <h1>Account QR</h1>
+    <span class="status status-{{account.status}}" id="status-pill">{{account.status}}</span>
+  </div>
+  <div class="panel-section">
+    <h2 class="panel-section-title">{{account.label}}</h2>
+    <div class="qr-block">
+      {{#if qrDataUrl}}
+        <img src="{{qrDataUrl}}" alt="WhatsApp QR code" />
       {{else}}
-        {{#ifEquals qrErrorCode "WAHA_ALREADY_CONNECTED"}}
-          <p class="meta">{{qrError}}</p>
+        {{#ifEquals account.status "CONNECTED"}}
+          <p class="meta">WhatsApp is connected. QR is not required.</p>
         {{else}}
-          <p class="form-error">{{#if qrError}}{{qrError}}{{else}}QR not ready yet. Try “Restart session” or wait a few seconds.{{/if}}</p>
-          {{#if qrErrorCode}}<p class="meta">Code: <code>{{qrErrorCode}}</code></p>{{/if}}
+          {{#ifEquals qrErrorCode "WAHA_ALREADY_CONNECTED"}}
+            <p class="meta">{{qrError}}</p>
+          {{else}}
+            <p class="form-error">{{#if qrError}}{{qrError}}{{else}}QR not ready yet. Try “Restart session” or wait a few seconds.{{/if}}</p>
+            {{#if qrErrorCode}}<p class="meta">Code: <code>{{qrErrorCode}}</code></p>{{/if}}
+          {{/ifEquals}}
         {{/ifEquals}}
-      {{/ifEquals}}
-    {{/if}}
+      {{/if}}
+    </div>
+    <div class="actions">
+      <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/restart" class="inline">
+        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+        <button type="submit">Restart session</button>
+      </form>
+      <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/unlink" class="inline">
+        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+        <button type="submit" class="danger" title="Unlink WhatsApp from this gateway (WAHA logout)">Disconnect WhatsApp</button>
+      </form>
+      <a href="/projects/{{projectId}}/accounts/{{account.id}}">Back to account</a>
+    </div>
+    <p class="qr-hint">Open WhatsApp on your phone, scan the QR. The status will refresh automatically.</p>
   </div>
-  <div class="actions">
-    <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/restart" class="inline">
-      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-      <button type="submit">Restart session</button>
-    </form>
-    <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/unlink" class="inline">
-      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-      <button type="submit" class="danger" title="Unlink WhatsApp from this gateway (WAHA logout)">Disconnect WhatsApp</button>
-    </form>
-    <a href="/projects/{{projectId}}/accounts/{{account.id}}">Back to account</a>
-  </div>
-  <p class="qr-hint">Open WhatsApp on your phone, scan the QR. The status will refresh automatically.</p>
   <script>
     (function () {
       var endpoint = '/projects/{{projectId}}/accounts/{{account.id}}/status.json';
