@@ -13,9 +13,9 @@ describe('toSendAppException', () => {
     expect(toSendAppException(original, 'TEXT')).toBe(original);
   });
 
-  it('maps transport errors to WAHA_UNAVAILABLE', () => {
+  it('maps transport errors to MESSAGE_OUTCOME_UNKNOWN', () => {
     const error = toSendAppException(new WahaTransportError('timeout'), 'TEXT');
-    expect(error.code).toBe(ERROR_CODES.WAHA_UNAVAILABLE);
+    expect(error.code).toBe(ERROR_CODES.MESSAGE_OUTCOME_UNKNOWN);
     expect(error.getStatus()).toBe(503);
   });
 
@@ -24,7 +24,7 @@ describe('toSendAppException', () => {
     ['IMAGE', ERROR_CODES.IMAGE_SEND_FAILED],
     ['VIDEO', ERROR_CODES.VIDEO_SEND_FAILED],
   ] as const)('maps WAHA API errors for %s', (kind, code) => {
-    const error = toSendAppException(new WahaApiError('upstream body', 502), kind);
+    const error = toSendAppException(new WahaApiError('upstream body', 500), kind);
     expect(error.code).toBe(code);
     expect(error.getStatus()).toBe(502);
     expect(error.message).not.toMatch(/waha|upstream|stack/i);

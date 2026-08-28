@@ -6,6 +6,7 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { ApiTokensService } from '../../src/api-tokens/api-tokens.service';
 import { WahaClient } from '../../src/waha/waha.client';
 import { generateApiToken } from '../../src/common/utils/tokens';
+import { memoryApiIdempotency } from '../helpers/memory-api-idempotency';
 
 describe('v1 token rate limiting (e2e)', () => {
   let app: INestApplication;
@@ -42,6 +43,7 @@ describe('v1 token rate limiting (e2e)', () => {
           findMany: jest.fn().mockResolvedValue([]),
         },
         apiToken: { findMany: jest.fn(), findUnique: jest.fn() },
+        apiIdempotency: memoryApiIdempotency(),
       })
       .overrideProvider(ApiTokensService)
       .useValue({
@@ -82,7 +84,7 @@ describe('v1 token rate limiting (e2e)', () => {
   const send = (raw: string) =>
     request(app.getHttpServer())
       .post('/api/v1/accounts/acc-a/messages')
-      .set({ Authorization: `Bearer ${raw}` })
+      .set({ Authorization: `Bearer ${raw}`, 'Idempotency-Key': `rate-${raw.slice(-12)}` })
       .send({ type: 'TEXT', chatId: '37499111222@c.us', text: 'Hi' });
 
   it('returns RATE_LIMITED after the v1 send budget is exhausted for a token', async () => {

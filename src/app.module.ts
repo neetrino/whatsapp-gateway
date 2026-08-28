@@ -7,6 +7,7 @@ import { validateEnv } from './config/env.validation';
 import type { EnvironmentVariables } from './config/env.validation';
 import { buildThrottlerOptions } from './config/throttler.config';
 import { PrismaModule } from './prisma/prisma.module';
+import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ResponseEnvelopeInterceptor } from './common/interceptors/response-envelope.interceptor';
 import { JwtCookieGuard } from './common/guards/jwt-cookie.guard';
@@ -40,6 +41,7 @@ import { AppController } from './app.controller';
         buildThrottlerOptions(configService),
     }),
     PrismaModule,
+    IdempotencyModule,
     AuthModule,
     ProjectsModule,
     WhatsappAccountsModule,

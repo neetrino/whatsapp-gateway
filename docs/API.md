@@ -97,17 +97,17 @@ Gateway uses the account’s database `sessionName` as the WAHA session. Both `S
 
 #### Idempotency
 
-Uniqueness is `(whatsappAccountId, idempotencyKey)`. A SHA-256 **request hash** is stored (hashes of text/URL/caption — never the raw values).
+Uniqueness is `(whatsappAccountId, scope, idempotencyKey)` where send uses scope `SEND`. A SHA-256 **request hash** is stored (hashes of text/URL/caption — never the raw values). Rows expire after **24 hours** and are deleted so they do not pile up. After expiry the same key may send again.
 
 | Previous state | Same key + same body | Same key + different body |
 |----------------|----------------------|---------------------------|
 | `SUCCEEDED` | Replay stored result, no second WAHA send | `409 IDEMPOTENCY_KEY_REUSED` |
 | `PROCESSING` (fresh) | `409 IDEMPOTENT_OPERATION_IN_PROGRESS` | `409 IDEMPOTENCY_KEY_REUSED` |
-| `PROCESSING` older than `IDEMPOTENCY_PROCESSING_TIMEOUT_MS` | If a matching log is `SENT`, replay that result and backfill `SUCCEEDED`. Otherwise CAS-promote to `OUTCOME_UNKNOWN`, then look once more for a `SENT` log (race with persistence) before returning `503`. Never overwrite `SUCCEEDED` | `409 IDEMPOTENCY_KEY_REUSED` |
+| `PROCESSING` older than 30s | `503 MESSAGE_OUTCOME_UNKNOWN` | `409 IDEMPOTENCY_KEY_REUSED` |
 | `FAILED` | Repeat the previous failure from the stored `errorCode` (same HTTP status; do not send again) | `409 IDEMPOTENCY_KEY_REUSED` |
-| `OUTCOME_UNKNOWN` | If a matching log is `SENT`, backfill `SUCCEEDED` and replay; otherwise `503` — **not safely retryable** | `409 IDEMPOTENCY_KEY_REUSED` |
+| `OUTCOME_UNKNOWN` | `503` — **not safely retryable** | `409 IDEMPOTENCY_KEY_REUSED` |
 
-A unique constraint plus `P2002` handling prevents concurrent identical keys from sending twice. Idempotency reservation and the initial `PENDING` log are written in one Prisma transaction **before** WAHA. After WAHA returns successfully, `OutboundMessageLog` → `SENT` and `OutboundMessageIdempotency` → `SUCCEEDED` are written in a **second** Prisma transaction. That commit is **not** atomic with the WAHA HTTP call — a crash between provider success and the database commit is an unavoidable provider/DB boundary. The next same-key call reconciles from a `SENT` log if one exists; otherwise it returns `OUTCOME_UNKNOWN`. HTTP 408/502/504 and transport failures after dispatch are `OUTCOME_UNKNOWN`, not safe retries.
+A unique constraint plus `P2002` handling prevents concurrent identical keys from sending twice. The reservation is written **before** WAHA. A crash between provider success and the database commit yields `OUTCOME_UNKNOWN`. HTTP 408/502/504 and transport failures after dispatch are also `OUTCOME_UNKNOWN`.
 
 Replay of `SUCCEEDED` returns the stored result before current `MAX_TEXT_LENGTH` / `MAX_CAPTION_LENGTH` checks, connection checks, or media URL validation. Strict DTO shape is still validated before the service. Replay of `FAILED` repeats the previous failure using the persisted safe `errorCode` (never raw provider text): `ACCOUNT_INACTIVE` / `WHATSAPP_NOT_CONNECTED` → 409, `VALIDATION_ERROR` / `INVALID_MEDIA_URL` → 400, `IMAGE_SEND_FAILED` / `VIDEO_SEND_FAILED` / `MESSAGE_SEND_FAILED` → 502, `MESSAGE_OUTCOME_UNKNOWN` → 503.
 
@@ -476,7 +476,7 @@ Success:
 }
 ```
 
-Idempotency: same key + same body returns stored success without calling WAHA again. Same key + different body → `409 IDEMPOTENCY_KEY_REUSED`.  
+Idempotency: same key + same body returns stored success without calling WAHA again. Same key + different body → `409 IDEMPOTENCY_KEY_REUSED`. Keys expire after 24 hours.  
 Transport timeout after create may yield `503 GROUP_CREATE_OUTCOME_UNKNOWN` — **do not blind-retry**; reconcile manually.
 
 Rate limit: 10 / minute.
@@ -519,7 +519,7 @@ Already-members are treated as successful no-ops. Response:
 }
 ```
 
-When WAHA fails at operation level without reliable per-id mapping, `status` may be `partial` with `failed[].code = PARTICIPANT_ADD_FAILED` (safe message only).
+When WAHA fails at operation level without reliable per-id mapping, `status` may be `partial` with `failed[].code = PARTICIPANT_ADD_FAILED` (safe message only). Same `Idempotency-Key` replays the stored result. Keys expire after 24 hours.
 
 Rate limit: 20 / minute.
 

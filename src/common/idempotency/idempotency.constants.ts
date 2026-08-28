@@ -1,0 +1,3 @@
+export const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+export const IDEMPOTENCY_STALE_MS = 30_000;
+export const IDEMPOTENCY_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;

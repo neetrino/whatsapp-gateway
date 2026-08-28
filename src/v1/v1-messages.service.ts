@@ -15,8 +15,16 @@ import {
   mimetypeForVideoPath,
   validateMediaUrl,
 } from '../messages/media-url-validation';
+import { IdempotencyScope, IdempotencyStatus } from '../common/db-enums';
+import { IdempotencyStore } from '../common/idempotency/idempotency.store';
 import type { V1SendMessageDto } from './dto/send-v1-message.dto';
-import { safeErrorSummary, toSendAppException } from './v1-send-errors';
+import { hashV1SendRequest } from './request-hash';
+import {
+  exceptionFromStoredFailure,
+  safeErrorSummary,
+  sendFailureCode,
+  toSendAppException,
+} from './v1-send-errors';
 import type { V1SendResult } from './v1-send.types';
 
 interface PreparedMedia {
@@ -34,19 +42,28 @@ export class V1MessagesService {
     private readonly wahaClient: WahaClient,
     private readonly wahaService: WahaService,
     private readonly configService: ConfigService<EnvironmentVariables, true>,
+    private readonly idempotency: IdempotencyStore,
   ) {}
 
   async send(
     project: ApiProjectContext,
     accountId: string,
     input: V1SendMessageDto,
+    idempotencyKey: string,
   ): Promise<V1SendResult> {
     const owned = await loadOwnedAccount(this.prisma, project.projectId, accountId);
-    this.assertPayload(input);
-    const ready = assertAccountReady(owned);
-    const media = input.type === 'TEXT' ? null : await this.prepareMedia(input);
+    const begun = await this.idempotency.begin({
+      accountId: owned.id,
+      scope: IdempotencyScope.SEND,
+      idempotencyKey,
+      requestHash: hashV1SendRequest(input),
+    });
+    if (begun.kind === 'replay') return this.replaySend(begun.resultJson, begun.errorCode);
     const requestId = `req_${ulid()}`;
     try {
+      this.assertPayload(input);
+      const ready = assertAccountReady(owned);
+      const media = input.type === 'TEXT' ? null : await this.prepareMedia(input);
       const wahaId = await this.sendToWaha(
         this.wahaService.effectiveSessionName(ready),
         input,
@@ -58,6 +75,7 @@ export class V1MessagesService {
         status: 'sent',
         sentAt: new Date().toISOString(),
       };
+      await this.idempotency.succeed(begun.id, result);
       this.logger.log({
         msg: 'v1_send_succeeded',
         requestId,
@@ -68,12 +86,23 @@ export class V1MessagesService {
     } catch (error) {
       this.logger.warn({
         msg: 'v1_send_failed',
-        accountId: ready.id,
+        accountId: owned.id,
         messageType: input.type,
         error: safeErrorSummary(error),
       });
-      throw toSendAppException(error, input.type);
+      const mapped = toSendAppException(error, input.type);
+      const status =
+        mapped.code === ERROR_CODES.MESSAGE_OUTCOME_UNKNOWN
+          ? IdempotencyStatus.OUTCOME_UNKNOWN
+          : IdempotencyStatus.FAILED;
+      await this.idempotency.fail(begun.id, sendFailureCode(error, input.type), status);
+      throw mapped;
     }
+  }
+
+  private replaySend(resultJson: string | null, errorCode: string | null): V1SendResult {
+    if (resultJson) return JSON.parse(resultJson) as V1SendResult;
+    throw exceptionFromStoredFailure(errorCode);
   }
 
   private assertPayload(input: V1SendMessageDto): void {

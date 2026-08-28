@@ -7,14 +7,14 @@ This project is **not** NBOS, **not** a plugin, and **not** a Messenger UI.
 
 ## What this is
 
-- **HTTP JSON API:** `GET /api/v1/accounts`, `GET /api/v1/accounts/:accountId/status`, `POST /api/v1/accounts/:accountId/messages` (Project token, account-scoped). **MESSENGER** accounts also expose chats/history (WAHA Store proxy, not stored) and inbound HTTPS webhooks. Legacy `POST /api/messages/send` and `POST /api/messages/send-media` remain.
+- **HTTP JSON API:** `GET /api/v1/accounts`, `GET /api/v1/accounts/:accountId/status`, `POST /api/v1/accounts/:accountId/messages` (Project token, account-scoped, `Idempotency-Key` on send). **MESSENGER** accounts also expose chats/history (WAHA Store proxy, not stored) and inbound HTTPS webhooks. Legacy `POST /api/messages/send` and `POST /api/messages/send-media` remain.
 - Minimal **dashboard** (server-rendered) for the singleton **Admin**: login, **Projects** (API tokens + WhatsApp accounts, QR, session actions), system health.
 - **Admin (singleton) → Project → ApiTokens[] + WhatsappAccounts[]**. Tokens and accounts belong to a Project, not to a User. There is no User/Role model and no `ADMIN_NAME`.
 
 ## What this is not
 
 - No chat list, inbox, message history, groups UI, or webhook log UI.
-- No storage of messages, outbound logs, or webhook payloads. SQLite holds only admin, projects, tokens, and WhatsApp account connections.
+- No storage of messages, outbound logs, or webhook payloads. SQLite holds admin, projects, tokens, WhatsApp account connections, and **24-hour send/group idempotency keys**.
 - No phone-number send path: only WhatsApp `chatId` (`@c.us` / `@g.us`).
 - No modification of message text (no name prefix, no signatures).
 
@@ -89,7 +89,7 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Hetzner + reverse proxy guidanc
 
 ## External API (summary)
 
-- **v1 (preferred):** `GET /api/v1/accounts`, `GET /api/v1/accounts/:id/status`, `POST /api/v1/accounts/:id/messages` with `Authorization: Bearer <PROJECT_TOKEN>`. Discriminated body `type: TEXT | IMAGE | VIDEO`. See [docs/API.md](docs/API.md).
+- **v1 (preferred):** `GET /api/v1/accounts`, `GET /api/v1/accounts/:id/status`, `POST /api/v1/accounts/:id/messages` with `Authorization: Bearer <PROJECT_TOKEN>` and `Idempotency-Key` on send. Discriminated body `type: TEXT | IMAGE | VIDEO`. See [docs/API.md](docs/API.md).
 - **Legacy text:** `POST /api/messages/send` — same auth, JSON `{ "chatId", "text" }` only. Requires exactly one active account on the Project.
 - **Legacy media:** `POST /api/messages/send-media`.
 

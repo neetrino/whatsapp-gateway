@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WahaClient } from '../waha/waha.client';
 import { WahaService } from '../waha/waha.service';
@@ -14,7 +14,11 @@ import {
 } from './constants/group.constants';
 import { extractGroupId, extractGroupName, mapWahaGroup, mapWahaGroups } from './mappers/waha-group.mapper';
 import { extractInviteCode, mapWahaParticipants } from './mappers/waha-participant.mapper';
-import { dedupeParticipantIds } from './idempotency';
+import { IdempotencyScope } from '../common/db-enums';
+import { IdempotencyStore } from '../common/idempotency/idempotency.store';
+import { runGroupWrite } from './group-idempotent-write';
+import { assertGroupId, mapGroupProviderError } from './groups-errors';
+import { dedupeParticipantIds, hashGroupRequestPayload } from './idempotency';
 import type {
   AddParticipantsResult,
   CreateGroupResult,
@@ -27,12 +31,11 @@ import type {
 
 @Injectable()
 export class GroupsService {
-  private readonly logger = new Logger(GroupsService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly wahaClient: WahaClient,
     private readonly wahaService: WahaService,
+    private readonly idempotency: IdempotencyStore,
   ) {}
 
   async listGroups(
@@ -60,12 +63,12 @@ export class GroupsService {
         pagination: { limit: query.limit, offset: query.offset, count: groups.length },
       };
     } catch (error) {
-      throw this.mapProviderError(error, ERROR_CODES.GROUP_LIST_FAILED, 'Failed to list groups.');
+      throw mapGroupProviderError(error, ERROR_CODES.GROUP_LIST_FAILED, 'Failed to list groups.');
     }
   }
 
   async getGroup(account: ApiAccountContext, groupId: string): Promise<NormalizedGroup> {
-    this.assertGroupId(groupId);
+    assertGroupId(groupId);
     const sessionName = await this.sessionOf(account);
     try {
       const mapped = mapWahaGroup(await this.wahaClient.getGroup(sessionName, groupId));
@@ -79,7 +82,7 @@ export class GroupsService {
       return mapped;
     } catch (error) {
       if (error instanceof AppException) throw error;
-      throw this.mapProviderError(error, ERROR_CODES.GROUP_LIST_FAILED, 'Failed to get group.');
+      throw mapGroupProviderError(error, ERROR_CODES.GROUP_LIST_FAILED, 'Failed to get group.');
     }
   }
 
@@ -89,42 +92,67 @@ export class GroupsService {
       await this.wahaClient.refreshGroups(sessionName);
       return { refreshed: true };
     } catch (error) {
-      throw this.mapProviderError(error, ERROR_CODES.GROUP_REFRESH_FAILED, 'Failed to refresh groups.');
+      throw mapGroupProviderError(error, ERROR_CODES.GROUP_REFRESH_FAILED, 'Failed to refresh groups.');
     }
   }
 
   async createGroup(
     account: ApiAccountContext,
     input: { name: string; participants: string[] },
-    _idempotencyKey: string,
+    idempotencyKey: string,
   ): Promise<CreateGroupResult> {
     const participants = dedupeParticipantIds(input.participants);
-    const sessionName = await this.sessionOf(account);
-    try {
-      const raw = await this.wahaClient.createGroup(sessionName, {
-        name: input.name,
-        participants: participants.map((id) => ({ id })),
-      });
-      const groupId = extractGroupId(raw);
-      if (!groupId || !GROUP_ID_REGEX.test(groupId)) {
-        throw new AppException({
-          code: ERROR_CODES.GROUP_CREATE_INVALID_PROVIDER_RESPONSE,
-          message: 'WAHA returned an invalid group create response.',
-          status: 502,
-        });
-      }
-      return { id: groupId, name: extractGroupName(raw, input.name) || input.name };
-    } catch (error) {
-      if (error instanceof AppException) throw error;
-      throw this.mapProviderError(error, ERROR_CODES.GROUP_CREATE_FAILED, 'Failed to create WhatsApp group.');
-    }
+    const loaded = await loadConnectedAccount(
+      this.prisma,
+      account.projectId,
+      account.whatsappAccountId,
+    );
+    const sessionName = this.wahaService.effectiveSessionName(loaded);
+    return runGroupWrite(
+      this.idempotency,
+      {
+        accountId: loaded.id,
+        scope: IdempotencyScope.GROUP_CREATE,
+        idempotencyKey,
+        requestHash: hashGroupRequestPayload({ name: input.name, participants }),
+      },
+      async () => {
+        try {
+          const raw = await this.wahaClient.createGroup(sessionName, {
+            name: input.name,
+            participants: participants.map((id) => ({ id })),
+          });
+          const groupId = extractGroupId(raw);
+          if (!groupId || !GROUP_ID_REGEX.test(groupId)) {
+            throw new AppException({
+              code: ERROR_CODES.GROUP_CREATE_INVALID_PROVIDER_RESPONSE,
+              message: 'WAHA returned an invalid group create response.',
+              status: 502,
+            });
+          }
+          return { id: groupId, name: extractGroupName(raw, input.name) || input.name };
+        } catch (error) {
+          if (error instanceof AppException || error instanceof WahaTransportError) throw error;
+          throw mapGroupProviderError(
+            error,
+            ERROR_CODES.GROUP_CREATE_FAILED,
+            'Failed to create WhatsApp group.',
+          );
+        }
+      },
+      {
+        code: ERROR_CODES.GROUP_CREATE_OUTCOME_UNKNOWN,
+        message:
+          'Group create outcome is unknown after a transport failure. Do not retry with a new key; reconcile manually.',
+      },
+    );
   }
 
   async listParticipants(
     account: ApiAccountContext,
     groupId: string,
   ): Promise<GroupParticipantsResult> {
-    this.assertGroupId(groupId);
+    assertGroupId(groupId);
     const sessionName = await this.sessionOf(account);
     try {
       const participants = mapWahaParticipants(
@@ -132,7 +160,7 @@ export class GroupsService {
       );
       return { groupId, participants, count: participants.length };
     } catch (error) {
-      throw this.mapProviderError(
+      throw mapGroupProviderError(
         error,
         ERROR_CODES.GROUP_PARTICIPANTS_LIST_FAILED,
         'Failed to list group participants.',
@@ -144,24 +172,45 @@ export class GroupsService {
     account: ApiAccountContext,
     groupId: string,
     participantsInput: string[],
-    _idempotencyKey: string,
+    idempotencyKey: string,
   ): Promise<AddParticipantsResult> {
-    this.assertGroupId(groupId);
+    assertGroupId(groupId);
     const participants = dedupeParticipantIds(participantsInput);
-    const sessionName = await this.sessionOf(account);
-    try {
-      return await this.executeAddParticipants(sessionName, groupId, participants);
-    } catch (error) {
-      throw this.mapProviderError(
-        error,
-        ERROR_CODES.GROUP_PARTICIPANT_ADD_FAILED,
-        'Failed to add group participants.',
-      );
-    }
+    const loaded = await loadConnectedAccount(
+      this.prisma,
+      account.projectId,
+      account.whatsappAccountId,
+    );
+    const sessionName = this.wahaService.effectiveSessionName(loaded);
+    return runGroupWrite(
+      this.idempotency,
+      {
+        accountId: loaded.id,
+        scope: IdempotencyScope.GROUP_ADD,
+        idempotencyKey,
+        requestHash: hashGroupRequestPayload({ groupId, participants }),
+      },
+      async () => {
+        try {
+          return await this.executeAddParticipants(sessionName, groupId, participants);
+        } catch (error) {
+          if (error instanceof WahaTransportError) throw error;
+          throw mapGroupProviderError(
+            error,
+            ERROR_CODES.GROUP_PARTICIPANT_ADD_FAILED,
+            'Failed to add group participants.',
+          );
+        }
+      },
+      {
+        code: ERROR_CODES.WAHA_UNAVAILABLE,
+        message: 'WAHA service is currently unavailable.',
+      },
+    );
   }
 
   async getInviteLink(account: ApiAccountContext, groupId: string): Promise<InviteLinkResult> {
-    this.assertGroupId(groupId);
+    assertGroupId(groupId);
     const sessionName = await this.sessionOf(account);
     try {
       const code = extractInviteCode(await this.wahaClient.getGroupInviteCode(sessionName, groupId));
@@ -175,7 +224,7 @@ export class GroupsService {
       return { groupId, inviteUrl: `${WHATSAPP_INVITE_BASE_URL}/${code}` };
     } catch (error) {
       if (error instanceof AppException) throw error;
-      throw this.mapProviderError(
+      throw mapGroupProviderError(
         error,
         ERROR_CODES.GROUP_INVITE_LINK_FAILED,
         'Failed to get group invite link.',
@@ -229,43 +278,5 @@ export class GroupsService {
       account.whatsappAccountId,
     );
     return this.wahaService.effectiveSessionName(loaded);
-  }
-
-  private assertGroupId(groupId: string): void {
-    if (!GROUP_ID_REGEX.test(groupId)) {
-      throw new AppException({
-        code: ERROR_CODES.INVALID_GROUP_ID,
-        message: 'Invalid groupId format. Expected WhatsApp group id ending with @g.us.',
-        status: 400,
-      });
-    }
-  }
-
-  private mapProviderError(error: unknown, code: string, message: string): AppException {
-    if (error instanceof AppException) return error;
-    if (error instanceof WahaTransportError) {
-      return new AppException({
-        code: ERROR_CODES.WAHA_UNAVAILABLE,
-        message: 'WAHA service is currently unavailable.',
-        status: 503,
-      });
-    }
-    if (error instanceof WahaApiError && error.status === 404) {
-      return new AppException({
-        code: ERROR_CODES.GROUP_NOT_FOUND,
-        message: 'WhatsApp group not found.',
-        status: 404,
-      });
-    }
-    this.logger.warn({
-      msg: 'group_provider_error',
-      code,
-      error: error instanceof Error ? error.message : 'unknown',
-    });
-    return new AppException({
-      code: code as typeof ERROR_CODES.GROUP_LIST_FAILED,
-      message,
-      status: 502,
-    });
   }
 }

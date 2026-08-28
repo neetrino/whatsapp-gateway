@@ -10,6 +10,7 @@ import { generateApiToken } from '../../src/common/utils/tokens';
 import { WahaApiError, WahaTransportError } from '../../src/waha/types/waha.types';
 import dns from 'node:dns/promises';
 import type { LookupAddress, LookupOptions } from 'node:dns';
+import { memoryApiIdempotency } from '../helpers/memory-api-idempotency';
 
 describe('v1 account-scoped API (e2e)', () => {
   let app: INestApplication;
@@ -51,6 +52,7 @@ describe('v1 account-scoped API (e2e)', () => {
       })),
     },
     apiToken: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+    apiIdempotency: memoryApiIdempotency(),
   };
 
   beforeAll(async () => {
@@ -102,6 +104,7 @@ describe('v1 account-scoped API (e2e)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    prismaMock.apiIdempotency = memoryApiIdempotency();
     findProjectByRaw.mockResolvedValue({
       apiTokenId: 't1',
       projectId: 'p1',
@@ -116,7 +119,10 @@ describe('v1 account-scoped API (e2e)', () => {
     sendVideoByUrl.mockResolvedValue({ id: 'wvid1' });
   });
 
-  const auth = () => ({ Authorization: `Bearer ${generateApiToken(prefix).raw}` });
+  const auth = (key = 'send-key-01') => ({
+    Authorization: `Bearer ${generateApiToken(prefix).raw}`,
+    'Idempotency-Key': key,
+  });
 
   it('lists only safe account metadata for the authenticated project', async () => {
     const res = await request(app.getHttpServer()).get('/api/v1/accounts').set(auth());
@@ -161,7 +167,7 @@ describe('v1 account-scoped API (e2e)', () => {
     expect(inactiveAccount.body.error.code).toBe('ACCOUNT_INACTIVE');
   });
 
-  it('sends SEND_ONLY TEXT through the account sessionName without Idempotency-Key', async () => {
+  it('sends SEND_ONLY TEXT through the account sessionName with Idempotency-Key', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/accounts/acc-a/messages')
       .set(auth())
@@ -171,10 +177,36 @@ describe('v1 account-scoped API (e2e)', () => {
     expect(sendText).toHaveBeenCalledWith('wa_aaa', '37499111222@c.us', 'Hello v1');
   });
 
+  it('replays the same Idempotency-Key without a second WAHA send', async () => {
+    const body = { type: 'TEXT', chatId: '37499111222@c.us', text: 'Hello v1' };
+    const first = await request(app.getHttpServer())
+      .post('/api/v1/accounts/acc-a/messages')
+      .set(auth('replay-key-01'))
+      .send(body);
+    const second = await request(app.getHttpServer())
+      .post('/api/v1/accounts/acc-a/messages')
+      .set(auth('replay-key-01'))
+      .send(body);
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(second.body.data).toEqual(first.body.data);
+    expect(sendText).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects v1 send without Idempotency-Key', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/accounts/acc-a/messages')
+      .set({ Authorization: `Bearer ${generateApiToken(prefix).raw}` })
+      .send({ type: 'TEXT', chatId: '37499111222@c.us', text: 'Hello v1' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('IDEMPOTENCY_KEY_REQUIRED');
+    expect(sendText).not.toHaveBeenCalled();
+  });
+
   it('sends IMAGE and VIDEO through WAHA', async () => {
     const image = await request(app.getHttpServer())
       .post('/api/v1/accounts/acc-a/messages')
-      .set(auth())
+      .set(auth('image-key-01'))
       .send({
         type: 'IMAGE',
         chatId: '37499111222@c.us',
@@ -191,7 +223,7 @@ describe('v1 account-scoped API (e2e)', () => {
     );
     const video = await request(app.getHttpServer())
       .post('/api/v1/accounts/acc-a/messages')
-      .set(auth())
+      .set(auth('video-key-01'))
       .send({
         type: 'VIDEO',
         chatId: '37499111222@c.us',
@@ -263,14 +295,14 @@ describe('v1 account-scoped API (e2e)', () => {
     expect(sendText).not.toHaveBeenCalled();
   });
 
-  it('maps WAHA transport errors to WAHA_UNAVAILABLE', async () => {
+  it('maps WAHA transport errors to MESSAGE_OUTCOME_UNKNOWN', async () => {
     sendText.mockRejectedValueOnce(new WahaTransportError('timeout'));
     const res = await request(app.getHttpServer())
       .post('/api/v1/accounts/acc-a/messages')
       .set(auth())
       .send({ type: 'TEXT', chatId: '37499111222@c.us', text: 'Hi' });
     expect(res.status).toBe(503);
-    expect(res.body.error.code).toBe('WAHA_UNAVAILABLE');
+    expect(res.body.error.code).toBe('MESSAGE_OUTCOME_UNKNOWN');
   });
 
   it('maps WAHA API errors to MESSAGE_SEND_FAILED', async () => {

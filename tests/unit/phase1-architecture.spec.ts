@@ -27,6 +27,7 @@ describe('Phase 1 architecture remnants', () => {
     expect(schema).not.toMatch(/\benum SessionStatus\b/);
     expect(schema).not.toMatch(/\benum Role\b/);
     expect(schema).not.toMatch(/\bmodel User\b/);
+    expect(schema).toMatch(/model ApiIdempotency/);
     expect(schema).not.toMatch(/OutboundMessageLog|OutboundMessageIdempotency|GroupApiOperation|ProjectWebhookDelivery/);
     expect(schema).toMatch(/projectId\s+String/);
     expect(schema).toMatch(/onDelete: Restrict/);

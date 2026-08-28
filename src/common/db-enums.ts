@@ -10,3 +10,16 @@ export enum WhatsappAccountMode {
   SEND_ONLY = 'SEND_ONLY',
   MESSENGER = 'MESSENGER',
 }
+
+export enum IdempotencyScope {
+  SEND = 'SEND',
+  GROUP_CREATE = 'GROUP_CREATE',
+  GROUP_ADD = 'GROUP_ADD',
+}
+
+export enum IdempotencyStatus {
+  PROCESSING = 'PROCESSING',
+  SUCCEEDED = 'SUCCEEDED',
+  FAILED = 'FAILED',
+  OUTCOME_UNKNOWN = 'OUTCOME_UNKNOWN',
+}
