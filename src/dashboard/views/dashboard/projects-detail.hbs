@@ -1,11 +1,22 @@
 <section>
   <div class="page-header">
-    <h1>{{project.name}}</h1>
+    <div class="page-header__heading">
+      <h1>{{project.name}}</h1>
+      <p class="meta page-header__slug">Slug <code>{{project.slug}}</code></p>
+    </div>
     <span class="status {{#if project.isActive}}status-CONNECTED{{else}}status-DISCONNECTED{{/if}}">
       {{#if project.isActive}}Active{{else}}Inactive{{/if}}
     </span>
   </div>
-  <p class="meta">Slug <code>{{project.slug}}</code></p>
+
+  <div class="detail-tabs" role="tablist" aria-label="Project panels">
+    <button type="button" class="detail-tab" role="tab" data-sheet="webhook" aria-controls="sheet-webhook">
+      Project webhook
+    </button>
+    <button type="button" class="detail-tab" role="tab" data-sheet="accounts" aria-controls="sheet-accounts">
+      WhatsApp accounts
+    </button>
+  </div>
 
   {{#if revealed}}
     <div class="banner">
@@ -92,106 +103,242 @@
       </tbody>
     </table>
   </div>
+</section>
 
-  <div class="card">
-    <h2>Project webhook</h2>
-    <p class="meta">MESSENGER accounts deliver normalized inbound events to this HTTPS endpoint. Raw WAHA payloads are never forwarded.</p>
-    <form method="post" action="/projects/{{project.id}}/webhook" class="form">
-      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-      <label>Webhook URL (HTTPS)<input name="webhookUrl" type="url" value="{{project.webhookUrl}}" placeholder="https://example.com/webhooks/whatsapp" maxlength="2048" /></label>
-      <p class="meta">
-        Signing key fingerprint (hex HMAC key shown in full once after regenerate):
-        {{#if project.webhookSecretLast4}}
-          <code>{{project.webhookSecretPrefix}}…{{project.webhookSecretLast4}}</code>
-        {{else}}
-          not generated
-        {{/if}}
-      </p>
-      <label><input type="checkbox" name="webhookEnabled" value="true" {{#if project.webhookEnabled}}checked{{/if}} /> Enabled</label>
-      <button type="submit" class="primary">Save webhook</button>
-    </form>
-    <form method="post" action="/projects/{{project.id}}/webhook/regenerate" class="inline">
-      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-      <button type="submit">Regenerate signing key</button>
-    </form>
-    <h3>Delivery stats</h3>
-    <ul class="meta">
-      {{#each webhookStats.counts}}
-        <li>{{this.status}}: {{this._count._all}}</li>
-      {{/each}}
-    </ul>
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Event</th>
-          <th>Type</th>
-          <th>Status</th>
-          <th>Attempts</th>
-          <th>HTTP</th>
-          <th>When</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{#each webhookStats.recent}}
-          <tr>
-            <td><code>{{this.eventId}}</code></td>
-            <td>{{this.eventType}}</td>
-            <td>{{this.status}}</td>
-            <td>{{this.attemptCount}}</td>
-            <td>{{#if this.lastHttpStatus}}{{this.lastHttpStatus}}{{else}}—{{/if}}</td>
-            <td>{{this.createdAt}}</td>
-          </tr>
-        {{/each}}
-      </tbody>
-    </table>
+<div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+
+<aside
+  class="side-sheet"
+  id="sheet-webhook"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="sheet-webhook-title"
+  hidden
+>
+  <div class="side-sheet__rail" aria-hidden="false">
+    <button type="button" class="side-sheet__rail-btn" data-close-sheet aria-label="Close panel" title="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      <span class="side-sheet__rail-hint">Close</span>
+    </button>
   </div>
+  <div class="side-sheet__panel">
+    <div class="side-sheet__header">
+      <h2 id="sheet-webhook-title">Project webhook</h2>
+    </div>
+    <div class="side-sheet__body">
+      <div class="side-sheet__section">
+        <p class="meta">MESSENGER accounts deliver normalized inbound events to this HTTPS endpoint. Raw WAHA payloads are never forwarded.</p>
+        <form method="post" action="/projects/{{project.id}}/webhook" class="form">
+          <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+          <label>Webhook URL (HTTPS)<input name="webhookUrl" type="url" value="{{project.webhookUrl}}" placeholder="https://example.com/webhooks/whatsapp" maxlength="2048" /></label>
+          <p class="meta">
+            Signing key fingerprint (hex HMAC key shown in full once after regenerate):
+            {{#if project.webhookSecretLast4}}
+              <code>{{project.webhookSecretPrefix}}…{{project.webhookSecretLast4}}</code>
+            {{else}}
+              not generated
+            {{/if}}
+          </p>
+          <label><input type="checkbox" name="webhookEnabled" value="true" {{#if project.webhookEnabled}}checked{{/if}} /> Enabled</label>
+          <div class="actions">
+            <button type="submit" class="primary">Save webhook</button>
+          </div>
+        </form>
+        <form method="post" action="/projects/{{project.id}}/webhook/regenerate" class="inline">
+          <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+          <button type="submit">Regenerate signing key</button>
+        </form>
+      </div>
+      <div class="side-sheet__section">
+        <h3 class="side-sheet__section-title">Delivery stats</h3>
+        <ul class="meta">
+          {{#each webhookStats.counts}}
+            <li>{{this.status}}: {{this._count._all}}</li>
+          {{/each}}
+        </ul>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Attempts</th>
+              <th>HTTP</th>
+              <th>When</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each webhookStats.recent}}
+              <tr>
+                <td><code>{{this.eventId}}</code></td>
+                <td>{{this.eventType}}</td>
+                <td>{{this.status}}</td>
+                <td>{{this.attemptCount}}</td>
+                <td>{{#if this.lastHttpStatus}}{{this.lastHttpStatus}}{{else}}—{{/if}}</td>
+                <td>{{this.createdAt}}</td>
+              </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</aside>
 
-  <div class="card">
-    <div class="page-header">
-      <h2>WhatsApp accounts</h2>
+<aside
+  class="side-sheet"
+  id="sheet-accounts"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="sheet-accounts-title"
+  hidden
+>
+  <div class="side-sheet__rail">
+    <button type="button" class="side-sheet__rail-btn" data-close-sheet aria-label="Close panel" title="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      <span class="side-sheet__rail-hint">Close</span>
+    </button>
+  </div>
+  <div class="side-sheet__panel">
+    <div class="side-sheet__header">
+      <h2 id="sheet-accounts-title">WhatsApp accounts</h2>
       <a href="/projects/{{project.id}}/accounts/new" class="primary">Create account</a>
     </div>
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Label</th>
-          <th>Mode</th>
-          <th>Status</th>
-          <th>Phone</th>
-          <th>Active</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {{#each accounts}}
-          <tr>
-            <td>{{this.label}}</td>
-            <td>{{this.mode}}</td>
-            <td><span class="status status-{{this.status}}">{{this.status}}</span></td>
-            <td>{{#if this.phoneNumber}}{{this.phoneNumber}}{{else}}—{{/if}}</td>
-            <td>
-              {{#if this.isActive}}
-                Active
-                <form method="post" action="/projects/{{../project.id}}/accounts/{{this.id}}/deactivate" class="inline">
-                  <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
-                  <button type="submit" class="danger">Deactivate</button>
-                </form>
-              {{else}}
-                Inactive
-                <form method="post" action="/projects/{{../project.id}}/accounts/{{this.id}}/activate" class="inline">
-                  <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
-                  <button type="submit">Activate</button>
-                </form>
-              {{/if}}
-            </td>
-            <td>
-              <a href="/projects/{{../project.id}}/accounts/{{this.id}}">Detail</a>
-              ·
-              <a href="/projects/{{../project.id}}/accounts/{{this.id}}/qr">QR</a>
-            </td>
-          </tr>
-        {{/each}}
-      </tbody>
-    </table>
+    <div class="side-sheet__body">
+      <div class="side-sheet__section">
+        <p class="meta">Manage connected WhatsApp sessions for this project.</p>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Label</th>
+              <th>Mode</th>
+              <th>Status</th>
+              <th>Phone</th>
+              <th>Active</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each accounts}}
+              <tr>
+                <td>{{this.label}}</td>
+                <td>{{this.mode}}</td>
+                <td><span class="status status-{{this.status}}">{{this.status}}</span></td>
+                <td>{{#if this.phoneNumber}}{{this.phoneNumber}}{{else}}—{{/if}}</td>
+                <td>
+                  {{#if this.isActive}}
+                    Active
+                    <form method="post" action="/projects/{{../project.id}}/accounts/{{this.id}}/deactivate" class="inline">
+                      <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
+                      <button type="submit" class="danger">Deactivate</button>
+                    </form>
+                  {{else}}
+                    Inactive
+                    <form method="post" action="/projects/{{../project.id}}/accounts/{{this.id}}/activate" class="inline">
+                      <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
+                      <button type="submit">Activate</button>
+                    </form>
+                  {{/if}}
+                </td>
+                <td>
+                  <a href="/projects/{{../project.id}}/accounts/{{this.id}}">Detail</a>
+                  ·
+                  <a href="/projects/{{../project.id}}/accounts/{{this.id}}/qr">QR</a>
+                </td>
+              </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
-</section>
+</aside>
+
+<script>
+(function () {
+  var backdrop = document.getElementById('sheet-backdrop');
+  var openTab = null;
+  var closeTimer = null;
+
+  function mountToBody(el) {
+    if (el && el.parentElement !== document.body) {
+      document.body.appendChild(el);
+    }
+  }
+  mountToBody(backdrop);
+  document.querySelectorAll('.side-sheet').forEach(mountToBody);
+
+  function openSheet(id) {
+    var sheet = document.getElementById('sheet-' + id);
+    if (!sheet || !backdrop) return;
+    if (closeTimer) {
+      clearTimeout(closeTimer);
+      closeTimer = null;
+    }
+    document.querySelectorAll('.side-sheet').forEach(function (el) {
+      if (el !== sheet) {
+        el.classList.remove('is-open');
+        el.hidden = true;
+      }
+    });
+    sheet.hidden = false;
+    backdrop.hidden = false;
+    void sheet.offsetWidth;
+    sheet.classList.add('is-open');
+    backdrop.classList.add('is-open');
+    document.body.classList.add('sheet-open');
+    openTab = id;
+    document.querySelectorAll('.detail-tab').forEach(function (tab) {
+      tab.classList.toggle('is-active', tab.getAttribute('data-sheet') === id);
+    });
+  }
+
+  function closeSheet() {
+    document.querySelectorAll('.side-sheet.is-open').forEach(function (sheet) {
+      sheet.classList.remove('is-open');
+      closeTimer = setTimeout(function () {
+        sheet.hidden = true;
+        closeTimer = null;
+      }, 300);
+    });
+    if (backdrop) {
+      backdrop.classList.remove('is-open');
+      setTimeout(function () {
+        if (!openTab) backdrop.hidden = true;
+      }, 250);
+    }
+    document.body.classList.remove('sheet-open');
+    openTab = null;
+    document.querySelectorAll('.detail-tab').forEach(function (tab) {
+      tab.classList.remove('is-active');
+    });
+  }
+
+  document.querySelectorAll('.detail-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      var id = tab.getAttribute('data-sheet');
+      if (openTab === id) {
+        closeSheet();
+        return;
+      }
+      openSheet(id);
+    });
+  });
+
+  document.querySelectorAll('[data-close-sheet]').forEach(function (btn) {
+    btn.addEventListener('click', closeSheet);
+  });
+
+  if (backdrop) {
+    backdrop.addEventListener('click', closeSheet);
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && openTab) closeSheet();
+  });
+
+  {{#if revealedWebhook}}
+  openSheet('webhook');
+  {{/if}}
+})();
+</script>
