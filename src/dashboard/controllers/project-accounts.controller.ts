@@ -31,14 +31,13 @@ export class ProjectAccountsController {
   ) {}
 
   @Get('new')
-  @Render('dashboard/accounts-new')
+  @HttpCode(HttpStatus.SEE_OTHER)
   async newPage(
-    @Req() req: Request,
-    @CurrentAdmin() admin: AuthenticatedAdmin,
     @Param('projectId') projectId: string,
-  ): Promise<BaseViewModel & { project: unknown; active: 'projects' }> {
-    const project = await this.projectsService.getById(projectId);
-    return { ...baseView(req, admin, 'New WhatsApp account'), project, active: 'projects' };
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.projectsService.getById(projectId);
+    res.redirect(303, `/projects/${projectId}#create-account`);
   }
 
   @Post()
