@@ -7,22 +7,22 @@
     <thead>
       <tr>
         <th>Name</th>
-        <th>Slug</th>
-        <th>Status</th>
-        <th>Accounts</th>
-        <th>Tokens</th>
-        <th></th>
+        <th class="col-center">Slug</th>
+        <th class="col-center">Status</th>
+        <th class="col-center">Accounts</th>
+        <th class="col-center">Tokens</th>
       </tr>
     </thead>
     <tbody>
       {{#each projects}}
-        <tr>
-          <td><a href="/projects/{{this.id}}">{{this.name}}</a></td>
-          <td><code>{{this.slug}}</code></td>
-          <td>{{#if this.isActive}}Active{{else}}Inactive{{/if}}</td>
-          <td>{{this.accountCount}}</td>
-          <td>{{this.tokenCount}}</td>
-          <td><a href="/projects/{{this.id}}">Open</a></td>
+        <tr class="click-row">
+          <td>
+            <a href="/projects/{{this.id}}" class="click-row__link">{{this.name}}</a>
+          </td>
+          <td class="col-center"><code>{{this.slug}}</code></td>
+          <td class="col-center">{{#if this.isActive}}Active{{else}}Inactive{{/if}}</td>
+          <td class="col-center">{{this.accountCount}}</td>
+          <td class="col-center">{{this.tokenCount}}</td>
         </tr>
       {{/each}}
     </tbody>

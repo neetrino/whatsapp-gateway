@@ -4,11 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{title}} — Neetrino Internal Chat Gateway</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/assets/style.css" />
   </head>
   <body>
     <header class="topbar">
-      <div class="brand">Neetrino Internal Chat Gateway</div>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        Neetrino Internal Chat Gateway
+      </div>
       <nav class="nav">
         {{#if currentAdmin}}
           <a href="/dashboard" class="{{#ifEquals active 'overview'}}active{{/ifEquals}}">Dashboard</a>

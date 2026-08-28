@@ -1,5 +1,7 @@
 <section>
-  <h1>Dashboard</h1>
+  <div class="page-header">
+    <h1>Dashboard</h1>
+  </div>
   <div class="stats-grid">
     <div class="stat-card"><span class="label">Projects</span><span class="value">{{totalProjects}}</span></div>
     <div class="stat-card"><span class="label">Active projects</span><span class="value">{{activeProjects}}</span></div>
@@ -9,9 +11,11 @@
   </div>
 
   <h2>System health</h2>
-  <table class="health-table">
-    <tr><th>Gateway</th><td><span class="status status-{{health.gateway}}">{{health.gateway}}</span></td></tr>
-    <tr><th>Database</th><td><span class="status status-{{health.database}}">{{health.database}}</span></td></tr>
-    <tr><th>WAHA</th><td><span class="status status-{{health.waha}}">{{health.waha}}</span></td></tr>
-  </table>
+  <div class="health-panel">
+    <table class="health-table">
+      <tr><th>Gateway</th><td><span class="status status-{{health.gateway}}">{{health.gateway}}</span></td></tr>
+      <tr><th>Database</th><td><span class="status status-{{health.database}}">{{health.database}}</span></td></tr>
+      <tr><th>WAHA</th><td><span class="status status-{{health.waha}}">{{health.waha}}</span></td></tr>
+    </table>
+  </div>
 </section>
