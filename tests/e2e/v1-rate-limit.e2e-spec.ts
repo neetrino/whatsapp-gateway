@@ -42,8 +42,6 @@ describe('v1 token rate limiting (e2e)', () => {
           findMany: jest.fn().mockResolvedValue([]),
         },
         apiToken: { findMany: jest.fn(), findUnique: jest.fn() },
-        outboundMessageLog: { create: jest.fn(), update: jest.fn(), findMany: jest.fn() },
-        outboundMessageIdempotency: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
       })
       .overrideProvider(ApiTokensService)
       .useValue({
@@ -81,17 +79,17 @@ describe('v1 token rate limiting (e2e)', () => {
 
   const prefix = process.env.API_TOKEN_PREFIX ?? 'gw_test';
 
-  const send = (raw: string, key: string) =>
+  const send = (raw: string) =>
     request(app.getHttpServer())
       .post('/api/v1/accounts/acc-a/messages')
-      .set({ Authorization: `Bearer ${raw}`, 'Idempotency-Key': key })
+      .set({ Authorization: `Bearer ${raw}` })
       .send({ type: 'TEXT', chatId: '37499111222@c.us', text: 'Hi' });
 
   it('returns RATE_LIMITED after the v1 send budget is exhausted for a token', async () => {
     const raw = generateApiToken(prefix).raw;
-    const first = await send(raw, 'idem-rate-0001');
-    const second = await send(raw, 'idem-rate-0002');
-    const third = await send(raw, 'idem-rate-0003');
+    const first = await send(raw);
+    const second = await send(raw);
+    const third = await send(raw);
     expect(first.status).not.toBe(429);
     expect(second.status).not.toBe(429);
     expect(third.status).toBe(429);
@@ -111,16 +109,16 @@ describe('v1 token rate limiting (e2e)', () => {
 
   it('keeps send and read budgets independent and tokens isolated', async () => {
     const sendToken = generateApiToken(prefix).raw;
-    await send(sendToken, 'idem-ind-1');
-    await send(sendToken, 'idem-ind-2');
-    const sendBlocked = await send(sendToken, 'idem-ind-3');
+    await send(sendToken);
+    await send(sendToken);
+    const sendBlocked = await send(sendToken);
     expect(sendBlocked.status).toBe(429);
     const readOk = await request(app.getHttpServer())
       .get('/api/v1/accounts')
       .set({ Authorization: `Bearer ${sendToken}` });
     expect(readOk.status).not.toBe(429);
     const other = generateApiToken(prefix).raw;
-    const otherFirst = await send(other, 'idem-other-1');
+    const otherFirst = await send(other);
     expect(otherFirst.status).not.toBe(429);
   });
 });

@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MessageStatus, MessageType, OutboundIdempotencyStatus } from '@prisma/client';
 import { ulid } from 'ulid';
 import { PrismaService } from '../prisma/prisma.service';
 import { WahaClient } from '../waha/waha.client';
@@ -17,20 +16,8 @@ import {
   validateMediaUrl,
 } from '../messages/media-url-validation';
 import type { V1SendMessageDto } from './dto/send-v1-message.dto';
-import { hashV1SendRequest } from './request-hash';
-import {
-  beginIdempotency,
-  markIdempotencyFailed,
-  persistSentAndSucceeded,
-  type IdempotencyBegin,
-  type V1SendResult,
-} from './message-idempotency';
-import {
-  outcomeForSendFailure,
-  safeErrorSummary,
-  sendFailureCode,
-  toSendAppException,
-} from './v1-send-errors';
+import { safeErrorSummary, toSendAppException } from './v1-send-errors';
+import type { V1SendResult } from './v1-send.types';
 
 interface PreparedMedia {
   href: string;
@@ -53,30 +40,38 @@ export class V1MessagesService {
     project: ApiProjectContext,
     accountId: string,
     input: V1SendMessageDto,
-    idempotencyKey: string,
   ): Promise<V1SendResult> {
     const owned = await loadOwnedAccount(this.prisma, project.projectId, accountId);
-    const requestHash = hashV1SendRequest(input);
-    const begun = await beginIdempotency(this.prisma, {
-      accountId: owned.id,
-      idempotencyKey,
-      requestHash,
-      staleMs: this.configService.get('IDEMPOTENCY_PROCESSING_TIMEOUT_MS', { infer: true }),
-      requestId: `req_${ulid()}`,
-      chatId: input.chatId,
-      messageType: MessageType[input.type],
-    });
-    if (begun.kind === 'replay') return begun.result;
+    this.assertPayload(input);
+    const ready = assertAccountReady(owned);
+    const media = input.type === 'TEXT' ? null : await this.prepareMedia(input);
+    const requestId = `req_${ulid()}`;
     try {
-      this.assertPayload(input);
-      const ready = assertAccountReady(owned);
-      const media = input.type === 'TEXT' ? null : await this.prepareMedia(input);
-      return await this.dispatch(this.wahaService.effectiveSessionName(ready), begun, input, media);
+      const wahaId = await this.sendToWaha(
+        this.wahaService.effectiveSessionName(ready),
+        input,
+        media,
+      );
+      const result: V1SendResult = {
+        requestId,
+        messageId: wahaId ?? requestId,
+        status: 'sent',
+        sentAt: new Date().toISOString(),
+      };
+      this.logger.log({
+        msg: 'v1_send_succeeded',
+        requestId,
+        accountId: ready.id,
+        messageType: input.type,
+      });
+      return result;
     } catch (error) {
-      if (error instanceof AppException && error.code === ERROR_CODES.MESSAGE_OUTCOME_UNKNOWN) {
-        throw error;
-      }
-      await this.failSend(begun.log.id, begun.row.id, error, input.type, false);
+      this.logger.warn({
+        msg: 'v1_send_failed',
+        accountId: ready.id,
+        messageType: input.type,
+        error: safeErrorSummary(error),
+      });
       throw toSendAppException(error, input.type);
     }
   }
@@ -99,78 +94,6 @@ export class V1MessagesService {
         code: ERROR_CODES.VALIDATION_ERROR,
         message: `text exceeds max length of ${max} characters.`,
         status: 400,
-      });
-    }
-  }
-
-  private async dispatch(
-    sessionName: string,
-    begun: Extract<IdempotencyBegin, { kind: 'fresh' }>,
-    input: V1SendMessageDto,
-    media: PreparedMedia | null,
-  ): Promise<V1SendResult> {
-    let dispatched = false;
-    try {
-      const wahaId = await this.sendToWaha(sessionName, input, media);
-      dispatched = true;
-      const result: V1SendResult = {
-        requestId: begun.log.requestId,
-        messageId: wahaId ?? begun.log.id,
-        status: 'sent',
-        sentAt: new Date().toISOString(),
-      };
-      await this.persistSuccess(begun, result, wahaId);
-      this.logger.log({
-        msg: 'v1_send_succeeded',
-        requestId: result.requestId,
-        accountId: begun.row.whatsappAccountId,
-        messageType: input.type,
-        status: 'sent',
-      });
-      return result;
-    } catch (error) {
-      this.logger.warn({
-        msg: dispatched ? 'v1_send_persist_or_waha_unknown' : 'v1_send_failed',
-        accountId: begun.row.whatsappAccountId,
-        messageType: input.type,
-        error: safeErrorSummary(error),
-      });
-      await this.failSend(begun.log.id, begun.row.id, error, input.type, dispatched);
-      throw toSendAppException(error, input.type);
-    }
-  }
-
-  private async persistSuccess(
-    begun: Extract<IdempotencyBegin, { kind: 'fresh' }>,
-    result: V1SendResult,
-    wahaId: string | null,
-  ): Promise<void> {
-    try {
-      await this.prisma.$transaction(async (tx) => {
-        await persistSentAndSucceeded(tx, {
-          logId: begun.log.id,
-          idempotencyId: begun.row.id,
-          result,
-          wahaMessageId: wahaId,
-        });
-      });
-    } catch (error) {
-      this.logger.error({
-        msg: 'v1_send_persist_after_waha_failed',
-        requestId: result.requestId,
-        error: safeErrorSummary(error),
-      });
-      await markIdempotencyFailed(
-        this.prisma,
-        begun.row.id,
-        ERROR_CODES.MESSAGE_OUTCOME_UNKNOWN,
-        OutboundIdempotencyStatus.OUTCOME_UNKNOWN,
-      ).catch(() => undefined);
-      throw new AppException({
-        code: ERROR_CODES.MESSAGE_OUTCOME_UNKNOWN,
-        message:
-          'Send may have been delivered but persistence failed. Do not retry with a new key.',
-        status: 503,
       });
     }
   }
@@ -245,25 +168,5 @@ export class V1MessagesService {
       });
     }
     return raw.trim().length === 0 ? undefined : raw.trim();
-  }
-
-  private async failSend(
-    logId: string,
-    idempotencyId: string,
-    error: unknown,
-    kind: V1SendMessageDto['type'],
-    dispatched: boolean,
-  ): Promise<void> {
-    const errorCode = sendFailureCode(error, kind);
-    const outcome = outcomeForSendFailure(error, dispatched);
-    if (!dispatched && outcome === OutboundIdempotencyStatus.FAILED) {
-      await this.prisma.outboundMessageLog
-        .updateMany({
-          where: { id: logId, status: MessageStatus.PENDING },
-          data: { status: MessageStatus.FAILED, errorCode, errorMessage: safeErrorSummary(error) },
-        })
-        .catch(() => undefined);
-    }
-    await markIdempotencyFailed(this.prisma, idempotencyId, errorCode, outcome);
   }
 }

@@ -29,12 +29,12 @@ jobs:
       - name: Prisma validate
         run: npx prisma validate
         env:
-          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci?schema=public
+          DATABASE_URL: file:./data/ci.db
 
       - name: Generate Prisma client
         run: npx prisma generate
         env:
-          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci?schema=public
+          DATABASE_URL: file:./data/ci.db
 
       - name: Typecheck
         run: npm run typecheck
@@ -48,28 +48,13 @@ jobs:
           NODE_ENV: test
           PORT: '3000'
           APP_URL: http://localhost:3000
-          GATEWAY_PUBLIC_URL: http://localhost:3000
-          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci?schema=public
+          DATABASE_URL: file:./data/ci.db
           COOKIE_SECRET: ci-cookie-secret-32-characters-min!!
           JWT_SECRET: ci-jwt-secret-32-characters-minimum!!
           TOKEN_PEPPER: ci-token-pepper-32-characters-min!!
           WAHA_BASE_URL: http://127.0.0.1:3999
           WAHA_WEBHOOK_SECRET: ci-waha-webhook-secret-32-chars-min!!
           GATEWAY_INTERNAL_URL: http://gateway:3000
-          API_TOKEN_PREFIX: gw_test
-          MAX_TEXT_LENGTH: '4096'
-          MAX_IMAGE_SIZE_MB: '10'
-          MAX_VIDEO_SIZE_MB: '50'
-          MAX_CAPTION_LENGTH: '4096'
-          RATE_LIMIT_SEND: '60'
-          RATE_LIMIT_V1_SEND: '60'
-          RATE_LIMIT_V1_READ: '120'
-          IDEMPOTENCY_PROCESSING_TIMEOUT_MS: '120000'
-          MAX_CHATS_PAGE: '100'
-          MAX_MESSAGES_PAGE: '100'
-          WEBHOOK_DELIVERY_TIMEOUT_MS: '10000'
-          WEBHOOK_MAX_ATTEMPTS: '5'
-          WEBHOOK_RETRY_BASE_MS: '2000'
 
       - name: Build
         run: npm run build

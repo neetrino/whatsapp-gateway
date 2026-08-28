@@ -1,0 +1,12 @@
+export enum SessionStatus {
+  QR_REQUIRED = 'QR_REQUIRED',
+  CONNECTING = 'CONNECTING',
+  CONNECTED = 'CONNECTED',
+  DISCONNECTED = 'DISCONNECTED',
+  ERROR = 'ERROR',
+}
+
+export enum WhatsappAccountMode {
+  SEND_ONLY = 'SEND_ONLY',
+  MESSENGER = 'MESSENGER',
+}

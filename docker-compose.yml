@@ -5,18 +5,17 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      # NODE_ENV from .env (use development for http://localhost cookies)
       - WAHA_BASE_URL=http://waha:3000
       - GATEWAY_INTERNAL_URL=http://gateway:3000
-      # Do not set WAHA_SESSION_NAME — database WhatsappAccount.sessionName is authoritative.
+      - DATABASE_URL=file:/app/data/gateway.db
+    volumes:
+      - gateway_data:/app/data
     depends_on:
       - waha
     ports:
       - "3000:3000"
 
   waha:
-    # Pinned: WAHA 2026.8.1 NOWEB. Core includes multi-session after the Plus merge (2026-06).
-    # Do not float on :noweb / :latest — session and send contracts are version-specific.
     image: devlikeapro/waha:noweb-2026.8.1
     restart: unless-stopped
     environment:
@@ -28,4 +27,5 @@ services:
       - "3000"
 
 volumes:
+  gateway_data:
   waha_sessions:

@@ -1,4 +1,4 @@
-import { SessionStatus } from '@prisma/client';
+import { SessionStatus } from '../../src/common/db-enums';
 import { MessagesService } from '../../src/messages/messages.service';
 import { WahaApiError, WahaTransportError } from '../../src/waha/types/waha.types';
 import { ERROR_CODES } from '../../src/common/errors/error-codes';
@@ -18,11 +18,12 @@ describe('MessagesService', () => {
         sessionName,
         isActive: true,
         status: SessionStatus.CONNECTED,
+        label: 'A',
+        mode: 'SEND_ONLY',
+        phoneNumber: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       }),
-    },
-    outboundMessageLog: {
-      create: jest.fn().mockResolvedValue({ id: 'log1' }),
-      update: jest.fn().mockResolvedValue(undefined),
     },
   });
 
@@ -30,7 +31,7 @@ describe('MessagesService', () => {
     effectiveSessionName: jest.fn((a: { sessionName: string }) => a.sessionName),
   });
 
-  it('passes text unchanged to WAHA', async () => {
+  it('passes text unchanged to WAHA and returns the send result', async () => {
     const prisma = buildPrisma();
     const wahaClient = { sendText: jest.fn().mockResolvedValue({ id: 'w1' }) };
     const wahaSvc = wahaServiceMock();
@@ -41,18 +42,20 @@ describe('MessagesService', () => {
       buildConfig() as never,
     );
 
-    await service.send(
+    const result = await service.send(
       { apiTokenId: 't1', projectId: 'p1', whatsappAccountId, sessionName },
       { chatId: '37499111222@c.us', text: '  Hello\n' },
     );
 
     expect(wahaClient.sendText).toHaveBeenCalledWith(sessionName, '37499111222@c.us', '  Hello\n');
-    const logData = prisma.outboundMessageLog.create.mock.calls[0]?.[0].data as Record<
-      string,
-      unknown
-    >;
-    expect(logData).not.toHaveProperty('text');
-    expect(logData).not.toHaveProperty('token');
+    expect(result).toEqual(
+      expect.objectContaining({
+        messageId: 'w1',
+        chatId: '37499111222@c.us',
+        status: 'sent',
+      }),
+    );
+    expect(result.requestId).toMatch(/^req_/);
   });
 
   it('maps WAHA transport errors to WAHA_UNAVAILABLE', async () => {
@@ -118,7 +121,6 @@ describe('MessagesService', () => {
   it('fails closed when the account is not in the token project', async () => {
     const prisma = {
       whatsappAccount: { findFirst: jest.fn().mockResolvedValue(null) },
-      outboundMessageLog: { create: jest.fn(), update: jest.fn() },
     };
     const wahaClient = { sendText: jest.fn() };
     const service = new MessagesService(

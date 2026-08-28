@@ -59,20 +59,17 @@ export class ProjectAccountsController {
     BaseViewModel & {
       projectId: string;
       account: unknown;
-      recentLogs: unknown;
       active: 'projects';
       modeError?: boolean;
     }
   > {
     const account = await this.accountsService.getByIdForProject(projectId, accountId);
     const refreshed = await this.accountsService.refreshStatus(account);
-    const recentLogs = await this.accountsService.listRecentLogs(projectId, accountId);
     const modeError = req.query.modeError === 'waha_config';
     return {
       ...baseView(req, admin, account.label),
       projectId,
       account: { ...account, ...refreshed },
-      recentLogs,
       active: 'projects',
       modeError,
     };

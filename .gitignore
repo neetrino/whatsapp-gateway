@@ -2,6 +2,9 @@ node_modules
 dist
 coverage
 .env
+data/*.db
+data/*.db-journal
+data/*control-plane*.json
 docker-compose.override.yml
 .env.local
 .env.*.local

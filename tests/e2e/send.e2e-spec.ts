@@ -5,7 +5,7 @@ import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { ApiTokensService } from '../../src/api-tokens/api-tokens.service';
 import { WahaClient } from '../../src/waha/waha.client';
-import { SessionStatus } from '@prisma/client';
+import { SessionStatus } from '../../src/common/db-enums';
 import { generateApiToken, hashApiToken } from '../../src/common/utils/tokens';
 import { validResolvedToken } from '../helpers/resolved-token';
 
@@ -44,10 +44,6 @@ describe('POST /api/messages/send (e2e)', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
-    },
-    outboundMessageLog: {
-      create: jest.fn().mockResolvedValue({ id: 'log1' }),
-      update: jest.fn().mockResolvedValue(undefined),
     },
   };
 

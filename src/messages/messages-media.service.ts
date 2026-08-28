@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MessageStatus, MessageType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WahaService } from '../waha/waha.service';
 import { WahaApiError, WahaTransportError } from '../waha/types/waha.types';
@@ -49,8 +48,7 @@ export class MessagesMediaService {
       input.mediaType === 'IMAGE'
         ? this.configService.get('MAX_IMAGE_SIZE_MB', { infer: true })
         : this.configService.get('MAX_VIDEO_SIZE_MB', { infer: true });
-    const maxBytes = maxMb * 1024 * 1024;
-    const { href } = await validateMediaUrl(input.mediaUrl, input.mediaType, maxBytes);
+    const { href } = await validateMediaUrl(input.mediaUrl, input.mediaType, maxMb * 1024 * 1024);
     const pathname = new URL(href).pathname;
     const filename =
       input.mediaType === 'IMAGE'
@@ -64,18 +62,6 @@ export class MessagesMediaService {
       account.whatsappAccountId,
     );
     const requestId = `req_${ulid()}`;
-    const messageType = input.mediaType === 'IMAGE' ? MessageType.IMAGE : MessageType.VIDEO;
-
-    const log = await this.prisma.outboundMessageLog.create({
-      data: {
-        whatsappAccountId: dbAccount.id,
-        requestId,
-        chatId: input.chatId,
-        messageType,
-        status: MessageStatus.PENDING,
-      },
-    });
-
     try {
       const wahaSession = this.wahaService.effectiveSessionName(dbAccount);
       const wahaResult =
@@ -94,24 +80,15 @@ export class MessagesMediaService {
               { mimetype, filename },
               caption,
             );
-      const sentAt = new Date();
-      await this.prisma.outboundMessageLog.update({
-        where: { id: log.id },
-        data: {
-          status: MessageStatus.SENT,
-          wahaMessageId: wahaResult.id ?? null,
-        },
-      });
       return {
         requestId,
-        messageId: wahaResult.id ?? log.id,
+        messageId: wahaResult.id ?? requestId,
         chatId: input.chatId,
         mediaType: input.mediaType,
         status: 'sent',
-        sentAt: sentAt.toISOString(),
+        sentAt: new Date().toISOString(),
       };
     } catch (error) {
-      await this.recordFailure(log.id, error, input.mediaType);
       throw this.toAppException(error, input.mediaType);
     }
   }
@@ -129,30 +106,6 @@ export class MessagesMediaService {
     const trimmed = raw.trim();
     if (trimmed.length === 0) return undefined;
     return raw;
-  }
-
-  private async recordFailure(
-    logId: string,
-    error: unknown,
-    kind: 'IMAGE' | 'VIDEO',
-  ): Promise<void> {
-    const errorCode = this.extractErrorCode(error, kind);
-    const errorMessage = error instanceof Error ? error.message.slice(0, 500) : 'unknown';
-    await this.prisma.outboundMessageLog
-      .update({
-        where: { id: logId },
-        data: { status: MessageStatus.FAILED, errorCode, errorMessage },
-      })
-      .catch(() => undefined);
-  }
-
-  private extractErrorCode(error: unknown, kind: 'IMAGE' | 'VIDEO'): string {
-    if (error instanceof WahaTransportError) return ERROR_CODES.WAHA_UNAVAILABLE;
-    if (error instanceof WahaApiError) {
-      return kind === 'IMAGE' ? ERROR_CODES.IMAGE_SEND_FAILED : ERROR_CODES.VIDEO_SEND_FAILED;
-    }
-    if (error instanceof AppException) return error.code;
-    return ERROR_CODES.INTERNAL_ERROR;
   }
 
   private toAppException(error: unknown, kind: 'IMAGE' | 'VIDEO'): AppException {

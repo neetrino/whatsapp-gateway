@@ -1,4 +1,4 @@
-import { SessionStatus, WhatsappAccountMode } from '@prisma/client';
+import { SessionStatus } from '../common/db-enums';
 import type { PrismaService } from '../prisma/prisma.service';
 import { AppException } from '../common/errors/app.exception';
 import { ERROR_CODES } from '../common/errors/error-codes';
@@ -11,9 +11,9 @@ export const loadOwnedAccount = async (
   id: string;
   sessionName: string;
   isActive: boolean;
-  status: SessionStatus;
+  status: string;
   label: string;
-  mode: WhatsappAccountMode;
+  mode: string;
   phoneNumber: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -46,7 +46,7 @@ export const assertAccountReady = (account: {
   id: string;
   sessionName: string;
   isActive: boolean;
-  status: SessionStatus;
+  status: string;
 }): { id: string; sessionName: string } => {
   if (!account.isActive) {
     throw new AppException({

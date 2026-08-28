@@ -22,7 +22,6 @@ import { WahaModule } from './waha/waha.module';
 import { MessagesModule } from './messages/messages.module';
 import { HealthModule } from './health/health.module';
 import { DashboardModule } from './dashboard/dashboard.module';
-import { GroupsModule } from './groups/groups.module';
 import { V1Module } from './v1/v1.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { AppController } from './app.controller';
@@ -46,7 +45,6 @@ import { AppController } from './app.controller';
     ApiTokensModule,
     WahaModule,
     MessagesModule,
-    GroupsModule,
     HealthModule,
     DashboardModule,
     V1Module,

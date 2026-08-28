@@ -5,7 +5,7 @@ import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { ApiTokensService } from '../../src/api-tokens/api-tokens.service';
 import { WahaClient } from '../../src/waha/waha.client';
-import { SessionStatus } from '@prisma/client';
+import { SessionStatus } from '../../src/common/db-enums';
 import { generateApiToken } from '../../src/common/utils/tokens';
 import { validResolvedToken } from '../helpers/resolved-token';
 import { WahaApiError, WahaTransportError } from '../../src/waha/types/waha.types';
@@ -44,10 +44,6 @@ describe('POST /api/messages/send-media (e2e)', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
-    },
-    outboundMessageLog: {
-      create: jest.fn().mockResolvedValue({ id: 'log1' }),
-      update: jest.fn().mockResolvedValue(undefined),
     },
   };
 
@@ -287,21 +283,21 @@ describe('POST /api/messages/send-media (e2e)', () => {
     expect(res.body.error.code).toBe('VIDEO_SEND_FAILED');
   });
 
-  it('stores messageType in log, not mediaUrl', async () => {
+  it('returns sent IMAGE result after WAHA succeeds', async () => {
     const raw = generateApiToken(prefix).raw;
-    await request(app.getHttpServer())
+    const res = await request(app.getHttpServer())
       .post('/api/messages/send-media')
       .set(auth(raw))
       .send(validBody);
-    expect(prismaMock.outboundMessageLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        messageType: 'IMAGE',
-        chatId: '37499111222@c.us',
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual(
+      expect.objectContaining({
+        messageId: 'wimg1',
+        mediaType: 'IMAGE',
+        status: 'sent',
       }),
-    });
-    const data = prismaMock.outboundMessageLog.create.mock.calls[0][0].data;
-    expect(data).not.toHaveProperty('mediaUrl');
-    expect(data).not.toHaveProperty('caption');
+    );
+    expect(sendImageByUrl).toHaveBeenCalled();
   });
 
   it('rejects missing mediaUrl', async () => {

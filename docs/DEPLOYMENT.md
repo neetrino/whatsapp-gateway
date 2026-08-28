@@ -1,104 +1,56 @@
-# Deployment (Hetzner VPS + Docker)
+# Deployment
 
-## Overview
+Gateway + WAHA on one host. Public HTTPS only on the Gateway. WAHA stays on the Docker network.
 
-- **Gateway** container: public HTTPS via reverse proxy.
-- **WAHA** container: **internal only** (Docker network), persistent session volume.
-- **Neon PostgreSQL**: `DATABASE_URL` from Neon console (TLS).
+## Persistence
 
-## 1. Provision VPS
+| Data | Where |
+|------|--------|
+| Projects, tokens, WhatsApp accounts, admin | SQLite volume `gateway_data` → `/app/data/gateway.db` |
+| WhatsApp sessions | Docker volume `waha_sessions` → `/app/.sessions` |
 
-- Ubuntu 22.04+ or similar on Hetzner.
-- Open inbound **443** (and **80** for ACME if needed). **Do not** publish WAHA. Compose uses `expose: "3000"` only (no host port).
+Do not point `DATABASE_URL` at Neon or any Postgres. Prisma is SQLite.
 
-## 2. Install Docker
-
-Follow Docker Engine + Compose plugin installation for your distro.
-
-## 3. Clone and configure
+## Configure
 
 ```bash
-git clone <your-repo-url> nbos-whatsapp-gateway
-cd nbos-whatsapp-gateway
 cp .env.example .env
 ```
 
-Edit `.env`:
+Required:
 
-- Strong secrets (`COOKIE_SECRET`, `JWT_SECRET`, `TOKEN_PEPPER`) — each ≥ 32 random bytes as hex/base64.
-- `DATABASE_URL` from Neon (include `sslmode=require` if required).
-- `APP_URL` / `GATEWAY_PUBLIC_URL` — public HTTPS URL.
-- `WAHA_BASE_URL=http://waha:3000` (matches `docker-compose.yml` service name **`waha`**).
-- `GATEWAY_INTERNAL_URL=http://gateway:3000` — URL WAHA uses to POST inbound events (compose service **`gateway`**; not public).
-- `WAHA_WEBHOOK_SECRET` — shared HMAC secret for WAHA → Gateway inbound events (≥ 32 chars).
-- `WEBHOOK_DELIVERY_TIMEOUT_MS`, `WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_RETRY_BASE_MS` — Gateway → Project HTTPS webhook delivery.
-- `WAHA_API_KEY` — shared secret for WAHA HTTP API (see [WAHA_SETUP.md](WAHA_SETUP.md)).
+- `APP_URL` — public HTTPS URL
+- `DATABASE_URL=file:/app/data/gateway.db` in Docker
+- `COOKIE_SECRET`, `JWT_SECRET`, `TOKEN_PEPPER` — each ≥ 32 chars. **Do not rotate `TOKEN_PEPPER` after tokens are issued.**
+- `WAHA_API_KEY`, `WAHA_WEBHOOK_SECRET` (≥ 32 chars)
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` — used only when the SQLite file has no admin yet
 
-## 4. Database migrations
-
-From any environment with Node.js and this repo (CI, admin laptop, or a one-off container with dev dependencies):
-
-```bash
-export DATABASE_URL="postgresql://..."
-npx prisma migrate deploy
-ADMIN_EMAIL=... ADMIN_PASSWORD=... npm run prisma:seed
-```
-
-`prisma/seed.ts` upserts the **singleton Admin** from `ADMIN_EMAIL` / `ADMIN_PASSWORD` only (no `ADMIN_NAME`, no User rows, no WhatsApp account). Re-running seed verifies the existing Argon2 hash and does **not** bump `sessionVersion` unless the email or password actually changes.
-
-**Destructive test-only migration:** `prisma/migrations/20260824120000_phase1_admin_project_ownership` deletes existing `users`, WhatsApp accounts, API tokens, and related logs, then introduces Admin/Project ownership. Use it on **disposable test databases only**. Do not apply it to production data that you need to keep.
-
-**Migration `20260716120000_multi_whatsapp_per_user`:** kept from `main` unchanged (checksum must match databases that already applied it). It only drops `whatsapp_accounts_userId_key` and creates `whatsapp_accounts_userId_idx`. Phase 1 then drops `userId`. If a database already applied Phase 1 **without** this row in `_prisma_migrations`, mark it applied (`prisma migrate resolve --applied 20260716120000_multi_whatsapp_per_user`) — do not re-run it after `userId` is gone.
-
-The production Docker image is runtime-only (no `ts-node`). Run the **seed once** from a dev/CI environment against Neon.
-
-To apply migrations using the production image (includes the `prisma` CLI):
-
-```bash
-docker compose run --rm gateway sh -c "npx prisma migrate deploy"
-```
-
-## 5. Start stack
+## First start
 
 ```bash
 docker compose up -d --build
 ```
 
-Gateway listens on host port `3000` by default; put a reverse proxy in front.
+The entrypoint runs `prisma migrate deploy`, then starts the app.
 
-## 6. Reverse proxy + HTTPS
+To keep the existing NBOS project, token, and WAHA session names after leaving Neon, copy `data/neon-control-plane.json` into the volume and start once with:
 
-### Caddy (example)
-
-```caddy
-wa-gateway.example.com {
-  reverse_proxy localhost:3000
-}
+```bash
+CONTROL_PLANE_IMPORT=/app/data/neon-control-plane.json
 ```
 
-### nginx (sketch)
+Then unset that variable. The import upserts admin, project `nbos`, accounts (`wa_450c735fbfcd62ec`, `wa_453db52dab4d5a8f`), and the hashed API token. `TOKEN_PEPPER` must be the same value that created those hashes.
 
-- Terminate TLS.
-- `proxy_pass http://127.0.0.1:3000;`
-- Forward `X-Forwarded-For`, `X-Forwarded-Proto`.
-
-Ensure `trust proxy` is enabled in production (already `app.set('trust proxy', 1)` in `main.ts`). The proxy must set `X-Forwarded-For` / `X-Forwarded-Proto` so v1 IP-fallback rate limits and secure cookies see the client correctly.
-
-## 7. WAHA persistence
-
-`docker-compose.yml` mounts `waha_sessions:/app/.sessions`.  
-Back up this Docker volume with your backup strategy (see [OPERATIONS.md](OPERATIONS.md)).
-
-## 8. Updates
+## Updates
 
 ```bash
 git pull
-docker compose build --no-cache gateway
+docker compose build gateway
 docker compose up -d
-docker compose run --rm gateway npx prisma migrate deploy
 ```
 
-## 9. Neon notes
+Do **not** delete `waha_sessions` or `gateway_data`.
 
-- Use Neon’s pooled connection string for serverless-friendly pooling if desired.
-- Rotate credentials via Neon dashboard if compromised.
+## Reverse proxy
+
+Terminate TLS in front of `localhost:3000`. `trust proxy` is already enabled.

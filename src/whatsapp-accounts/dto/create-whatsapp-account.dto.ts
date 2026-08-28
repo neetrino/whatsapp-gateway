@@ -1,6 +1,6 @@
 import { IsEnum, IsString, MaxLength, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { WhatsappAccountMode } from '@prisma/client';
+import { WhatsappAccountMode } from '../../common/db-enums';
 import { CsrfFormDto } from '../../common/dto/csrf-form.dto';
 
 export class CreateWhatsappAccountDto extends CsrfFormDto {

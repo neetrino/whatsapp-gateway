@@ -1,4 +1,4 @@
-import { WhatsappAccountMode, SessionStatus } from '@prisma/client';
+import { SessionStatus, WhatsappAccountMode } from '../common/db-enums';
 
 export interface V1AccountPublic {
   id: string;
@@ -22,8 +22,8 @@ export const maskPhoneNumber = (phone: string | null | undefined): string | null
 export const toV1AccountPublic = (account: {
   id: string;
   label: string;
-  mode: WhatsappAccountMode;
-  status: SessionStatus;
+  mode: string;
+  status: string;
   phoneNumber: string | null;
   isActive: boolean;
   createdAt: Date;
@@ -31,8 +31,8 @@ export const toV1AccountPublic = (account: {
 }): V1AccountPublic => ({
   id: account.id,
   label: account.label,
-  mode: account.mode,
-  status: account.status,
+  mode: account.mode as WhatsappAccountMode,
+  status: account.status as SessionStatus,
   phoneNumber: maskPhoneNumber(account.phoneNumber),
   isActive: account.isActive,
   createdAt: account.createdAt.toISOString(),

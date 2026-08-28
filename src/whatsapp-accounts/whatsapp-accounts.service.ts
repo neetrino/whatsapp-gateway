@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { SessionStatus, WhatsappAccount, WhatsappAccountMode } from '@prisma/client';
+import { WhatsappAccount } from '@prisma/client';
+import { SessionStatus, WhatsappAccountMode } from '../common/db-enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppException } from '../common/errors/app.exception';
 import { ERROR_CODES } from '../common/errors/error-codes';
@@ -118,23 +119,6 @@ export class WhatsappAccountsService {
 
   async getQrForPage(account: WhatsappAccount, requestId: string): Promise<QrViewModel> {
     return this.wahaService.getQrForDashboard(account, { requestId, accountId: account.id });
-  }
-
-  async listRecentLogs(projectId: string, accountId: string, take = 25) {
-    await this.getByIdForProject(projectId, accountId);
-    return this.prisma.outboundMessageLog.findMany({
-      where: { whatsappAccountId: accountId },
-      orderBy: { createdAt: 'desc' },
-      take,
-      select: {
-        requestId: true,
-        messageType: true,
-        status: true,
-        wahaMessageId: true,
-        errorCode: true,
-        createdAt: true,
-      },
-    });
   }
 
   private async assertProjectExists(projectId: string): Promise<void> {

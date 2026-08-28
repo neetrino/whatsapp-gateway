@@ -1,4 +1,4 @@
-import { WhatsappAccountMode } from '@prisma/client';
+import { WhatsappAccountMode } from '../../src/common/db-enums';
 import { ERROR_CODES } from '../../src/common/errors/error-codes';
 import { AccountModePolicyService } from '../../src/waha/account-mode-policy.service';
 

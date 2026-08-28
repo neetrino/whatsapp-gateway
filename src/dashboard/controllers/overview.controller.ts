@@ -1,5 +1,5 @@
 import { Controller, Get, HttpStatus, Req, Res } from '@nestjs/common';
-import { SessionStatus } from '@prisma/client';
+import { SessionStatus } from '../../common/db-enums';
 import type { Request, Response } from 'express';
 import {
   CurrentAdmin,

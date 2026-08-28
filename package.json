@@ -17,8 +17,8 @@
     "test:cov": "jest --coverage",
     "test:e2e": "jest --config ./tests/jest-e2e.config.js",
     "test:waha": "jest --config ./tests/jest-waha.config.js",
-    "test:idempotency:pg": "jest --config ./tests/jest-idempotency-pg.config.js",
     "prisma:generate": "prisma generate",
+    "prisma:import": "ts-node src/scripts/import-control-plane.ts",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "ts-node prisma/seed.ts"

@@ -1,4 +1,4 @@
-import { SessionStatus } from '@prisma/client';
+import { SessionStatus } from '../../src/common/db-enums';
 import { loadConnectedAccount } from '../../src/whatsapp-accounts/load-connected-account';
 import { ERROR_CODES } from '../../src/common/errors/error-codes';
 

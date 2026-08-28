@@ -7,14 +7,14 @@ This project is **not** NBOS, **not** a plugin, and **not** a Messenger UI.
 
 ## What this is
 
-- **HTTP JSON API:** preferred **v1** `GET /api/v1/accounts`, `GET /api/v1/accounts/:accountId/status`, `POST /api/v1/accounts/:accountId/messages` (Project token, account-scoped, `Idempotency-Key` on send). **MESSENGER** accounts also expose `GET /api/v1/accounts/:accountId/chats` and `.../chats/:chatId/messages` (WAHA Store proxy; bodies capped, not stored in Postgres) and receive inbound events via per-Project HTTPS webhooks (configured in dashboard). Legacy `POST /api/messages/send` (`chatId` + `text` only), `POST /api/messages/send-media`, and group lifecycle under `/api/groups*` remain.
+- **HTTP JSON API:** `GET /api/v1/accounts`, `GET /api/v1/accounts/:accountId/status`, `POST /api/v1/accounts/:accountId/messages` (Project token, account-scoped). **MESSENGER** accounts also expose chats/history (WAHA Store proxy, not stored) and inbound HTTPS webhooks. Legacy `POST /api/messages/send` and `POST /api/messages/send-media` remain.
 - Minimal **dashboard** (server-rendered) for the singleton **Admin**: login, **Projects** (API tokens + WhatsApp accounts, QR, session actions), system health.
 - **Admin (singleton) → Project → ApiTokens[] + WhatsappAccounts[]**. Tokens and accounts belong to a Project, not to a User. There is no User/Role model and no `ADMIN_NAME`.
 
 ## What this is not
 
 - No chat list, inbox, message history, groups UI, or webhook log UI.
-- No storage of message text, captions, or `mediaUrl` in the database (safe metadata logs only, including `messageType`: TEXT / IMAGE / VIDEO).
+- No storage of messages, outbound logs, or webhook payloads. SQLite holds only admin, projects, tokens, and WhatsApp account connections.
 - No phone-number send path: only WhatsApp `chatId` (`@c.us` / `@g.us`).
 - No modification of message text (no name prefix, no signatures).
 
@@ -26,7 +26,7 @@ flowchart LR
   Browser["Admin browser"] -->|"signed httpOnly gw_session"| Gateway
   Gateway -->|"Internal HTTP"| WAHA["WAHA container"]
   WAHA --> WhatsApp["WhatsApp network"]
-  Gateway --> Neon["Neon PostgreSQL"]
+  Gateway --> SQLite["SQLite file"]
 ```
 
 Public exposure: **Gateway only** (HTTPS). WAHA stays on the Docker internal network.
@@ -34,23 +34,24 @@ Public exposure: **Gateway only** (HTTPS). WAHA stays on the Docker internal net
 ## Tech stack
 
 - **NestJS** + **TypeScript** (strict)
-- **Prisma** + **PostgreSQL** (Neon)
+- **Prisma** + **SQLite**
 - **argon2id** (dashboard passwords), **HMAC-SHA256** with `TOKEN_PEPPER` (API tokens)
 - **Handlebars** dashboard (no SPA)
-- **Docker** + **docker-compose** (Gateway + WAHA + persistent WAHA volume)
+- **Docker** + **docker-compose** (Gateway + WAHA + SQLite volume + WAHA sessions volume)
 
 ## Quick start (local)
 
-1. Copy [`.env.example`](.env.example) to `.env` and fill all variables (secrets ≥ 32 chars).
-2. Create a Neon database and set `DATABASE_URL`.
+1. Copy [`.env.example`](.env.example) to `.env` and fill secrets (≥ 32 chars).
+2. Set `DATABASE_URL` to an **absolute** `file:...` path (see `.env.example`).
 3. Install and migrate:
 
 ```bash
 npm install
 npx prisma migrate deploy
-npm run prisma:seed   # requires ADMIN_EMAIL / ADMIN_PASSWORD in .env
 npm run start:dev
 ```
+
+Admin is created on first start from `ADMIN_EMAIL` / `ADMIN_PASSWORD` if the SQLite file has no admin yet.
 
 4. Open `http://localhost:3000/login`, sign in as the seeded Admin, create a **Project**, add WhatsApp accounts, scan QR, create API tokens.
 
@@ -64,8 +65,7 @@ Key webhook / inbound variables:
 |----------|---------|
 | `GATEWAY_INTERNAL_URL` | Docker-internal base URL WAHA calls (`http://gateway:3000` in compose) |
 | `WAHA_WEBHOOK_SECRET` | HMAC secret for `POST /internal/waha/events` (≥ 32 chars) |
-| `WEBHOOK_DELIVERY_TIMEOUT_MS` | Outbound Project webhook HTTP timeout |
-| `WEBHOOK_MAX_ATTEMPTS` / `WEBHOOK_RETRY_BASE_MS` | Durable delivery retry policy |
+| `WEBHOOK_DELIVERY_TIMEOUT_MS` | Optional outbound Project webhook HTTP timeout (default 10000) |
 
 Compose service names: **`gateway`** (NestJS) and **`waha`** (WAHA). WAHA is not published to the host in production compose.
 
@@ -89,10 +89,9 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Hetzner + reverse proxy guidanc
 
 ## External API (summary)
 
-- **v1 (preferred):** `GET /api/v1/accounts`, `GET /api/v1/accounts/:id/status`, `POST /api/v1/accounts/:id/messages` with `Authorization: Bearer <PROJECT_TOKEN>` and `Idempotency-Key` on send. Discriminated body `type: TEXT | IMAGE | VIDEO`. See [docs/API.md](docs/API.md).
+- **v1 (preferred):** `GET /api/v1/accounts`, `GET /api/v1/accounts/:id/status`, `POST /api/v1/accounts/:id/messages` with `Authorization: Bearer <PROJECT_TOKEN>`. Discriminated body `type: TEXT | IMAGE | VIDEO`. See [docs/API.md](docs/API.md).
 - **Legacy text:** `POST /api/messages/send` — same auth, JSON `{ "chatId", "text" }` only. Requires exactly one active account on the Project.
 - **Legacy media:** `POST /api/messages/send-media`.
-- **Groups:** `/api/groups*` — see [docs/API.md](docs/API.md). Create/add require `Idempotency-Key`.
 
 Full contract: [docs/API.md](docs/API.md).
 
@@ -130,7 +129,7 @@ Image and video helpers (same auth; `mediaUrl` must be a **public HTTPS** URL) a
 |-----|---------|
 | [docs/API.md](docs/API.md) | Public send API, errors, curl |
 | [docs/NBOS_INTEGRATION.md](docs/NBOS_INTEGRATION.md) | What NBOS needs (URL + token + chatId + text or media URL) |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Hetzner, Docker, HTTPS, Neon |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Docker, SQLite volume, HTTPS |
 | [docs/SECURITY.md](docs/SECURITY.md) | Tokens, cookies, WAHA isolation |
 | [docs/WAHA_SETUP.md](docs/WAHA_SETUP.md) | WAHA container, API key, sessions volume |
 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Runbook, health, backups |
@@ -143,8 +142,6 @@ npm run test:e2e
 # Optional live WAHA multi-session (loopback overlay, never public bind):
 # docker compose -f docker-compose.yml -f docker-compose.integration.yml up -d waha
 # WAHA_BASE_URL=http://127.0.0.1:3001 WAHA_INTEGRATION=1 npm run test:waha
-# Optional PostgreSQL concurrency (disposable DB only — never DATABASE_URL):
-# IDEMPOTENCY_PG_INTEGRATION=1 IDEMPOTENCY_PG_URL=postgresql://... npm run test:idempotency:pg
 ```
 
 ## License

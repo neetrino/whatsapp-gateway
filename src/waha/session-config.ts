@@ -1,4 +1,4 @@
-import { WhatsappAccountMode } from '@prisma/client';
+import { WhatsappAccountMode } from '../common/db-enums';
 
 export const WAHA_INBOUND_EVENTS = [
   'message',
@@ -40,7 +40,7 @@ const buildInboundWebhookUrl = (baseUrl: string): string => {
 
 export const buildSessionConfig = (
   sessionName: string,
-  mode: WhatsappAccountMode,
+  mode: string,
   options: BuildSessionConfigOptions,
 ): WahaSessionConfigPayload => {
   const storeEnabled = mode === WhatsappAccountMode.MESSENGER;

@@ -25,7 +25,6 @@ import { UpdateProjectDto } from '../../projects/dto/update-project.dto';
 import { CreateTokenDto } from '../../api-tokens/dto/create-token.dto';
 import { UpdateProjectWebhookDto } from '../../projects/dto/update-project-webhook.dto';
 import { ProjectWebhooksService } from '../../projects/project-webhooks.service';
-import { ProjectWebhookDeliveryService } from '../../webhooks/project-webhook-delivery.service';
 import { CsrfFormDto } from '../../common/dto/csrf-form.dto';
 import { consumeTokenRevealCookie, setTokenRevealCookie } from '../../auth/token-reveal';
 import { consumeWebhookRevealCookie, setWebhookRevealCookie } from '../../webhooks/webhook-reveal';
@@ -38,7 +37,6 @@ export class ProjectsDashboardController {
     private readonly tokensService: ApiTokensService,
     private readonly accountsService: WhatsappAccountsService,
     private readonly authService: AuthService,
-    private readonly webhookDeliveryService: ProjectWebhookDeliveryService,
     private readonly projectWebhooksService: ProjectWebhooksService,
   ) {}
 
@@ -79,15 +77,13 @@ export class ProjectsDashboardController {
       revealed?: string;
       revealedWebhook?: string;
       accountAmbiguous: boolean;
-      webhookStats: unknown;
       active: 'projects';
     }
   > {
     const project = await this.projectsService.getById(id);
-    const [tokens, accounts, webhookStats] = await Promise.all([
+    const [tokens, accounts] = await Promise.all([
       this.tokensService.listForProject(id),
       this.accountsService.listForProject(id),
-      this.webhookDeliveryService.getDeliveryStats(id),
     ]);
     const revealed = consumeTokenRevealCookie(req, res, this.authService.secureCookies(), id);
     const revealedWebhook = consumeWebhookRevealCookie(
@@ -105,7 +101,6 @@ export class ProjectsDashboardController {
       revealed,
       revealedWebhook,
       accountAmbiguous: activeAccountCount > 1,
-      webhookStats,
       active: 'projects',
     };
   }

@@ -28,7 +28,6 @@ describe('Dashboard route safety (e2e)', () => {
       count: jest.fn(),
     },
     apiToken: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn() },
-    outboundMessageLog: { findMany: jest.fn() },
   };
 
   beforeAll(async () => {

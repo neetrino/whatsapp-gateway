@@ -1,4 +1,4 @@
-import { WhatsappAccountMode } from '@prisma/client';
+import { WhatsappAccountMode } from '../../src/common/db-enums';
 import { buildSessionConfig, isNowebStoreEnabled } from '../../src/waha/session-config';
 
 const options = {

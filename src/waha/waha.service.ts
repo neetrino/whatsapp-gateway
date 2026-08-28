@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { SessionStatus, WhatsappAccount } from '@prisma/client';
-import type { EnvironmentVariables } from '../config/env.validation';
+import { WhatsappAccount } from '@prisma/client';
+import { SessionStatus } from '../common/db-enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { WahaClient } from './waha.client';
 import {
@@ -34,18 +33,8 @@ export class WahaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly client: WahaClient,
-    private readonly config: ConfigService<EnvironmentVariables, true>,
     private readonly modePolicy: AccountModePolicyService,
-  ) {
-    const ignored = this.config.get('WAHA_SESSION_NAME', { infer: true })?.trim();
-    if (ignored) {
-      this.logger.warn({
-        msg: 'waha_session_name_ignored',
-        detail:
-          'WAHA_SESSION_NAME is deprecated and ignored. Database sessionName is authoritative.',
-      });
-    }
-  }
+  ) {}
 
   /** Session name sent to WAHA. Database `WhatsappAccount.sessionName` is authoritative. */
   effectiveSessionName(account: Pick<WhatsappAccount, 'sessionName'>): string {

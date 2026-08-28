@@ -117,35 +117,6 @@
       </form>
     </div>
   </div>
-
-  <div class="panel-section">
-    <h2 class="panel-section-title">Recent outbound operations</h2>
-    <p class="meta">Safe metadata only. Message text, captions, and media URLs are never stored.</p>
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Time</th>
-          <th class="col-center">Type</th>
-          <th class="col-center">Status</th>
-          <th class="col-center">Request</th>
-          <th class="col-center">Error</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{#each recentLogs}}
-          <tr>
-            <td>{{this.createdAt}}</td>
-            <td class="col-center">{{this.messageType}}</td>
-            <td class="col-center"><span class="status status-{{this.status}}">{{this.status}}</span></td>
-            <td class="col-center"><code>{{this.requestId}}</code></td>
-            <td class="col-center">{{#if this.errorCode}}<code>{{this.errorCode}}</code>{{else}}—{{/if}}</td>
-          </tr>
-        {{else}}
-          <tr><td colspan="5">No outbound operations yet.</td></tr>
-        {{/each}}
-      </tbody>
-    </table>
-  </div>
 </section>
 
 <script>

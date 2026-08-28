@@ -4,6 +4,7 @@ coverage
 .git
 .gitignore
 .env
+data
 .env.local
 .env.*.local
 README.md

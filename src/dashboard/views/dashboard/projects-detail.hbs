@@ -45,7 +45,7 @@
   {{#if accountAmbiguous}}
     <div class="banner">
       <strong>Legacy API warning.</strong> This project has more than one active WhatsApp account.
-      Send and group API calls will fail with <code>PROJECT_ACCOUNT_AMBIGUOUS</code> until exactly one account is active.
+      Legacy send calls will fail with <code>PROJECT_ACCOUNT_AMBIGUOUS</code> until exactly one account is active.
     </div>
   {{/if}}
 
@@ -180,38 +180,6 @@
           <input type="hidden" name="_csrf" value="{{csrfToken}}" />
           <button type="submit">Regenerate signing key</button>
         </form>
-      </div>
-      <div class="side-sheet__section">
-        <h3 class="side-sheet__section-title">Delivery stats</h3>
-        <ul class="meta">
-          {{#each webhookStats.counts}}
-            <li>{{this.status}}: {{this._count._all}}</li>
-          {{/each}}
-        </ul>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Event</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>Attempts</th>
-              <th>HTTP</th>
-              <th>When</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each webhookStats.recent}}
-              <tr>
-                <td><code>{{this.eventId}}</code></td>
-                <td>{{this.eventType}}</td>
-                <td>{{this.status}}</td>
-                <td>{{this.attemptCount}}</td>
-                <td>{{#if this.lastHttpStatus}}{{this.lastHttpStatus}}{{else}}—{{/if}}</td>
-                <td>{{this.createdAt}}</td>
-              </tr>
-            {{/each}}
-          </tbody>
-        </table>
       </div>
     </div>
   </div>

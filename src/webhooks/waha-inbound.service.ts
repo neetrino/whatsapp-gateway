@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { WhatsappAccountMode } from '@prisma/client';
+import { WhatsappAccountMode } from '../common/db-enums';
 import type { EnvironmentVariables } from '../config/env.validation';
 import { AppException } from '../common/errors/app.exception';
 import { ERROR_CODES } from '../common/errors/error-codes';
 import { PrismaService } from '../prisma/prisma.service';
 import { verifyWahaWebhookHmac } from './waha-hmac';
 import { mapWahaEventToProjectPayload } from './waha-event.mapper';
-import { ProjectWebhookDeliveryService } from './project-webhook-delivery.service';
+import { ProjectWebhookFanoutService } from './project-webhook-fanout.service';
 
 const WAHA_REPLAY_WINDOW_MS = 5 * 60 * 1000;
 
@@ -25,7 +25,7 @@ export class WahaInboundService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<EnvironmentVariables, true>,
-    private readonly deliveryService: ProjectWebhookDeliveryService,
+    private readonly fanout: ProjectWebhookFanoutService,
   ) {}
 
   verifyRequest(rawBody: Buffer, headers: WahaInboundHeaders): void {
@@ -47,7 +47,7 @@ export class WahaInboundService {
     }
   }
 
-  async handleEvent(rawBody: Buffer, headers: WahaInboundHeaders): Promise<void> {
+  async handleEvent(rawBody: Buffer, _headers: WahaInboundHeaders): Promise<void> {
     let parsed: unknown;
     try {
       parsed = JSON.parse(rawBody.toString('utf8')) as unknown;
@@ -82,20 +82,14 @@ export class WahaInboundService {
       return;
     }
 
-    const maxTextLength = this.config.get('MAX_TEXT_LENGTH', { infer: true });
     const payload = mapWahaEventToProjectPayload(
       account.id,
       wahaEvent,
       record.payload,
-      maxTextLength,
+      this.config.get('MAX_TEXT_LENGTH', { infer: true }),
     );
     if (!payload) return;
 
-    await this.deliveryService.enqueueDelivery(
-      account.projectId,
-      account.id,
-      payload,
-      headers.requestId,
-    );
+    await this.fanout.deliver(account.projectId, payload);
   }
 }

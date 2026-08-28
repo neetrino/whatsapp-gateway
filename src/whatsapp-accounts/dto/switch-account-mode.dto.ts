@@ -1,5 +1,5 @@
 import { IsEnum } from 'class-validator';
-import { WhatsappAccountMode } from '@prisma/client';
+import { WhatsappAccountMode } from '../../common/db-enums';
 import { CsrfFormDto } from '../../common/dto/csrf-form.dto';
 
 export class SwitchAccountModeDto extends CsrfFormDto {

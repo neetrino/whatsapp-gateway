@@ -17,6 +17,22 @@ export enum NodeEnv {
   Test = 'test',
 }
 
+const DEFAULTS: Record<string, unknown> = {
+  PORT: 3000,
+  GATEWAY_INTERNAL_URL: 'http://gateway:3000',
+  API_TOKEN_PREFIX: 'gw_live',
+  MAX_TEXT_LENGTH: 4096,
+  MAX_CAPTION_LENGTH: 4096,
+  MAX_IMAGE_SIZE_MB: 10,
+  MAX_VIDEO_SIZE_MB: 50,
+  MAX_CHATS_PAGE: 100,
+  MAX_MESSAGES_PAGE: 100,
+  RATE_LIMIT_SEND: 1200,
+  RATE_LIMIT_V1_SEND: 1200,
+  RATE_LIMIT_V1_READ: 2400,
+  WEBHOOK_DELIVERY_TIMEOUT_MS: 10_000,
+};
+
 export class EnvironmentVariables {
   @IsEnum(NodeEnv)
   NODE_ENV!: NodeEnv;
@@ -28,9 +44,6 @@ export class EnvironmentVariables {
 
   @IsUrl({ require_tld: false, require_protocol: true })
   APP_URL!: string;
-
-  @IsUrl({ require_tld: false, require_protocol: true })
-  GATEWAY_PUBLIC_URL!: string;
 
   @IsString()
   @MinLength(10)
@@ -54,14 +67,6 @@ export class EnvironmentVariables {
   @IsString()
   @IsOptional()
   WAHA_API_KEY?: string;
-
-  /**
-   * Deprecated compatibility flag. Ignored at runtime: database `sessionName` is authoritative.
-   * Kept so existing `.env` files still boot.
-   */
-  @IsString()
-  @IsOptional()
-  WAHA_SESSION_NAME?: string;
 
   @IsString()
   @MinLength(32, { message: 'WAHA_WEBHOOK_SECRET must be at least 32 characters' })
@@ -107,10 +112,6 @@ export class EnvironmentVariables {
   RATE_LIMIT_V1_READ!: number;
 
   @IsInt()
-  @Min(1_000)
-  IDEMPOTENCY_PROCESSING_TIMEOUT_MS!: number;
-
-  @IsInt()
   @Min(1)
   @Max(500)
   MAX_CHATS_PAGE!: number;
@@ -124,34 +125,14 @@ export class EnvironmentVariables {
   @Min(1_000)
   @Max(120_000)
   WEBHOOK_DELIVERY_TIMEOUT_MS!: number;
-
-  @IsInt()
-  @Min(1)
-  @Max(20)
-  WEBHOOK_MAX_ATTEMPTS!: number;
-
-  @IsInt()
-  @Min(100)
-  @Max(60_000)
-  WEBHOOK_RETRY_BASE_MS!: number;
 }
 
 export const validateEnv = (raw: Record<string, unknown>): EnvironmentVariables => {
-  const withDefaults: Record<string, unknown> = {
-    RATE_LIMIT_V1_SEND: 1200,
-    RATE_LIMIT_V1_READ: 2400,
-    IDEMPOTENCY_PROCESSING_TIMEOUT_MS: 120_000,
-    MAX_CHATS_PAGE: 100,
-    MAX_MESSAGES_PAGE: 100,
-    GATEWAY_INTERNAL_URL: 'http://gateway:3000',
-    WEBHOOK_DELIVERY_TIMEOUT_MS: 10_000,
-    WEBHOOK_MAX_ATTEMPTS: 5,
-    WEBHOOK_RETRY_BASE_MS: 2_000,
-    ...raw,
-  };
-  const validated = plainToInstance(EnvironmentVariables, withDefaults, {
-    enableImplicitConversion: true,
-  });
+  const validated = plainToInstance(
+    EnvironmentVariables,
+    { ...DEFAULTS, ...raw },
+    { enableImplicitConversion: true },
+  );
   const errors = validateSync(validated, { skipMissingProperties: false });
   if (errors.length > 0) {
     const formatted = errors

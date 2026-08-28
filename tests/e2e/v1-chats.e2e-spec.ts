@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { SessionStatus, WhatsappAccountMode } from '@prisma/client';
+import { SessionStatus, WhatsappAccountMode } from '../../src/common/db-enums';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { ApiTokensService } from '../../src/api-tokens/api-tokens.service';
@@ -51,15 +51,6 @@ describe('v1 chats API (e2e)', () => {
       update: jest.fn(),
     },
     apiToken: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
-    outboundMessageLog: {
-      create: jest.fn(),
-      updateMany: jest.fn(),
-      findFirst: jest.fn(),
-      findMany: jest.fn(),
-    },
-    outboundMessageIdempotency: { findUnique: jest.fn(), create: jest.fn(), updateMany: jest.fn() },
-    groupApiOperation: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
-    $transaction: jest.fn(),
   };
 
   beforeAll(async () => {

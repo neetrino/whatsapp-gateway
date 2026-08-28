@@ -1,4 +1,4 @@
-import { WhatsappAccountMode } from '@prisma/client';
+import { WhatsappAccountMode } from '../../src/common/db-enums';
 import { WahaInboundService } from '../../src/webhooks/waha-inbound.service';
 import { computeWahaWebhookHmac } from '../../src/webhooks/waha-hmac';
 
@@ -13,7 +13,7 @@ describe('WahaInboundService', () => {
   };
 
   const build = () => {
-    const deliveryService = { enqueueDelivery: jest.fn() };
+    const fanout = { deliver: jest.fn().mockResolvedValue(undefined) };
     const prisma = {
       whatsappAccount: {
         findUnique: jest.fn().mockResolvedValue({
@@ -24,12 +24,8 @@ describe('WahaInboundService', () => {
         }),
       },
     };
-    const service = new WahaInboundService(
-      prisma as never,
-      config as never,
-      deliveryService as never,
-    );
-    return { service, deliveryService, prisma };
+    const service = new WahaInboundService(prisma as never, config as never, fanout as never);
+    return { service, fanout, prisma };
   };
 
   it('rejects invalid HMAC', () => {
@@ -45,7 +41,7 @@ describe('WahaInboundService', () => {
   });
 
   it('forwards normalized events for MESSENGER accounts', async () => {
-    const { service, deliveryService } = build();
+    const { service, fanout } = build();
     const body = {
       event: 'message',
       session: 'wa_m',
@@ -66,16 +62,14 @@ describe('WahaInboundService', () => {
     };
     service.verifyRequest(rawBody, headers);
     await service.handleEvent(rawBody, headers);
-    expect(deliveryService.enqueueDelivery).toHaveBeenCalledWith(
+    expect(fanout.deliver).toHaveBeenCalledWith(
       'p1',
-      'acc_m',
-      expect.objectContaining({ type: 'message.received' }),
-      'req_1',
+      expect.objectContaining({ type: 'message.received', accountId: 'acc_m' }),
     );
   });
 
-  it('drops SEND_ONLY accounts without enqueue', async () => {
-    const { service, deliveryService, prisma } = build();
+  it('drops SEND_ONLY accounts without deliver', async () => {
+    const { service, fanout, prisma } = build();
     prisma.whatsappAccount.findUnique.mockResolvedValue({
       id: 'acc_s',
       projectId: 'p1',
@@ -89,11 +83,11 @@ describe('WahaInboundService', () => {
     };
     const rawBody = Buffer.from(JSON.stringify(body), 'utf8');
     await service.handleEvent(rawBody, { requestId: 'req_1' });
-    expect(deliveryService.enqueueDelivery).not.toHaveBeenCalled();
+    expect(fanout.deliver).not.toHaveBeenCalled();
   });
 
-  it('drops inactive MESSENGER accounts without enqueue', async () => {
-    const { service, deliveryService, prisma } = build();
+  it('drops inactive MESSENGER accounts without deliver', async () => {
+    const { service, fanout, prisma } = build();
     prisma.whatsappAccount.findUnique.mockResolvedValue({
       id: 'acc_i',
       projectId: 'p1',
@@ -107,6 +101,6 @@ describe('WahaInboundService', () => {
     };
     const rawBody = Buffer.from(JSON.stringify(body), 'utf8');
     await service.handleEvent(rawBody, { requestId: 'req_1' });
-    expect(deliveryService.enqueueDelivery).not.toHaveBeenCalled();
+    expect(fanout.deliver).not.toHaveBeenCalled();
   });
 });

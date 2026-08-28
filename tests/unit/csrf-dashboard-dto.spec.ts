@@ -7,7 +7,7 @@ import { CreateWhatsappAccountDto } from '../../src/whatsapp-accounts/dto/create
 import { CreateTokenDto } from '../../src/api-tokens/dto/create-token.dto';
 import { SendMessageDto } from '../../src/messages/dto/send-message.dto';
 import { VALIDATION_PIPE_OPTIONS } from '../../src/common/pipes/validation.factory';
-import { WhatsappAccountMode } from '@prisma/client';
+import { WhatsappAccountMode } from '../../src/common/db-enums';
 
 const pipeValidateOpts = {
   whitelist: VALIDATION_PIPE_OPTIONS.whitelist,

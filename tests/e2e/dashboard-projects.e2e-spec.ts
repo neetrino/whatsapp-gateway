@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { SessionStatus, WhatsappAccountMode } from '@prisma/client';
+import { SessionStatus, WhatsappAccountMode } from '../../src/common/db-enums';
 import { JwtService } from '@nestjs/jwt';
 import request from 'supertest';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -15,6 +15,8 @@ describe('Dashboard project/account/token flows (e2e)', () => {
   let authCookies: string;
   const csrf = 'csrf-dashboard-e2e';
   const secret = process.env.COOKIE_SECRET ?? '';
+  const tokenPrefix = process.env.API_TOKEN_PREFIX ?? 'gw_live';
+  const rawTokenPattern = new RegExp(`${tokenPrefix}_[A-Za-z0-9_-]+`);
 
   const admin = {
     id: 'admin1',
@@ -140,15 +142,6 @@ describe('Dashboard project/account/token flows (e2e)', () => {
           [...tokens.values()].find((row) => matches(row, where)) ?? null,
       ),
       update: jest.fn(),
-    },
-    outboundMessageLog: {
-      findMany: jest.fn().mockResolvedValue([]),
-    },
-    projectWebhookDelivery: {
-      create: jest.fn(),
-      update: jest.fn(),
-      groupBy: jest.fn().mockResolvedValue([]),
-      findMany: jest.fn().mockResolvedValue([]),
     },
   };
 
@@ -306,13 +299,13 @@ describe('Dashboard project/account/token flows (e2e)', () => {
     const other = await htmlGet('/projects/proj_beta', withReveal);
     expect(other.status).toBe(200);
     expect(other.text).not.toContain('Save this API token now');
-    expect(other.text).not.toMatch(/gw_test_[A-Za-z0-9_-]+/);
+    expect(other.text).not.toMatch(rawTokenPattern);
     expect(cookiePairsFromResponse(other.headers, ['gw_token_reveal'])).toBe('');
 
     const first = await htmlGet('/projects/proj_acme', withReveal);
     expect(first.text).toContain('Save this API token now');
-    expect(first.text).toMatch(/gw_test_[A-Za-z0-9_-]+/);
-    const rawMatch = first.text.match(/gw_test_[A-Za-z0-9_-]+/);
+    expect(first.text).toMatch(rawTokenPattern);
+    const rawMatch = first.text.match(rawTokenPattern);
     const raw = rawMatch?.[0] ?? '';
     expect(raw.length).toBeGreaterThan(10);
 
@@ -322,5 +315,36 @@ describe('Dashboard project/account/token flows (e2e)', () => {
     );
     expect(second.text).not.toContain('Save this API token now');
     expect(second.text).not.toContain(raw);
+  });
+
+  it('saves webhook settings and reveals a regenerated signing key once', async () => {
+    const detail = await htmlGet('/projects/proj_acme');
+    expect(detail.status).toBe(200);
+    expect(detail.text).toContain('Project webhook');
+    expect(detail.text).toContain('name="webhookUrl"');
+
+    const saved = await formPost('/projects/proj_acme/webhook', {
+      webhookEnabled: 'true',
+    });
+    expect(saved.status).toBe(303);
+    expect(saved.headers.location).toBe('/projects/proj_acme');
+    expect(projects.get('proj_acme')?.webhookEnabled).toBe(true);
+
+    const regenerated = await formPost('/projects/proj_acme/webhook/regenerate', {});
+    expect(regenerated.status).toBe(303);
+    const reveal = cookiePairsFromResponse(regenerated.headers, ['gw_webhook_reveal']);
+    expect(reveal).toContain('gw_webhook_reveal=');
+
+    const withReveal = `${authCookies}; ${reveal}`;
+    const other = await htmlGet('/projects/proj_beta', withReveal);
+    expect(other.text).not.toContain('Save this webhook signing key now');
+
+    const first = await htmlGet('/projects/proj_acme', withReveal);
+    expect(first.text).toContain('Save this webhook signing key now');
+    const second = await htmlGet(
+      '/projects/proj_acme',
+      `${authCookies}; ${cookiePairsFromResponse(first.headers, ['gw_webhook_reveal'])}`,
+    );
+    expect(second.text).not.toContain('Save this webhook signing key now');
   });
 });

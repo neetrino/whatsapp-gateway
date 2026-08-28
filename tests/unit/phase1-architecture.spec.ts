@@ -20,13 +20,21 @@ describe('Phase 1 architecture remnants', () => {
     const schema = readFileSync(join(process.cwd(), 'prisma', 'schema.prisma'), 'utf8');
     expect(schema).toMatch(/model Admin/);
     expect(schema).toMatch(/model Project/);
-    expect(schema).toMatch(/enum WhatsappAccountMode/);
+    expect(schema).toMatch(/model WhatsappAccount/);
+    expect(schema).toMatch(/model ApiToken/);
+    expect(schema).toMatch(/provider\s+=\s+"sqlite"/);
+    expect(schema).not.toMatch(/\benum WhatsappAccountMode\b/);
+    expect(schema).not.toMatch(/\benum SessionStatus\b/);
     expect(schema).not.toMatch(/\benum Role\b/);
     expect(schema).not.toMatch(/\bmodel User\b/);
+    expect(schema).not.toMatch(/OutboundMessageLog|OutboundMessageIdempotency|GroupApiOperation|ProjectWebhookDelivery/);
     expect(schema).toMatch(/projectId\s+String/);
     expect(schema).toMatch(/onDelete: Restrict/);
     expect(schema).toMatch(/singleton\s+Int\s+@unique/);
     expect(schema).not.toMatch(/model ApiToken \{[^}]*whatsappAccountId/s);
+    const enums = readFileSync(join(process.cwd(), 'src', 'common', 'db-enums.ts'), 'utf8');
+    expect(enums).toMatch(/export enum WhatsappAccountMode/);
+    expect(enums).toMatch(/export enum SessionStatus/);
   });
 
   it('source tree no longer contains User/Role dashboard architecture', () => {
