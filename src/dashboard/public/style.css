@@ -901,6 +901,10 @@ button.danger:hover {
   width: auto;
 }
 
+.data-table tr[hidden] {
+  display: none !important;
+}
+
 .panel-section .data-table,
 .container .card .data-table,
 .side-sheet__body .data-table {
