@@ -56,12 +56,8 @@ export class ProjectsDashboardController {
   }
 
   @Get('new')
-  @Render('dashboard/projects-new')
-  newPage(
-    @Req() req: Request,
-    @CurrentAdmin() admin: AuthenticatedAdmin,
-  ): BaseViewModel & { active: 'projects' } {
-    return { ...baseView(req, admin, 'New project'), active: 'projects' };
+  newPage(@Res() res: Response): void {
+    res.redirect(303, '/projects#new');
   }
 
   @Post()
