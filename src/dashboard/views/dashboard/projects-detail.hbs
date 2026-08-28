@@ -346,10 +346,31 @@
           <input type="hidden" name="_csrf" value="{{csrfToken}}" />
           <label>Label<input name="label" required maxlength="100" /></label>
           <label>Mode
-            <select name="mode" required>
-              <option value="SEND_ONLY" selected>SEND_ONLY</option>
-              <option value="MESSENGER">MESSENGER (Store + v1 chats when connected)</option>
-            </select>
+            <div class="custom-select" data-custom-select>
+              <select name="mode" required tabindex="-1" aria-hidden="true">
+                <option value="SEND_ONLY" selected>SEND_ONLY</option>
+                <option value="MESSENGER">MESSENGER (Store + v1 chats when connected)</option>
+              </select>
+              <button
+                type="button"
+                class="custom-select__trigger"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+                data-custom-select-trigger
+              >
+                <span data-custom-select-value>SEND_ONLY</span>
+              </button>
+              <ul class="custom-select__menu" role="listbox" hidden data-custom-select-menu>
+                <li role="option" class="custom-select__option is-selected" data-value="SEND_ONLY" aria-selected="true">
+                  <span class="custom-select__check" aria-hidden="true"></span>
+                  <span>SEND_ONLY</span>
+                </li>
+                <li role="option" class="custom-select__option" data-value="MESSENGER" aria-selected="false">
+                  <span class="custom-select__check" aria-hidden="true"></span>
+                  <span>MESSENGER (Store + v1 chats when connected)</span>
+                </li>
+              </ul>
+            </div>
           </label>
           <p class="meta">MESSENGER enables NOWEB Store and v1 chats/history APIs after the session is connected. Inbound webhooks are a later phase.</p>
           <div class="actions">
@@ -671,7 +692,18 @@
   }
 
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && (openTab || isSheetOpen('qr') || isSheetOpen('create-account'))) closeSheet();
+    if (e.key !== 'Escape') return;
+    var openSelect = document.querySelector('[data-custom-select].is-open');
+    if (openSelect) {
+      openSelect.classList.remove('is-open');
+      var t = openSelect.querySelector('[data-custom-select-trigger]');
+      var m = openSelect.querySelector('[data-custom-select-menu]');
+      if (t) t.setAttribute('aria-expanded', 'false');
+      if (m) m.hidden = true;
+      e.preventDefault();
+      return;
+    }
+    if (openTab || isSheetOpen('qr') || isSheetOpen('create-account')) closeSheet();
   });
 
   document.querySelectorAll('[data-active-switch]').forEach(function (input) {
@@ -717,6 +749,98 @@
         .catch(function () { loadQrContent(true); });
     });
   }
+
+  function initCustomSelect(root) {
+    var select = root.querySelector('select');
+    var trigger = root.querySelector('[data-custom-select-trigger]');
+    var valueEl = root.querySelector('[data-custom-select-value]');
+    var menu = root.querySelector('[data-custom-select-menu]');
+    if (!select || !trigger || !valueEl || !menu) return;
+
+    function options() {
+      return Array.prototype.slice.call(menu.querySelectorAll('[role="option"]'));
+    }
+
+    function setOpen(open) {
+      root.classList.toggle('is-open', open);
+      trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+      menu.hidden = !open;
+    }
+
+    function selectValue(value) {
+      select.value = value;
+      var selected = null;
+      options().forEach(function (opt) {
+        var match = opt.getAttribute('data-value') === value;
+        opt.classList.toggle('is-selected', match);
+        opt.setAttribute('aria-selected', match ? 'true' : 'false');
+        if (match) selected = opt;
+      });
+      valueEl.textContent = selected
+        ? (selected.querySelector('span:last-child') || selected).textContent.trim()
+        : value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    trigger.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var willOpen = menu.hidden;
+      document.querySelectorAll('[data-custom-select].is-open').forEach(function (el) {
+        if (el !== root) {
+          el.classList.remove('is-open');
+          var t = el.querySelector('[data-custom-select-trigger]');
+          var m = el.querySelector('[data-custom-select-menu]');
+          if (t) t.setAttribute('aria-expanded', 'false');
+          if (m) m.hidden = true;
+        }
+      });
+      setOpen(willOpen);
+    });
+
+    options().forEach(function (opt) {
+      opt.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        selectValue(opt.getAttribute('data-value'));
+        setOpen(false);
+        trigger.focus();
+      });
+    });
+
+    trigger.addEventListener('keydown', function (e) {
+      var items = options();
+      var idx = items.findIndex(function (opt) {
+        return opt.classList.contains('is-selected');
+      });
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (menu.hidden) {
+          setOpen(true);
+          return;
+        }
+        var next = e.key === 'ArrowDown'
+          ? Math.min(idx + 1, items.length - 1)
+          : Math.max(idx - 1, 0);
+        if (items[next]) selectValue(items[next].getAttribute('data-value'));
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setOpen(menu.hidden);
+      } else if (e.key === 'Escape' && !menu.hidden) {
+        e.preventDefault();
+        e.stopPropagation();
+        setOpen(false);
+      }
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!root.contains(e.target)) setOpen(false);
+    });
+
+    selectValue(select.value);
+  }
+
+  document.querySelectorAll('[data-custom-select]').forEach(initCustomSelect);
 
   {{#if revealedWebhook}}
   openSheet('webhook');
