@@ -1,7 +1,12 @@
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { SessionStatus, WhatsappAccountMode, OutboundIdempotencyStatus, MessageStatus } from '@prisma/client';
+import {
+  SessionStatus,
+  WhatsappAccountMode,
+  OutboundIdempotencyStatus,
+  MessageStatus,
+} from '@prisma/client';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { ApiTokensService } from '../../src/api-tokens/api-tokens.service';
@@ -45,7 +50,10 @@ describe('v1 account-scoped API (e2e)', () => {
     whatsappAccount: {
       findFirst: jest.fn(),
       findMany: jest.fn().mockResolvedValue([accountA]),
-      update: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...accountA, ...data })),
+      update: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+        ...accountA,
+        ...data,
+      })),
     },
     apiToken: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
     outboundMessageLog: {
@@ -197,9 +205,7 @@ describe('v1 account-scoped API (e2e)', () => {
       .set(idem('idem-text-0001'))
       .send({ type: 'TEXT', chatId: '37499111222@c.us', text: 'Hello v1' });
     expect(res.status).toBe(200);
-    expect(res.body.data).toEqual(
-      expect.objectContaining({ messageId: 'wmsg1', status: 'sent' }),
-    );
+    expect(res.body.data).toEqual(expect.objectContaining({ messageId: 'wmsg1', status: 'sent' }));
     expect(sendText).toHaveBeenCalledWith('wa_aaa', '37499111222@c.us', 'Hello v1');
   });
 

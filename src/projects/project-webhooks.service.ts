@@ -55,9 +55,16 @@ export class ProjectWebhooksService {
   }
 
   private async assertProject(projectId: string): Promise<void> {
-    const project = await this.prisma.project.findUnique({ where: { id: projectId }, select: { id: true } });
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true },
+    });
     if (!project) {
-      throw new AppException({ code: ERROR_CODES.NOT_FOUND, message: 'Project not found.', status: 404 });
+      throw new AppException({
+        code: ERROR_CODES.NOT_FOUND,
+        message: 'Project not found.',
+        status: 404,
+      });
     }
   }
 }

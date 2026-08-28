@@ -7,17 +7,19 @@ describe('WhatsappAccountsService', () => {
     const prisma = {
       project: { findUnique: jest.fn().mockResolvedValue({ id: 'p1' }) },
       whatsappAccount: {
-        create: jest.fn().mockImplementation(
-          async ({ data }: { data: { sessionName: string; mode: string } }) => ({
-            id: data.sessionName,
-            projectId: 'p1',
-            label: 'A',
-            mode: data.mode,
-            sessionName: data.sessionName,
-            status: SessionStatus.QR_REQUIRED,
-            isActive: true,
-          }),
-        ),
+        create: jest
+          .fn()
+          .mockImplementation(
+            async ({ data }: { data: { sessionName: string; mode: string } }) => ({
+              id: data.sessionName,
+              projectId: 'p1',
+              label: 'A',
+              mode: data.mode,
+              sessionName: data.sessionName,
+              status: SessionStatus.QR_REQUIRED,
+              isActive: true,
+            }),
+          ),
         findFirst: jest.fn(),
       },
     };
@@ -96,11 +98,7 @@ describe('WhatsappAccountsService', () => {
       applySessionConfig: jest.fn(),
     };
     const service = new WhatsappAccountsService(prisma as never, {} as never, modePolicy as never);
-    const result = await service.switchModeForProject(
-      'p1',
-      'acc1',
-      WhatsappAccountMode.MESSENGER,
-    );
+    const result = await service.switchModeForProject('p1', 'acc1', WhatsappAccountMode.MESSENGER);
     expect(result.applied).toBe(true);
     expect(modePolicy.applySessionConfig).not.toHaveBeenCalled();
     expect(prisma.whatsappAccount.update).toHaveBeenCalledWith({
@@ -130,11 +128,7 @@ describe('WhatsappAccountsService', () => {
       applySessionConfig: jest.fn().mockRejectedValue(new Error('waha down')),
     };
     const service = new WhatsappAccountsService(prisma as never, {} as never, modePolicy as never);
-    const result = await service.switchModeForProject(
-      'p1',
-      'acc1',
-      WhatsappAccountMode.MESSENGER,
-    );
+    const result = await service.switchModeForProject('p1', 'acc1', WhatsappAccountMode.MESSENGER);
     expect(result.applied).toBe(false);
     expect(result.account.mode).toBe(WhatsappAccountMode.SEND_ONLY);
     expect(prisma.whatsappAccount.update).not.toHaveBeenCalled();

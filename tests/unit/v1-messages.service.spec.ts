@@ -20,7 +20,11 @@ const buildConfig = (overrides: Record<string, number> = {}) => ({
   }),
 });
 
-const connected = (id: string, sessionName: string, status: SessionStatus = SessionStatus.CONNECTED) => ({
+const connected = (
+  id: string,
+  sessionName: string,
+  status: SessionStatus = SessionStatus.CONNECTED,
+) => ({
   id,
   sessionName,
   isActive: true,
@@ -78,8 +82,18 @@ describe('V1MessagesService', () => {
     );
     await serviceA.send(project, 'acc-a', textInput, 'idem-key-aaaa');
     await serviceB.send(project, 'acc-b', textInput, 'idem-key-bbbb');
-    expect(wahaClient.sendText).toHaveBeenNthCalledWith(1, 'wa_aaa', textInput.chatId, textInput.text);
-    expect(wahaClient.sendText).toHaveBeenNthCalledWith(2, 'wa_bbb', textInput.chatId, textInput.text);
+    expect(wahaClient.sendText).toHaveBeenNthCalledWith(
+      1,
+      'wa_aaa',
+      textInput.chatId,
+      textInput.text,
+    );
+    expect(wahaClient.sendText).toHaveBeenNthCalledWith(
+      2,
+      'wa_bbb',
+      textInput.chatId,
+      textInput.text,
+    );
   });
 
   it('does not store text, caption, mediaUrl, raw token, or WAHA error text', async () => {
@@ -91,7 +105,10 @@ describe('V1MessagesService', () => {
       buildConfig() as never,
     );
     await service.send(project, 'acc1', textInput, 'idem-key-cccc');
-    const logData = prisma.outboundMessageLog.create.mock.calls[0]?.[0].data as Record<string, unknown>;
+    const logData = prisma.outboundMessageLog.create.mock.calls[0]?.[0].data as Record<
+      string,
+      unknown
+    >;
     expect(logData).not.toHaveProperty('text');
     expect(logData).not.toHaveProperty('caption');
     expect(logData).not.toHaveProperty('mediaUrl');
@@ -137,18 +154,20 @@ describe('V1MessagesService', () => {
         return rows.get(key) ?? null;
       },
     );
-    prisma.outboundMessageIdempotency.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
-      const key = String(data.idempotencyKey);
-      if (rows.has(key)) {
-        throw new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-          code: 'P2002',
-          clientVersion: '5.22.0',
-        });
-      }
-      const row = { id: 'idemp1', ...data, updatedAt: new Date() };
-      rows.set(key, row);
-      return row;
-    });
+    prisma.outboundMessageIdempotency.create.mockImplementation(
+      async ({ data }: { data: Record<string, unknown> }) => {
+        const key = String(data.idempotencyKey);
+        if (rows.has(key)) {
+          throw new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+            code: 'P2002',
+            clientVersion: '5.22.0',
+          });
+        }
+        const row = { id: 'idemp1', ...data, updatedAt: new Date() };
+        rows.set(key, row);
+        return row;
+      },
+    );
     let release!: (value: { id: string }) => void;
     const gate = new Promise<{ id: string }>((resolve) => {
       release = resolve;
@@ -195,7 +214,9 @@ describe('V1MessagesService', () => {
       { effectiveSessionName: (a: { sessionName: string }) => a.sessionName } as never,
       buildConfig() as never,
     );
-    await expect(httpService.send(project, 'acc1', textInput, 'idem-key-ffff')).rejects.toMatchObject({
+    await expect(
+      httpService.send(project, 'acc1', textInput, 'idem-key-ffff'),
+    ).rejects.toMatchObject({
       code: ERROR_CODES.MESSAGE_OUTCOME_UNKNOWN,
     });
     const idemUpdates = http.outboundMessageIdempotency.updateMany.mock.calls.map(
@@ -267,7 +288,9 @@ describe('V1MessagesService', () => {
       { effectiveSessionName: (a: { sessionName: string }) => a.sessionName } as never,
       config as never,
     );
-    await expect(service.send(project, 'acc1', longText, 'idem-key-fresh-limit')).rejects.toMatchObject({
+    await expect(
+      service.send(project, 'acc1', longText, 'idem-key-fresh-limit'),
+    ).rejects.toMatchObject({
       code: ERROR_CODES.VALIDATION_ERROR,
     });
     expect(sendText).not.toHaveBeenCalled();
@@ -359,9 +382,11 @@ describe('V1MessagesService', () => {
       { effectiveSessionName: (a: { sessionName: string }) => a.sessionName } as never,
       buildConfig() as never,
     );
-    await expect(service.send(project, 'acc1', textInput, 'idem-key-failed')).rejects.toMatchObject({
-      code: ERROR_CODES.WHATSAPP_NOT_CONNECTED,
-    });
+    await expect(service.send(project, 'acc1', textInput, 'idem-key-failed')).rejects.toMatchObject(
+      {
+        code: ERROR_CODES.WHATSAPP_NOT_CONNECTED,
+      },
+    );
     expect(sendText).not.toHaveBeenCalled();
   });
 
@@ -379,7 +404,9 @@ describe('V1MessagesService', () => {
       { effectiveSessionName: (a: { sessionName: string }) => a.sessionName } as never,
       buildConfig() as never,
     );
-    await expect(service.send(project, 'acc1', textInput, 'idem-key-rollback')).rejects.toMatchObject({
+    await expect(
+      service.send(project, 'acc1', textInput, 'idem-key-rollback'),
+    ).rejects.toMatchObject({
       code: ERROR_CODES.MESSAGE_OUTCOME_UNKNOWN,
     });
     const rolledBackFailed = prisma.outboundMessageLog.updateMany.mock.calls.filter(
@@ -411,4 +438,3 @@ describe('V1MessagesService', () => {
     );
   });
 });
-

@@ -38,7 +38,10 @@ export const sendFailureCode = (error: unknown, kind: 'TEXT' | 'IMAGE' | 'VIDEO'
   return ERROR_CODES.INTERNAL_ERROR;
 };
 
-export const toSendAppException = (error: unknown, kind: 'TEXT' | 'IMAGE' | 'VIDEO'): AppException => {
+export const toSendAppException = (
+  error: unknown,
+  kind: 'TEXT' | 'IMAGE' | 'VIDEO',
+): AppException => {
   if (error instanceof AppException) return error;
   if (isAmbiguousWahaError(error)) {
     return new AppException({

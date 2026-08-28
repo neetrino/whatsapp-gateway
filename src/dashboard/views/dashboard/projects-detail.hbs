@@ -1,11 +1,32 @@
 <section>
   <div class="page-header">
-    <h1>{{project.name}}</h1>
+    <div class="page-header__heading">
+      <a
+        href="/projects"
+        class="back-btn"
+        aria-label="Back to projects"
+        title="Back to projects"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </a>
+      <h1>{{project.name}}</h1>
+      <p class="meta page-header__slug">Slug <code>{{project.slug}}</code></p>
+    </div>
     <span class="status {{#if project.isActive}}status-CONNECTED{{else}}status-DISCONNECTED{{/if}}">
       {{#if project.isActive}}Active{{else}}Inactive{{/if}}
     </span>
   </div>
-  <p class="meta">Slug <code>{{project.slug}}</code></p>
+
+  <div class="detail-tabs" role="tablist" aria-label="Project panels">
+    <button type="button" class="detail-tab" role="tab" data-sheet="webhook" aria-controls="sheet-webhook">
+      Project webhook
+    </button>
+    <button type="button" class="detail-tab" role="tab" data-sheet="accounts" aria-controls="sheet-accounts">
+      WhatsApp accounts
+    </button>
+  </div>
 
   {{#if revealed}}
     <div class="banner">
@@ -28,29 +49,37 @@
     </div>
   {{/if}}
 
-  <div class="card">
-    <h2>Edit project</h2>
+  <div class="panel-section">
+    <div class="panel-section__header">
+      <h2 class="panel-section-title">Edit project</h2>
+      <form
+        method="post"
+        action="/projects/{{project.id}}/{{#if project.isActive}}deactivate{{else}}activate{{/if}}"
+        class="switch-form"
+      >
+        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+        <label class="switch">
+          <input
+            type="checkbox"
+            role="switch"
+            data-active-switch
+            {{#if project.isActive}}checked{{/if}}
+            aria-label="{{#if project.isActive}}Deactivate{{else}}Activate{{/if}} project"
+          />
+          <span class="switch__track" aria-hidden="true"></span>
+        </label>
+      </form>
+    </div>
     <form method="post" action="/projects/{{project.id}}/update" class="form inline-form">
       <input type="hidden" name="_csrf" value="{{csrfToken}}" />
       <label>Name<input name="name" value="{{project.name}}" required maxlength="100" /></label>
       <label>Slug<input name="slug" value="{{project.slug}}" required minlength="2" maxlength="64" /></label>
       <button type="submit" class="primary">Save</button>
     </form>
-    {{#if project.isActive}}
-      <form method="post" action="/projects/{{project.id}}/deactivate" class="inline">
-        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-        <button type="submit" class="danger">Deactivate</button>
-      </form>
-    {{else}}
-      <form method="post" action="/projects/{{project.id}}/activate" class="inline">
-        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-        <button type="submit" class="primary">Activate</button>
-      </form>
-    {{/if}}
   </div>
 
-  <div class="card">
-    <h2>API tokens</h2>
+  <div class="panel-section">
+    <h2 class="panel-section-title">API tokens</h2>
     <form method="post" action="/projects/{{project.id}}/tokens" class="form inline-form">
       <input type="hidden" name="_csrf" value="{{csrfToken}}" />
       <label>Name<input name="name" maxlength="100" placeholder="e.g. NBOS production" /></label>
@@ -60,10 +89,10 @@
       <thead>
         <tr>
           <th>Name</th>
-          <th>Prefix</th>
-          <th>Last 4</th>
-          <th>Last used</th>
-          <th>Revoked</th>
+          <th class="col-center">Prefix</th>
+          <th class="col-center">Last 4</th>
+          <th class="col-center">Last used</th>
+          <th class="col-revoked">Revoked</th>
           <th></th>
         </tr>
       </thead>
@@ -71,16 +100,30 @@
         {{#each tokens}}
           <tr>
             <td>{{this.name}}</td>
-            <td><code>{{this.tokenPrefix}}</code></td>
-            <td><code>…{{this.last4}}</code></td>
-            <td>{{#if this.lastUsedAt}}{{this.lastUsedAt}}{{else}}—{{/if}}</td>
-            <td>{{#if this.revokedAt}}Yes{{else}}No{{/if}}</td>
+            <td class="col-center"><code>{{this.tokenPrefix}}</code></td>
+            <td class="col-center"><code>…{{this.last4}}</code></td>
+            <td class="col-center">{{#if this.lastUsedAt}}{{this.lastUsedAt}}{{else}}—{{/if}}</td>
+            <td class="col-revoked">
+              <form
+                method="post"
+                action="/projects/{{../project.id}}/tokens/{{this.id}}/{{#if this.revokedAt}}restore{{else}}revoke{{/if}}"
+                class="switch-form"
+              >
+                <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
+                <label class="switch switch--revoke">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    data-active-switch
+                    {{#if this.revokedAt}}checked{{/if}}
+                    aria-label="{{#if this.revokedAt}}Restore{{else}}Revoke{{/if}} token {{this.name}}"
+                  />
+                  <span class="switch__track" aria-hidden="true"></span>
+                </label>
+              </form>
+            </td>
             <td>
               {{#unless this.revokedAt}}
-                <form method="post" action="/projects/{{../project.id}}/tokens/{{this.id}}/revoke" class="inline">
-                  <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
-                  <button type="submit" class="danger">Revoke</button>
-                </form>
                 <form method="post" action="/projects/{{../project.id}}/tokens/{{this.id}}/regenerate" class="inline">
                   <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
                   <button type="submit">Regenerate</button>
@@ -92,106 +135,740 @@
       </tbody>
     </table>
   </div>
-
-  <div class="card">
-    <h2>Project webhook</h2>
-    <p class="meta">MESSENGER accounts deliver normalized inbound events to this HTTPS endpoint. Raw WAHA payloads are never forwarded.</p>
-    <form method="post" action="/projects/{{project.id}}/webhook" class="form">
-      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-      <label>Webhook URL (HTTPS)<input name="webhookUrl" type="url" value="{{project.webhookUrl}}" placeholder="https://example.com/webhooks/whatsapp" maxlength="2048" /></label>
-      <p class="meta">
-        Signing key fingerprint (hex HMAC key shown in full once after regenerate):
-        {{#if project.webhookSecretLast4}}
-          <code>{{project.webhookSecretPrefix}}…{{project.webhookSecretLast4}}</code>
-        {{else}}
-          not generated
-        {{/if}}
-      </p>
-      <label><input type="checkbox" name="webhookEnabled" value="true" {{#if project.webhookEnabled}}checked{{/if}} /> Enabled</label>
-      <button type="submit" class="primary">Save webhook</button>
-    </form>
-    <form method="post" action="/projects/{{project.id}}/webhook/regenerate" class="inline">
-      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-      <button type="submit">Regenerate signing key</button>
-    </form>
-    <h3>Delivery stats</h3>
-    <ul class="meta">
-      {{#each webhookStats.counts}}
-        <li>{{this.status}}: {{this._count._all}}</li>
-      {{/each}}
-    </ul>
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Event</th>
-          <th>Type</th>
-          <th>Status</th>
-          <th>Attempts</th>
-          <th>HTTP</th>
-          <th>When</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{#each webhookStats.recent}}
-          <tr>
-            <td><code>{{this.eventId}}</code></td>
-            <td>{{this.eventType}}</td>
-            <td>{{this.status}}</td>
-            <td>{{this.attemptCount}}</td>
-            <td>{{#if this.lastHttpStatus}}{{this.lastHttpStatus}}{{else}}—{{/if}}</td>
-            <td>{{this.createdAt}}</td>
-          </tr>
-        {{/each}}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <div class="page-header">
-      <h2>WhatsApp accounts</h2>
-      <a href="/projects/{{project.id}}/accounts/new" class="primary">Create account</a>
-    </div>
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Label</th>
-          <th>Mode</th>
-          <th>Status</th>
-          <th>Phone</th>
-          <th>Active</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {{#each accounts}}
-          <tr>
-            <td>{{this.label}}</td>
-            <td>{{this.mode}}</td>
-            <td><span class="status status-{{this.status}}">{{this.status}}</span></td>
-            <td>{{#if this.phoneNumber}}{{this.phoneNumber}}{{else}}—{{/if}}</td>
-            <td>
-              {{#if this.isActive}}
-                Active
-                <form method="post" action="/projects/{{../project.id}}/accounts/{{this.id}}/deactivate" class="inline">
-                  <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
-                  <button type="submit" class="danger">Deactivate</button>
-                </form>
-              {{else}}
-                Inactive
-                <form method="post" action="/projects/{{../project.id}}/accounts/{{this.id}}/activate" class="inline">
-                  <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
-                  <button type="submit">Activate</button>
-                </form>
-              {{/if}}
-            </td>
-            <td>
-              <a href="/projects/{{../project.id}}/accounts/{{this.id}}">Detail</a>
-              ·
-              <a href="/projects/{{../project.id}}/accounts/{{this.id}}/qr">QR</a>
-            </td>
-          </tr>
-        {{/each}}
-      </tbody>
-    </table>
-  </div>
 </section>
+
+<div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+
+<aside
+  class="side-sheet"
+  id="sheet-webhook"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="sheet-webhook-title"
+  hidden
+>
+  <div class="side-sheet__rail" aria-hidden="false">
+    <button type="button" class="side-sheet__rail-btn" data-close-sheet aria-label="Close panel" title="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      <span class="side-sheet__rail-hint">Close</span>
+    </button>
+  </div>
+  <div class="side-sheet__panel">
+    <div class="side-sheet__header">
+      <h2 id="sheet-webhook-title">Project webhook</h2>
+    </div>
+    <div class="side-sheet__body">
+      <div class="side-sheet__section">
+        <p class="meta">MESSENGER accounts deliver normalized inbound events to this HTTPS endpoint. Raw WAHA payloads are never forwarded.</p>
+        <form method="post" action="/projects/{{project.id}}/webhook" class="form">
+          <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+          <label>Webhook URL (HTTPS)<input name="webhookUrl" type="url" value="{{project.webhookUrl}}" placeholder="https://example.com/webhooks/whatsapp" maxlength="2048" /></label>
+          <p class="meta">
+            Signing key fingerprint (hex HMAC key shown in full once after regenerate):
+            {{#if project.webhookSecretLast4}}
+              <code>{{project.webhookSecretPrefix}}…{{project.webhookSecretLast4}}</code>
+            {{else}}
+              not generated
+            {{/if}}
+          </p>
+          <label><input type="checkbox" name="webhookEnabled" value="true" {{#if project.webhookEnabled}}checked{{/if}} /> Enabled</label>
+          <div class="actions">
+            <button type="submit" class="primary">Save webhook</button>
+          </div>
+        </form>
+        <form method="post" action="/projects/{{project.id}}/webhook/regenerate" class="inline">
+          <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+          <button type="submit">Regenerate signing key</button>
+        </form>
+      </div>
+      <div class="side-sheet__section">
+        <h3 class="side-sheet__section-title">Delivery stats</h3>
+        <ul class="meta">
+          {{#each webhookStats.counts}}
+            <li>{{this.status}}: {{this._count._all}}</li>
+          {{/each}}
+        </ul>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Attempts</th>
+              <th>HTTP</th>
+              <th>When</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each webhookStats.recent}}
+              <tr>
+                <td><code>{{this.eventId}}</code></td>
+                <td>{{this.eventType}}</td>
+                <td>{{this.status}}</td>
+                <td>{{this.attemptCount}}</td>
+                <td>{{#if this.lastHttpStatus}}{{this.lastHttpStatus}}{{else}}—{{/if}}</td>
+                <td>{{this.createdAt}}</td>
+              </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<aside
+  class="side-sheet"
+  id="sheet-accounts"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="sheet-accounts-title"
+  hidden
+>
+  <div class="side-sheet__rail">
+    <button type="button" class="side-sheet__rail-btn" data-close-sheet aria-label="Close panel" title="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      <span class="side-sheet__rail-hint">Close</span>
+    </button>
+  </div>
+  <div class="side-sheet__panel">
+    <div class="side-sheet__header">
+      <h2 id="sheet-accounts-title">WhatsApp accounts</h2>
+      <button type="button" class="primary" data-open-create-account>Create account</button>
+    </div>
+    <div class="side-sheet__body">
+      <div class="side-sheet__section">
+        <p class="meta">Manage connected WhatsApp sessions for this project.</p>
+        <table class="data-table accounts-table">
+          <thead>
+            <tr>
+              <th class="col-label">Label</th>
+              <th class="col-mode">Mode</th>
+              <th class="col-status">Status</th>
+              <th class="col-phone">Phone</th>
+              <th class="col-active">Active</th>
+              <th class="col-actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each accounts}}
+              <tr
+                class="click-row"
+                data-href="/projects/{{../project.id}}/accounts/{{this.id}}"
+                tabindex="0"
+                role="link"
+                aria-label="Open {{this.label}} details"
+              >
+                <td class="col-label">{{this.label}}</td>
+                <td class="col-mode">{{this.mode}}</td>
+                <td class="col-status"><span class="status status-{{this.status}}">{{this.status}}</span></td>
+                <td class="col-phone">{{#if this.phoneNumber}}{{this.phoneNumber}}{{else}}—{{/if}}</td>
+                <td class="col-active" data-row-ignore>
+                  <form
+                    method="post"
+                    action="/projects/{{../project.id}}/accounts/{{this.id}}/{{#if this.isActive}}deactivate{{else}}activate{{/if}}"
+                    class="switch-form"
+                  >
+                    <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
+                    <label class="switch">
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        data-active-switch
+                        {{#if this.isActive}}checked{{/if}}
+                        aria-label="{{#if this.isActive}}Deactivate{{else}}Activate{{/if}} {{this.label}}"
+                      />
+                      <span class="switch__track" aria-hidden="true"></span>
+                    </label>
+                  </form>
+                </td>
+                <td class="col-actions" data-row-ignore>
+                  <button
+                    type="button"
+                    class="icon-btn icon-btn--qr"
+                    data-open-qr
+                    data-account-id="{{this.id}}"
+                    data-account-label="{{this.label}}"
+                    aria-label="Show QR for {{this.label}}"
+                    title="QR"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path fill-rule="evenodd" d="M2 2h8v8H2V2zm1.6 1.6v4.8h4.8V3.6H3.6z"/>
+                      <rect x="4.7" y="4.7" width="2.6" height="2.6"/>
+                      <path fill-rule="evenodd" d="M14 2h8v8h-8V2zm1.6 1.6v4.8h4.8V3.6h-4.8z"/>
+                      <rect x="16.7" y="4.7" width="2.6" height="2.6"/>
+                      <path fill-rule="evenodd" d="M2 14h8v8H2v-8zm1.6 1.6v4.8h4.8v-4.8H3.6z"/>
+                      <rect x="4.7" y="16.7" width="2.6" height="2.6"/>
+                      <rect x="11.2" y="2.4" width="1.6" height="1.6"/>
+                      <rect x="11.2" y="5.2" width="1.6" height="1.6"/>
+                      <rect x="11.2" y="8" width="1.6" height="1.6"/>
+                      <rect x="2.4" y="11.2" width="1.6" height="1.6"/>
+                      <rect x="5.2" y="11.2" width="1.6" height="1.6"/>
+                      <rect x="8" y="11.2" width="1.6" height="1.6"/>
+                      <rect x="11.2" y="11.2" width="1.6" height="1.6"/>
+                      <rect x="14.4" y="11.2" width="1.6" height="1.6"/>
+                      <rect x="17.2" y="11.2" width="1.6" height="1.6"/>
+                      <rect x="20" y="11.2" width="1.6" height="1.6"/>
+                      <rect x="11.2" y="14.4" width="1.6" height="1.6"/>
+                      <rect x="14.4" y="14.4" width="1.6" height="1.6"/>
+                      <rect x="20" y="14.4" width="1.6" height="1.6"/>
+                      <rect x="11.2" y="17.2" width="1.6" height="1.6"/>
+                      <rect x="17.2" y="17.2" width="1.6" height="1.6"/>
+                      <rect x="14.4" y="20" width="1.6" height="1.6"/>
+                      <rect x="17.2" y="20" width="1.6" height="1.6"/>
+                      <rect x="20" y="17.2" width="1.6" height="1.6"/>
+                      <rect x="20" y="20" width="1.6" height="1.6"/>
+                      <rect x="11.2" y="20" width="1.6" height="1.6"/>
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<aside
+  class="side-sheet side-sheet--nested"
+  id="sheet-create-account"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="sheet-create-account-title"
+  hidden
+>
+  <div class="side-sheet__rail">
+    <button type="button" class="side-sheet__rail-btn" data-close-create-account aria-label="Close create account panel" title="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      <span class="side-sheet__rail-hint">Close</span>
+    </button>
+  </div>
+  <div class="side-sheet__panel">
+    <div class="side-sheet__header">
+      <h2 id="sheet-create-account-title">New WhatsApp account</h2>
+    </div>
+    <div class="side-sheet__body">
+      <div class="side-sheet__section">
+        <p class="meta">Project <code>{{project.slug}}</code></p>
+        <form method="post" action="/projects/{{project.id}}/accounts" class="form">
+          <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+          <label>Label<input name="label" required maxlength="100" /></label>
+          <label>Mode
+            <div class="custom-select" data-custom-select>
+              <select name="mode" required tabindex="-1" aria-hidden="true">
+                <option value="SEND_ONLY" selected>SEND_ONLY</option>
+                <option value="MESSENGER">MESSENGER (Store + v1 chats when connected)</option>
+              </select>
+              <button
+                type="button"
+                class="custom-select__trigger"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+                data-custom-select-trigger
+              >
+                <span data-custom-select-value>SEND_ONLY</span>
+              </button>
+              <ul class="custom-select__menu" role="listbox" hidden data-custom-select-menu>
+                <li role="option" class="custom-select__option is-selected" data-value="SEND_ONLY" aria-selected="true">
+                  <span class="custom-select__check" aria-hidden="true"></span>
+                  <span>SEND_ONLY</span>
+                </li>
+                <li role="option" class="custom-select__option" data-value="MESSENGER" aria-selected="false">
+                  <span class="custom-select__check" aria-hidden="true"></span>
+                  <span>MESSENGER (Store + v1 chats when connected)</span>
+                </li>
+              </ul>
+            </div>
+          </label>
+          <p class="meta">MESSENGER enables NOWEB Store and v1 chats/history APIs after the session is connected. Inbound webhooks are a later phase.</p>
+          <div class="actions">
+            <button type="submit" class="primary">Create</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<aside
+  class="side-sheet side-sheet--nested"
+  id="sheet-qr"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="sheet-qr-title"
+  hidden
+>
+  <div class="side-sheet__rail">
+    <button type="button" class="side-sheet__rail-btn" data-close-qr aria-label="Close QR panel" title="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      <span class="side-sheet__rail-hint">Close</span>
+    </button>
+  </div>
+  <div class="side-sheet__panel">
+    <div class="side-sheet__header">
+      <h2 id="sheet-qr-title">Account QR</h2>
+      <span class="status status-QR_REQUIRED" id="qr-status-pill">—</span>
+    </div>
+    <div class="side-sheet__body">
+      <div class="side-sheet__section">
+        <p class="meta" id="qr-account-label"></p>
+        <div class="qr-block" id="qr-block">
+          <p class="meta">Loading QR…</p>
+        </div>
+        <div class="actions" id="qr-actions">
+          <form method="post" class="inline" id="qr-restart-form">
+            <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+            <button type="submit">Restart session</button>
+          </form>
+          <form method="post" class="inline" id="qr-unlink-form">
+            <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+            <button type="submit" class="danger" title="Unlink WhatsApp from this gateway (WAHA logout)">Disconnect WhatsApp</button>
+          </form>
+        </div>
+        <p class="qr-hint">Open WhatsApp on your phone, scan the QR. The status will refresh automatically.</p>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<script>
+(function () {
+  var backdrop = document.getElementById('sheet-backdrop');
+  var openTab = null;
+  var closeTimer = null;
+  var qrPollTimer = null;
+  var qrAccountId = null;
+  var projectId = '{{project.id}}';
+
+  function mountToBody(el) {
+    if (el && el.parentElement !== document.body) {
+      document.body.appendChild(el);
+    }
+  }
+  mountToBody(backdrop);
+  document.querySelectorAll('.side-sheet').forEach(mountToBody);
+
+  function openSheet(id) {
+    var sheet = document.getElementById('sheet-' + id);
+    if (!sheet || !backdrop) return;
+    if (closeTimer) {
+      clearTimeout(closeTimer);
+      closeTimer = null;
+    }
+    closeQrSheet(true);
+    closeCreateSheet(true);
+    document.querySelectorAll('.side-sheet:not(.side-sheet--nested)').forEach(function (el) {
+      if (el !== sheet) {
+        el.classList.remove('is-open');
+        el.hidden = true;
+      }
+    });
+    sheet.hidden = false;
+    backdrop.hidden = false;
+    void sheet.offsetWidth;
+    sheet.classList.add('is-open');
+    backdrop.classList.add('is-open');
+    document.body.classList.add('sheet-open');
+    openTab = id;
+    document.querySelectorAll('.detail-tab').forEach(function (tab) {
+      tab.classList.toggle('is-active', tab.getAttribute('data-sheet') === id);
+    });
+  }
+
+  function closeSheet() {
+    if (isSheetOpen('qr')) {
+      closeQrSheet(false);
+      return;
+    }
+    if (isSheetOpen('create-account')) {
+      closeCreateSheet(false);
+      return;
+    }
+    document.querySelectorAll('.side-sheet.is-open').forEach(function (sheet) {
+      sheet.classList.remove('is-open');
+      closeTimer = setTimeout(function () {
+        sheet.hidden = true;
+        closeTimer = null;
+      }, 300);
+    });
+    if (backdrop) {
+      backdrop.classList.remove('is-open');
+      setTimeout(function () {
+        if (!openTab) backdrop.hidden = true;
+      }, 250);
+    }
+    document.body.classList.remove('sheet-open');
+    openTab = null;
+    document.querySelectorAll('.detail-tab').forEach(function (tab) {
+      tab.classList.remove('is-active');
+    });
+  }
+
+  function stopQrPoll() {
+    if (qrPollTimer) {
+      clearTimeout(qrPollTimer);
+      qrPollTimer = null;
+    }
+  }
+
+  function renderQr(data) {
+    var block = document.getElementById('qr-block');
+    var pill = document.getElementById('qr-status-pill');
+    if (!block || !pill) return;
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+    pill.className = 'status status-' + data.status;
+    pill.textContent = data.status;
+    if (data.qrDataUrl) {
+      block.innerHTML = '<img src="' + esc(data.qrDataUrl) + '" alt="WhatsApp QR code" />';
+      return;
+    }
+    if (data.status === 'CONNECTED') {
+      block.innerHTML = '<p class="meta">WhatsApp is connected. QR is not required.</p>';
+      return;
+    }
+    if (data.qrErrorCode === 'WAHA_ALREADY_CONNECTED') {
+      block.innerHTML = '<p class="meta">' + esc(data.qrError || 'Already connected.') + '</p>';
+      return;
+    }
+    var msg = data.qrError || 'QR not ready yet. Try “Restart session” or wait a few seconds.';
+    var html = '<p class="form-error">' + esc(msg) + '</p>';
+    if (data.qrErrorCode) {
+      html += '<p class="meta">Code: <code>' + esc(data.qrErrorCode) + '</code></p>';
+    }
+    block.innerHTML = html;
+  }
+
+  function scheduleQrPoll() {
+    stopQrPoll();
+    if (!qrAccountId) return;
+    qrPollTimer = setTimeout(function () {
+      fetch('/projects/' + projectId + '/accounts/' + qrAccountId + '/status.json', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (json) {
+          var status = json && json.status;
+          var pill = document.getElementById('qr-status-pill');
+          if (!status || !pill) return;
+          pill.className = 'status status-' + status;
+          pill.textContent = status;
+          if (status === 'CONNECTED') {
+            renderQr({ status: status, qrDataUrl: null, qrError: null, qrErrorCode: null });
+            return;
+          }
+          if (status === 'QR_REQUIRED' || status === 'CONNECTING') {
+            loadQrContent(false);
+            return;
+          }
+          scheduleQrPoll();
+        })
+        .catch(function () { scheduleQrPoll(); });
+    }, 3000);
+  }
+
+  function loadQrContent(showLoading) {
+    if (!qrAccountId) return;
+    var block = document.getElementById('qr-block');
+    if (showLoading && block) block.innerHTML = '<p class="meta">Loading QR…</p>';
+    fetch('/projects/' + projectId + '/accounts/' + qrAccountId + '/qr.json', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        renderQr(data);
+        if (data.status !== 'CONNECTED') scheduleQrPoll();
+      })
+      .catch(function () {
+        if (block) block.innerHTML = '<p class="form-error">Failed to load QR.</p>';
+      });
+  }
+
+  function openNestedSheet(id) {
+    var sheet = document.getElementById('sheet-' + id);
+    if (!sheet || !backdrop) return;
+    sheet.hidden = false;
+    backdrop.hidden = false;
+    void sheet.offsetWidth;
+    sheet.classList.add('is-open');
+    backdrop.classList.add('is-open');
+    document.body.classList.add('sheet-open');
+  }
+
+  function closeNestedSheet(id, silent) {
+    var sheet = document.getElementById('sheet-' + id);
+    if (!sheet) return;
+    if (!sheet.classList.contains('is-open') && sheet.hidden) return;
+    sheet.classList.remove('is-open');
+    setTimeout(function () {
+      if (!sheet.classList.contains('is-open')) sheet.hidden = true;
+    }, 300);
+    if (silent) return;
+    if (openTab) {
+      backdrop.classList.add('is-open');
+      backdrop.hidden = false;
+      document.body.classList.add('sheet-open');
+      return;
+    }
+    if (backdrop) {
+      backdrop.classList.remove('is-open');
+      setTimeout(function () {
+        if (!openTab) backdrop.hidden = true;
+      }, 250);
+    }
+    document.body.classList.remove('sheet-open');
+  }
+
+  function isSheetOpen(id) {
+    var sheet = document.getElementById('sheet-' + id);
+    return !!(sheet && sheet.classList.contains('is-open'));
+  }
+
+  function openCreateSheet() {
+    closeQrSheet(true);
+    openNestedSheet('create-account');
+    var input = document.querySelector('#sheet-create-account input[name="label"]');
+    if (input) setTimeout(function () { input.focus(); }, 40);
+  }
+
+  function closeCreateSheet(silent) {
+    closeNestedSheet('create-account', silent);
+  }
+
+  function openQrSheet(accountId, label) {
+    var title = document.getElementById('sheet-qr-title');
+    var labelEl = document.getElementById('qr-account-label');
+    qrAccountId = accountId;
+    if (title) title.textContent = 'QR — ' + label;
+    if (labelEl) labelEl.textContent = 'Scan to authenticate ' + label + '.';
+    var restart = document.getElementById('qr-restart-form');
+    var unlink = document.getElementById('qr-unlink-form');
+    if (restart) restart.action = '/projects/' + projectId + '/accounts/' + accountId + '/restart';
+    if (unlink) unlink.action = '/projects/' + projectId + '/accounts/' + accountId + '/unlink';
+    closeCreateSheet(true);
+    openNestedSheet('qr');
+    loadQrContent(true);
+  }
+
+  function closeQrSheet(silent) {
+    stopQrPoll();
+    qrAccountId = null;
+    closeNestedSheet('qr', silent);
+  }
+
+  document.querySelectorAll('.detail-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      var id = tab.getAttribute('data-sheet');
+      if (openTab === id && !isSheetOpen('qr') && !isSheetOpen('create-account')) {
+        closeSheet();
+        return;
+      }
+      openSheet(id);
+    });
+  });
+
+  document.querySelectorAll('[data-close-sheet]').forEach(function (btn) {
+    btn.addEventListener('click', closeSheet);
+  });
+
+  document.querySelectorAll('[data-close-qr]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      closeQrSheet(false);
+    });
+  });
+
+  document.querySelectorAll('[data-close-create-account]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      closeCreateSheet(false);
+    });
+  });
+
+  document.querySelectorAll('[data-open-create-account]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (isSheetOpen('create-account')) {
+        closeCreateSheet(false);
+        return;
+      }
+      openCreateSheet();
+    });
+  });
+
+  if (backdrop) {
+    backdrop.addEventListener('click', closeSheet);
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    var openSelect = document.querySelector('[data-custom-select].is-open');
+    if (openSelect) {
+      openSelect.classList.remove('is-open');
+      var t = openSelect.querySelector('[data-custom-select-trigger]');
+      var m = openSelect.querySelector('[data-custom-select-menu]');
+      if (t) t.setAttribute('aria-expanded', 'false');
+      if (m) m.hidden = true;
+      e.preventDefault();
+      if (document.activeElement && document.activeElement.blur) {
+        document.activeElement.blur();
+      }
+      return;
+    }
+    if (openTab || isSheetOpen('qr') || isSheetOpen('create-account')) {
+      closeSheet();
+      if (document.activeElement && document.activeElement.blur) {
+        document.activeElement.blur();
+      }
+    }
+  });
+
+  document.querySelectorAll('[data-active-switch]').forEach(function (input) {
+    input.addEventListener('change', function () {
+      if (input.form) input.form.submit();
+    });
+  });
+
+  document.querySelectorAll('.accounts-table .click-row').forEach(function (row) {
+    function go() {
+      var href = row.getAttribute('data-href');
+      if (href) location.href = href;
+    }
+    row.addEventListener('click', function (e) {
+      if (e.target.closest('[data-row-ignore]')) return;
+      go();
+    });
+    row.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        if (e.target.closest('[data-row-ignore]')) return;
+        e.preventDefault();
+        go();
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-open-qr]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openQrSheet(btn.getAttribute('data-account-id'), btn.getAttribute('data-account-label') || 'account');
+    });
+  });
+
+  var restartForm = document.getElementById('qr-restart-form');
+  if (restartForm) {
+    restartForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var action = restartForm.getAttribute('action');
+      if (!action) return;
+      fetch(action, { method: 'POST', body: new FormData(restartForm), credentials: 'same-origin', redirect: 'manual' })
+        .then(function () { loadQrContent(true); })
+        .catch(function () { loadQrContent(true); });
+    });
+  }
+
+  function initCustomSelect(root) {
+    var select = root.querySelector('select');
+    var trigger = root.querySelector('[data-custom-select-trigger]');
+    var valueEl = root.querySelector('[data-custom-select-value]');
+    var menu = root.querySelector('[data-custom-select-menu]');
+    if (!select || !trigger || !valueEl || !menu) return;
+
+    function options() {
+      return Array.prototype.slice.call(menu.querySelectorAll('[role="option"]'));
+    }
+
+    function setOpen(open) {
+      root.classList.toggle('is-open', open);
+      trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+      menu.hidden = !open;
+    }
+
+    function selectValue(value) {
+      select.value = value;
+      var selected = null;
+      options().forEach(function (opt) {
+        var match = opt.getAttribute('data-value') === value;
+        opt.classList.toggle('is-selected', match);
+        opt.setAttribute('aria-selected', match ? 'true' : 'false');
+        if (match) selected = opt;
+      });
+      valueEl.textContent = selected
+        ? (selected.querySelector('span:last-child') || selected).textContent.trim()
+        : value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    trigger.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var willOpen = menu.hidden;
+      document.querySelectorAll('[data-custom-select].is-open').forEach(function (el) {
+        if (el !== root) {
+          el.classList.remove('is-open');
+          var t = el.querySelector('[data-custom-select-trigger]');
+          var m = el.querySelector('[data-custom-select-menu]');
+          if (t) t.setAttribute('aria-expanded', 'false');
+          if (m) m.hidden = true;
+        }
+      });
+      setOpen(willOpen);
+    });
+
+    options().forEach(function (opt) {
+      opt.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        selectValue(opt.getAttribute('data-value'));
+        setOpen(false);
+        trigger.focus();
+      });
+    });
+
+    trigger.addEventListener('keydown', function (e) {
+      var items = options();
+      var idx = items.findIndex(function (opt) {
+        return opt.classList.contains('is-selected');
+      });
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (menu.hidden) {
+          setOpen(true);
+          return;
+        }
+        var next = e.key === 'ArrowDown'
+          ? Math.min(idx + 1, items.length - 1)
+          : Math.max(idx - 1, 0);
+        if (items[next]) selectValue(items[next].getAttribute('data-value'));
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setOpen(menu.hidden);
+      } else if (e.key === 'Escape' && !menu.hidden) {
+        e.preventDefault();
+        e.stopPropagation();
+        setOpen(false);
+      }
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!root.contains(e.target)) setOpen(false);
+    });
+
+    selectValue(select.value);
+  }
+
+  document.querySelectorAll('[data-custom-select]').forEach(initCustomSelect);
+
+  {{#if revealedWebhook}}
+  openSheet('webhook');
+  {{else}}
+  if (location.hash === '#create-account') {
+    openSheet('accounts');
+    openCreateSheet();
+  } else if (location.hash === '#accounts') {
+    openSheet('accounts');
+  }
+  {{/if}}
+})();
+</script>

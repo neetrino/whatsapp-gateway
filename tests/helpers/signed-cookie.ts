@@ -1,10 +1,7 @@
 import { createHmac } from 'node:crypto';
 
 export const signedCookiePair = (name: string, value: string, secret: string): string => {
-  const digest = createHmac('sha256', secret)
-    .update(value)
-    .digest('base64')
-    .replace(/=+$/g, '');
+  const digest = createHmac('sha256', secret).update(value).digest('base64').replace(/=+$/g, '');
   return `${name}=${encodeURIComponent(`s:${value}.${digest}`)}`;
 };
 

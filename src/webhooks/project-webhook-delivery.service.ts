@@ -264,7 +264,10 @@ export class ProjectWebhookDeliveryService implements OnModuleInit, OnModuleDest
       | undefined,
   ): boolean {
     return Boolean(
-      project?.isActive && project.webhookEnabled && project.webhookUrl && project.webhookSecretHash,
+      project?.isActive &&
+      project.webhookEnabled &&
+      project.webhookUrl &&
+      project.webhookSecretHash,
     );
   }
 }

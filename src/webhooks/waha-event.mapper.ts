@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { ProjectWebhookEventType, ProjectWebhookPayload } from './project-event.types';
+import type { ProjectWebhookPayload } from './project-event.types';
 
 const readString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.length > 0 ? value : undefined;
@@ -104,7 +104,7 @@ const mapMessageReaction = (
     data: {
       messageId,
       chatId: chatIdFromPayload(payload),
-      emoji: reaction ? readString(reaction.text) ?? '' : '',
+      emoji: reaction ? (readString(reaction.text) ?? '') : '',
       from: readString(payload.from) ?? readString(payload.participant) ?? null,
     },
   };

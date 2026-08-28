@@ -1,4 +1,8 @@
-import { computeProjectWebhookSignature, computeWahaWebhookHmac, verifyWahaWebhookHmac } from '../../src/webhooks/waha-hmac';
+import {
+  computeProjectWebhookSignature,
+  computeWahaWebhookHmac,
+  verifyWahaWebhookHmac,
+} from '../../src/webhooks/waha-hmac';
 
 describe('waha-hmac', () => {
   const secret = 'my-secret-key';
@@ -15,9 +19,9 @@ describe('waha-hmac', () => {
 
   it('rejects invalid signatures', () => {
     expect(verifyWahaWebhookHmac(body, secret, 'deadbeef', 'sha512')).toBe(false);
-    expect(verifyWahaWebhookHmac(body, secret, computeWahaWebhookHmac(body, secret), 'sha256')).toBe(
-      false,
-    );
+    expect(
+      verifyWahaWebhookHmac(body, secret, computeWahaWebhookHmac(body, secret), 'sha256'),
+    ).toBe(false);
   });
 
   it('signs Project webhooks as timestamp dot raw body', () => {

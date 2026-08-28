@@ -1,92 +1,159 @@
 <section>
   <div class="page-header">
-    <h1>{{account.label}}</h1>
+    <div class="page-header__heading">
+      <a
+        href="/projects/{{projectId}}"
+        class="back-btn"
+        aria-label="Back to project"
+        title="Back to project"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </a>
+      <h1>{{account.label}}</h1>
+    </div>
     <span class="status status-{{account.status}}">{{account.status}}</span>
   </div>
-  <p class="meta">
-    Mode <code>{{account.mode}}</code>
-    {{#ifEquals account.mode "MESSENGER"}}
-      · chats/history via v1 API when connected and Store is ready
-    {{/ifEquals}}
-    {{#ifEquals account.mode "SEND_ONLY"}}
-      · SEND_ONLY outbound
-    {{/ifEquals}}
-    · {{#if account.isActive}}Active{{else}}Inactive{{/if}}
-    {{#ifEquals account.status "CONNECTED"}} · Connected{{/ifEquals}}
-    {{#if account.phoneNumber}} · Phone: {{account.phoneNumber}}{{/if}}
-  </p>
-  {{#if modeError}}
-    <p class="meta">Mode was not changed: WAHA rejected the session configuration update. The previous mode is unchanged.</p>
-  {{/if}}
 
-  <div class="actions">
-    <a href="/projects/{{projectId}}/accounts/{{account.id}}/qr" class="primary">Show QR</a>
-    {{#if account.isActive}}
-      <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/deactivate" class="inline">
-        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-        <button type="submit" class="danger">Deactivate</button>
-      </form>
-    {{else}}
-      <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/activate" class="inline">
-        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-        <button type="submit">Activate</button>
-      </form>
+  <div class="panel-section">
+    <div class="panel-section__header">
+      <h2 class="panel-section-title">Account</h2>
+      <div class="panel-section__tools">
+        <form
+          method="post"
+          action="/projects/{{projectId}}/accounts/{{account.id}}/{{#if account.isActive}}deactivate{{else}}activate{{/if}}"
+          class="switch-form"
+        >
+          <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+          <label class="switch">
+            <input
+              type="checkbox"
+              role="switch"
+              data-active-switch
+              {{#if account.isActive}}checked{{/if}}
+              aria-label="{{#if account.isActive}}Deactivate{{else}}Activate{{/if}} {{account.label}}"
+            />
+            <span class="switch__track" aria-hidden="true"></span>
+          </label>
+        </form>
+        <a
+          href="/projects/{{projectId}}/accounts/{{account.id}}/qr"
+          class="icon-btn icon-btn--qr"
+          aria-label="Show QR for {{account.label}}"
+          title="QR"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M2 2h8v8H2V2zm1.6 1.6v4.8h4.8V3.6H3.6z"/>
+            <rect x="4.7" y="4.7" width="2.6" height="2.6"/>
+            <path fill-rule="evenodd" d="M14 2h8v8h-8V2zm1.6 1.6v4.8h4.8V3.6h-4.8z"/>
+            <rect x="16.7" y="4.7" width="2.6" height="2.6"/>
+            <path fill-rule="evenodd" d="M2 14h8v8H2v-8zm1.6 1.6v4.8h4.8v-4.8H3.6z"/>
+            <rect x="4.7" y="16.7" width="2.6" height="2.6"/>
+            <rect x="11.2" y="2.4" width="1.6" height="1.6"/>
+            <rect x="11.2" y="5.2" width="1.6" height="1.6"/>
+            <rect x="11.2" y="8" width="1.6" height="1.6"/>
+            <rect x="2.4" y="11.2" width="1.6" height="1.6"/>
+            <rect x="5.2" y="11.2" width="1.6" height="1.6"/>
+            <rect x="8" y="11.2" width="1.6" height="1.6"/>
+            <rect x="11.2" y="11.2" width="1.6" height="1.6"/>
+            <rect x="14.4" y="11.2" width="1.6" height="1.6"/>
+            <rect x="17.2" y="11.2" width="1.6" height="1.6"/>
+            <rect x="20" y="11.2" width="1.6" height="1.6"/>
+            <rect x="11.2" y="14.4" width="1.6" height="1.6"/>
+            <rect x="14.4" y="14.4" width="1.6" height="1.6"/>
+            <rect x="20" y="14.4" width="1.6" height="1.6"/>
+            <rect x="11.2" y="17.2" width="1.6" height="1.6"/>
+            <rect x="17.2" y="17.2" width="1.6" height="1.6"/>
+            <rect x="14.4" y="20" width="1.6" height="1.6"/>
+            <rect x="17.2" y="20" width="1.6" height="1.6"/>
+            <rect x="20" y="17.2" width="1.6" height="1.6"/>
+            <rect x="20" y="20" width="1.6" height="1.6"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+    <p class="meta">
+      Mode <code>{{account.mode}}</code>
+      {{#ifEquals account.mode "MESSENGER"}}
+        · chats/history via v1 API when connected and Store is ready
+      {{/ifEquals}}
+      {{#ifEquals account.mode "SEND_ONLY"}}
+        · SEND_ONLY outbound
+      {{/ifEquals}}
+      · {{#if account.isActive}}Active{{else}}Inactive{{/if}}
+      {{#ifEquals account.status "CONNECTED"}} · Connected{{/ifEquals}}
+      {{#if account.phoneNumber}} · Phone: {{account.phoneNumber}}{{/if}}
+    </p>
+    {{#if modeError}}
+      <p class="meta">Mode was not changed: WAHA rejected the session configuration update. The previous mode is unchanged.</p>
     {{/if}}
-    {{#ifEquals account.mode "SEND_ONLY"}}
-      <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/switch-mode" class="inline">
+    <div class="actions">
+      {{#ifEquals account.mode "SEND_ONLY"}}
+        <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/switch-mode" class="inline">
+          <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+          <input type="hidden" name="mode" value="MESSENGER" />
+          <button type="submit">Switch to MESSENGER</button>
+        </form>
+      {{/ifEquals}}
+      {{#ifEquals account.mode "MESSENGER"}}
+        <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/switch-mode" class="inline">
+          <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+          <input type="hidden" name="mode" value="SEND_ONLY" />
+          <button type="submit">Switch to SEND_ONLY</button>
+        </form>
+      {{/ifEquals}}
+      <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/restart" class="inline">
         <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-        <input type="hidden" name="mode" value="MESSENGER" />
-        <button type="submit">Switch to MESSENGER</button>
+        <button type="submit">Restart session</button>
       </form>
-    {{/ifEquals}}
-    {{#ifEquals account.mode "MESSENGER"}}
-      <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/switch-mode" class="inline">
+      <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/stop" class="inline">
         <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-        <input type="hidden" name="mode" value="SEND_ONLY" />
-        <button type="submit">Switch to SEND_ONLY</button>
+        <button type="submit" class="danger">Stop session</button>
       </form>
-    {{/ifEquals}}
-    <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/restart" class="inline">
-      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-      <button type="submit">Restart session</button>
-    </form>
-    <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/stop" class="inline">
-      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-      <button type="submit" class="danger">Stop session</button>
-    </form>
-    <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/unlink" class="inline">
-      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
-      <button type="submit" class="danger">Unlink</button>
-    </form>
-    <a href="/projects/{{projectId}}">Back to project</a>
+      <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/unlink" class="inline">
+        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+        <button type="submit" class="danger">Unlink</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <h2 class="panel-section-title">Recent outbound operations</h2>
+    <p class="meta">Safe metadata only. Message text, captions, and media URLs are never stored.</p>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th class="col-center">Type</th>
+          <th class="col-center">Status</th>
+          <th class="col-center">Request</th>
+          <th class="col-center">Error</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each recentLogs}}
+          <tr>
+            <td>{{this.createdAt}}</td>
+            <td class="col-center">{{this.messageType}}</td>
+            <td class="col-center"><span class="status status-{{this.status}}">{{this.status}}</span></td>
+            <td class="col-center"><code>{{this.requestId}}</code></td>
+            <td class="col-center">{{#if this.errorCode}}<code>{{this.errorCode}}</code>{{else}}—{{/if}}</td>
+          </tr>
+        {{else}}
+          <tr><td colspan="5">No outbound operations yet.</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
   </div>
 </section>
 
-<section class="card">
-  <h2>Recent outbound operations</h2>
-  <p class="meta">Safe metadata only. Message text, captions, and media URLs are never stored.</p>
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>Time</th>
-        <th>Type</th>
-        <th>Status</th>
-        <th>Request</th>
-        <th>Error</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{#each recentLogs}}
-        <tr>
-          <td>{{this.createdAt}}</td>
-          <td>{{this.messageType}}</td>
-          <td><span class="status status-{{this.status}}">{{this.status}}</span></td>
-          <td><code>{{this.requestId}}</code></td>
-          <td>{{#if this.errorCode}}<code>{{this.errorCode}}</code>{{else}}—{{/if}}</td>
-        </tr>
-      {{else}}
-        <tr><td colspan="5">No outbound operations yet.</td></tr>
-      {{/each}}
-    </tbody>
-  </table>
-</section>
+<script>
+(function () {
+  document.querySelectorAll('[data-active-switch]').forEach(function (input) {
+    input.addEventListener('change', function () {
+      if (input.form) input.form.submit();
+    });
+  });
+})();
+</script>

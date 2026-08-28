@@ -9,10 +9,7 @@ import { AppException } from '../common/errors/app.exception';
 import { ERROR_CODES } from '../common/errors/error-codes';
 import type { EnvironmentVariables } from '../config/env.validation';
 import type { ApiProjectContext } from '../common/decorators/api-project.decorator';
-import {
-  assertAccountReady,
-  loadOwnedAccount,
-} from '../whatsapp-accounts/load-connected-account';
+import { assertAccountReady, loadOwnedAccount } from '../whatsapp-accounts/load-connected-account';
 import {
   filenameFromUrl,
   mimetypeForImagePath,
@@ -171,7 +168,8 @@ export class V1MessagesService {
       ).catch(() => undefined);
       throw new AppException({
         code: ERROR_CODES.MESSAGE_OUTCOME_UNKNOWN,
-        message: 'Send may have been delivered but persistence failed. Do not retry with a new key.',
+        message:
+          'Send may have been delivered but persistence failed. Do not retry with a new key.',
         status: 503,
       });
     }

@@ -1,9 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  GroupApiOperationStatus,
-  GroupApiOperationType,
-  Prisma,
-} from '@prisma/client';
+import { GroupApiOperationStatus, GroupApiOperationType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WahaClient } from '../waha/waha.client';
 import { WahaService } from '../waha/waha.service';

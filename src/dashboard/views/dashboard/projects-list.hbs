@@ -1,30 +1,183 @@
 <section>
   <div class="page-header">
     <h1>Projects</h1>
-    <a href="/projects/new" class="primary">New project</a>
+    <div class="page-header__actions">
+      <label class="search-field">
+        <span class="search-field__label">Search</span>
+        <input
+          type="search"
+          name="q"
+          placeholder="Search by name or slug…"
+          autocomplete="off"
+          data-projects-search
+        />
+      </label>
+      <button type="button" class="primary" data-open-create-project>New project</button>
+    </div>
   </div>
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Slug</th>
-        <th>Status</th>
-        <th>Accounts</th>
-        <th>Tokens</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {{#each projects}}
+  <div class="panel-section">
+    <table class="data-table" data-projects-table>
+      <thead>
         <tr>
-          <td><a href="/projects/{{this.id}}">{{this.name}}</a></td>
-          <td><code>{{this.slug}}</code></td>
-          <td>{{#if this.isActive}}Active{{else}}Inactive{{/if}}</td>
-          <td>{{this.accountCount}}</td>
-          <td>{{this.tokenCount}}</td>
-          <td><a href="/projects/{{this.id}}">Open</a></td>
+          <th>Name</th>
+          <th class="col-center">Slug</th>
+          <th class="col-center">Status</th>
+          <th class="col-center">Accounts</th>
+          <th class="col-center">Tokens</th>
         </tr>
-      {{/each}}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {{#each projects}}
+          <tr
+            class="click-row"
+            data-project-row
+            data-name="{{this.name}}"
+            data-slug="{{this.slug}}"
+          >
+            <td>
+              <a href="/projects/{{this.id}}" class="click-row__link">{{this.name}}</a>
+            </td>
+            <td class="col-center"><code>{{this.slug}}</code></td>
+            <td class="col-center">{{#if this.isActive}}Active{{else}}Inactive{{/if}}</td>
+            <td class="col-center">{{this.accountCount}}</td>
+            <td class="col-center">{{this.tokenCount}}</td>
+          </tr>
+        {{else}}
+          <tr data-empty-projects>
+            <td colspan="5">No projects yet.</td>
+          </tr>
+        {{/each}}
+        <tr data-search-empty hidden>
+          <td colspan="5">No projects match your search.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </section>
+
+<div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+
+<aside
+  class="side-sheet side-sheet--nested"
+  id="sheet-create-project"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="sheet-create-project-title"
+  hidden
+>
+  <div class="side-sheet__rail">
+    <button type="button" class="side-sheet__rail-btn" data-close-create-project aria-label="Close new project panel" title="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      <span class="side-sheet__rail-hint">Close</span>
+    </button>
+  </div>
+  <div class="side-sheet__panel">
+    <div class="side-sheet__header">
+      <h2 id="sheet-create-project-title">New project</h2>
+    </div>
+    <div class="side-sheet__body">
+      <div class="side-sheet__section">
+        <form method="post" action="/projects" class="form" id="create-project-form">
+          <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+          <label>Name<input name="name" required maxlength="100" /></label>
+          <label>Slug<input name="slug" required minlength="2" maxlength="64" placeholder="nbos" /></label>
+          <div class="actions">
+            <button type="submit" class="primary">Create</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<script>
+(function () {
+  var backdrop = document.getElementById('sheet-backdrop');
+  var sheet = document.getElementById('sheet-create-project');
+  var closeTimer = null;
+
+  function mountToBody(el) {
+    if (el && el.parentElement !== document.body) {
+      document.body.appendChild(el);
+    }
+  }
+  mountToBody(backdrop);
+  mountToBody(sheet);
+
+  function openCreateSheet() {
+    if (!sheet || !backdrop) return;
+    if (closeTimer) {
+      clearTimeout(closeTimer);
+      closeTimer = null;
+    }
+    sheet.hidden = false;
+    backdrop.hidden = false;
+    void sheet.offsetWidth;
+    sheet.classList.add('is-open');
+    backdrop.classList.add('is-open');
+    document.body.classList.add('sheet-open');
+    var input = sheet.querySelector('input[name="name"]');
+    if (input) setTimeout(function () { input.focus(); }, 40);
+  }
+
+  function closeCreateSheet() {
+    if (!sheet) return;
+    sheet.classList.remove('is-open');
+    if (backdrop) backdrop.classList.remove('is-open');
+    document.body.classList.remove('sheet-open');
+    closeTimer = setTimeout(function () {
+      sheet.hidden = true;
+      if (backdrop) backdrop.hidden = true;
+      closeTimer = null;
+    }, 300);
+    if (location.hash === '#new') {
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+  }
+
+  document.querySelectorAll('[data-open-create-project]').forEach(function (btn) {
+    btn.addEventListener('click', openCreateSheet);
+  });
+  document.querySelectorAll('[data-close-create-project]').forEach(function (btn) {
+    btn.addEventListener('click', closeCreateSheet);
+  });
+  if (backdrop) {
+    backdrop.addEventListener('click', closeCreateSheet);
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && sheet && sheet.classList.contains('is-open')) {
+      closeCreateSheet();
+      if (document.activeElement && document.activeElement.blur) {
+        document.activeElement.blur();
+      }
+    }
+  });
+
+  var searchInput = document.querySelector('[data-projects-search]');
+  var rows = Array.prototype.slice.call(document.querySelectorAll('[data-project-row]'));
+  var searchEmpty = document.querySelector('[data-search-empty]');
+
+  function filterProjects() {
+    var q = (searchInput && searchInput.value || '').trim().toLowerCase();
+    var visible = 0;
+    rows.forEach(function (row) {
+      var name = (row.getAttribute('data-name') || '').toLowerCase();
+      var slug = (row.getAttribute('data-slug') || '').toLowerCase();
+      var match = !q || name.indexOf(q) !== -1 || slug.indexOf(q) !== -1;
+      row.hidden = !match;
+      if (match) visible += 1;
+    });
+    if (searchEmpty) {
+      searchEmpty.hidden = !(q && visible === 0 && rows.length > 0);
+    }
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', filterProjects);
+  }
+
+  if (location.hash === '#new') {
+    openCreateSheet();
+  }
+})();
+</script>

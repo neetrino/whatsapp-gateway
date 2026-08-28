@@ -12,10 +12,7 @@ const pepper = '0123456789abcdef0123456789abcdef';
 describe('rate-limit tracker', () => {
   it('keys by token hash, never the raw token', () => {
     const raw = 'gw_test_abcdefgh';
-    const key = rateLimitTrackerKey(
-      { headers: { authorization: `Bearer ${raw}` } },
-      pepper,
-    );
+    const key = rateLimitTrackerKey({ headers: { authorization: `Bearer ${raw}` } }, pepper);
     expect(key).toBe(`token:${hashApiToken(raw, pepper)}`);
     expect(key).not.toContain(raw);
   });
@@ -29,9 +26,7 @@ describe('rate-limit tracker', () => {
     expect(isV1ReadPath('/api/v1/accounts', 'GET')).toBe(true);
     expect(isV1ReadPath('/api/v1/accounts/acc1/status', 'GET')).toBe(true);
     expect(isV1ReadPath('/api/v1/accounts/acc1/chats', 'GET')).toBe(true);
-    expect(isV1ReadPath('/api/v1/accounts/acc1/chats/37499111222@c.us/messages', 'GET')).toBe(
-      true,
-    );
+    expect(isV1ReadPath('/api/v1/accounts/acc1/chats/37499111222@c.us/messages', 'GET')).toBe(true);
     expect(isV1SendPath('/api/messages/send', 'POST')).toBe(false);
     expect(isV1ReadPath('/api/v1/accounts', 'POST')).toBe(false);
     expect(classifyV1Throttle('/api/v1/accounts/acc1/messages', 'POST')).toBe('send');

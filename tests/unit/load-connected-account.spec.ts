@@ -57,8 +57,10 @@ describe('loadConnectedAccount', () => {
 
   it('fails closed when the account belongs to another project', async () => {
     const prisma = { whatsappAccount: { findFirst: jest.fn().mockResolvedValue(null) } };
-    await expect(loadConnectedAccount(prisma as never, 'project-b', 'acc-a')).rejects.toMatchObject({
-      code: ERROR_CODES.NOT_FOUND,
-    });
+    await expect(loadConnectedAccount(prisma as never, 'project-b', 'acc-a')).rejects.toMatchObject(
+      {
+        code: ERROR_CODES.NOT_FOUND,
+      },
+    );
   });
 });

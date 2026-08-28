@@ -4,11 +4,28 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{title}} — Neetrino Internal Chat Gateway</title>
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('theme');
+          var theme = saved === 'light' || saved === 'dark' ? saved : 'dark';
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/assets/style.css" />
   </head>
   <body>
     <header class="topbar">
-      <div class="brand">Neetrino Internal Chat Gateway</div>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        Neetrino Internal Chat Gateway
+      </div>
       <nav class="nav">
         {{#if currentAdmin}}
           <a href="/dashboard" class="{{#ifEquals active 'overview'}}active{{/ifEquals}}">Dashboard</a>
@@ -17,6 +34,21 @@
         {{/if}}
       </nav>
       <div class="user-block">
+        <button
+          type="button"
+          class="theme-toggle"
+          data-theme-toggle
+          aria-label="Toggle light mode"
+          title="Toggle theme"
+        >
+          <svg class="theme-toggle__icon theme-toggle__icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2.5M12 19.5V22M4.93 4.93l1.77 1.77M17.3 17.3l1.77 1.77M2 12h2.5M19.5 12H22M4.93 19.07l1.77-1.77M17.3 6.7l1.77-1.77"/>
+          </svg>
+          <svg class="theme-toggle__icon theme-toggle__icon--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z"/>
+          </svg>
+        </button>
         {{#if currentAdmin}}
           <span class="user-name">{{currentAdmin.email}}</span>
           <form method="post" action="/logout" class="inline">
@@ -29,5 +61,24 @@
     <main class="container">
       {{{body}}}
     </main>
+    <script>
+      (function () {
+        var btn = document.querySelector('[data-theme-toggle]');
+        if (!btn) return;
+        function currentTheme() {
+          return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+        }
+        function setTheme(theme) {
+          document.documentElement.setAttribute('data-theme', theme);
+          try { localStorage.setItem('theme', theme); } catch (e) {}
+          btn.setAttribute('aria-label', theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
+          btn.title = theme === 'light' ? 'Dark mode' : 'Light mode';
+        }
+        setTheme(currentTheme());
+        btn.addEventListener('click', function () {
+          setTheme(currentTheme() === 'light' ? 'dark' : 'light');
+        });
+      })();
+    </script>
   </body>
 </html>

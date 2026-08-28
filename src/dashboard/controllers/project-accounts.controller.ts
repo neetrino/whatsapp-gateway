@@ -31,14 +31,10 @@ export class ProjectAccountsController {
   ) {}
 
   @Get('new')
-  @Render('dashboard/accounts-new')
-  async newPage(
-    @Req() req: Request,
-    @CurrentAdmin() admin: AuthenticatedAdmin,
-    @Param('projectId') projectId: string,
-  ): Promise<BaseViewModel & { project: unknown; active: 'projects' }> {
-    const project = await this.projectsService.getById(projectId);
-    return { ...baseView(req, admin, 'New WhatsApp account'), project, active: 'projects' };
+  @HttpCode(HttpStatus.SEE_OTHER)
+  async newPage(@Param('projectId') projectId: string, @Res() res: Response): Promise<void> {
+    await this.projectsService.getById(projectId);
+    res.redirect(303, `/projects/${projectId}#create-account`);
   }
 
   @Post()
@@ -60,7 +56,13 @@ export class ProjectAccountsController {
     @Param('projectId') projectId: string,
     @Param('accountId') accountId: string,
   ): Promise<
-    BaseViewModel & { projectId: string; account: unknown; recentLogs: unknown; active: 'projects'; modeError?: boolean }
+    BaseViewModel & {
+      projectId: string;
+      account: unknown;
+      recentLogs: unknown;
+      active: 'projects';
+      modeError?: boolean;
+    }
   > {
     const account = await this.accountsService.getByIdForProject(projectId, accountId);
     const refreshed = await this.accountsService.refreshStatus(account);
@@ -132,6 +134,34 @@ export class ProjectAccountsController {
     return { status: refreshed.status, phoneNumber: refreshed.phoneNumber };
   }
 
+  @Get(':accountId/qr.json')
+  async qrJson(
+    @Req() req: Request,
+    @Param('projectId') projectId: string,
+    @Param('accountId') accountId: string,
+  ): Promise<{
+    status: string;
+    phoneNumber: string | null;
+    label: string;
+    qrDataUrl: string | null;
+    qrError: string | null;
+    qrErrorCode: string | null;
+  }> {
+    const account = await this.accountsService.getByIdForProject(projectId, accountId);
+    await this.accountsService.startOrEnsureSession(account);
+    const refreshed = await this.accountsService.refreshStatus(account);
+    const requestId = (req as RequestWithId).requestId;
+    const qr = await this.accountsService.getQrForPage(refreshed, requestId);
+    return {
+      status: refreshed.status,
+      phoneNumber: refreshed.phoneNumber,
+      label: refreshed.label,
+      qrDataUrl: qr.dataUrl,
+      qrError: qr.errorSummary,
+      qrErrorCode: qr.errorCode,
+    };
+  }
+
   @Post(':accountId/restart')
   @HttpCode(HttpStatus.SEE_OTHER)
   async restart(
@@ -180,7 +210,7 @@ export class ProjectAccountsController {
     @Res() res: Response,
   ): Promise<void> {
     await this.accountsService.setActiveForProject(projectId, accountId, true);
-    res.redirect(303, `/projects/${projectId}/accounts/${accountId}`);
+    res.redirect(303, `/projects/${projectId}#accounts`);
   }
 
   @Post(':accountId/deactivate')
@@ -192,6 +222,6 @@ export class ProjectAccountsController {
     @Res() res: Response,
   ): Promise<void> {
     await this.accountsService.setActiveForProject(projectId, accountId, false);
-    res.redirect(303, `/projects/${projectId}/accounts/${accountId}`);
+    res.redirect(303, `/projects/${projectId}#accounts`);
   }
 }

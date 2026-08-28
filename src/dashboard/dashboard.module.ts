@@ -11,7 +11,14 @@ import { AuthModule } from '../auth/auth.module';
 import { HealthModule } from '../health/health.module';
 
 @Module({
-  imports: [ProjectsModule, WhatsappAccountsModule, ApiTokensModule, AuthModule, HealthModule, WebhooksModule],
+  imports: [
+    ProjectsModule,
+    WhatsappAccountsModule,
+    ApiTokensModule,
+    AuthModule,
+    HealthModule,
+    WebhooksModule,
+  ],
   controllers: [
     OverviewController,
     ProjectsDashboardController,

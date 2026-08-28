@@ -1,8 +1,5 @@
 import axios from 'axios';
-import {
-  computeProjectWebhookSignature,
-  PROJECT_WEBHOOK_SIGNATURE_ALGORITHM,
-} from './waha-hmac';
+import { computeProjectWebhookSignature, PROJECT_WEBHOOK_SIGNATURE_ALGORITHM } from './waha-hmac';
 
 export interface WebhookPostResult {
   ok: boolean;

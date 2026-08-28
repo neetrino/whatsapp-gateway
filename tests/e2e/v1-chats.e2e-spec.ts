@@ -51,7 +51,12 @@ describe('v1 chats API (e2e)', () => {
       update: jest.fn(),
     },
     apiToken: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
-    outboundMessageLog: { create: jest.fn(), updateMany: jest.fn(), findFirst: jest.fn(), findMany: jest.fn() },
+    outboundMessageLog: {
+      create: jest.fn(),
+      updateMany: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
     outboundMessageIdempotency: { findUnique: jest.fn(), create: jest.fn(), updateMany: jest.fn() },
     groupApiOperation: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
     $transaction: jest.fn(),
@@ -124,9 +129,7 @@ describe('v1 chats API (e2e)', () => {
 
   it('returns 409 for SEND_ONLY accounts', async () => {
     prismaMock.whatsappAccount.findFirst.mockResolvedValue(sendOnlyAccount);
-    const res = await request(app.getHttpServer())
-      .get('/api/v1/accounts/acc-s/chats')
-      .set(auth());
+    const res = await request(app.getHttpServer()).get('/api/v1/accounts/acc-s/chats').set(auth());
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('ACCOUNT_MODE_NOT_SUPPORTED');
     expect(listChats).not.toHaveBeenCalled();
@@ -150,7 +153,10 @@ describe('v1 chats API (e2e)', () => {
     expect(res.body.data.items[0].id).toBe('37499111222@c.us');
     expect(JSON.stringify(res.body)).not.toContain('sessionName');
     expect(JSON.stringify(res.body)).not.toContain('_data');
-    expect(listChats).toHaveBeenCalledWith('wa_m', expect.objectContaining({ limit: 10, offset: 0 }));
+    expect(listChats).toHaveBeenCalledWith(
+      'wa_m',
+      expect.objectContaining({ limit: 10, offset: 0 }),
+    );
   });
 
   it('returns message bodies capped by MAX_TEXT_LENGTH', async () => {
@@ -170,9 +176,7 @@ describe('v1 chats API (e2e)', () => {
   it('returns STORE_NOT_READY when WAHA store is disabled', async () => {
     prismaMock.whatsappAccount.findFirst.mockResolvedValue(messengerAccount);
     isNowebStoreEnabled.mockResolvedValue(false);
-    const res = await request(app.getHttpServer())
-      .get('/api/v1/accounts/acc-m/chats')
-      .set(auth());
+    const res = await request(app.getHttpServer()).get('/api/v1/accounts/acc-m/chats').set(auth());
     expect(res.status).toBe(503);
     expect(res.body.error.code).toBe('STORE_NOT_READY');
   });
@@ -182,9 +186,7 @@ describe('v1 chats API (e2e)', () => {
       ...messengerAccount,
       status: SessionStatus.DISCONNECTED,
     });
-    const res = await request(app.getHttpServer())
-      .get('/api/v1/accounts/acc-m/chats')
-      .set(auth());
+    const res = await request(app.getHttpServer()).get('/api/v1/accounts/acc-m/chats').set(auth());
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('WHATSAPP_NOT_CONNECTED');
   });

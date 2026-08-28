@@ -32,8 +32,15 @@ describe('v1 token rate limiting (e2e)', () => {
         $disconnect: jest.fn(),
         $queryRaw: jest.fn().mockResolvedValue([{ ok: 1 }]),
         admin: { findUnique: jest.fn() },
-        project: { count: jest.fn().mockResolvedValue(0), findUnique: jest.fn(), findMany: jest.fn() },
-        whatsappAccount: { findFirst: jest.fn().mockResolvedValue(null), findMany: jest.fn().mockResolvedValue([]) },
+        project: {
+          count: jest.fn().mockResolvedValue(0),
+          findUnique: jest.fn(),
+          findMany: jest.fn(),
+        },
+        whatsappAccount: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          findMany: jest.fn().mockResolvedValue([]),
+        },
         apiToken: { findMany: jest.fn(), findUnique: jest.fn() },
         outboundMessageLog: { create: jest.fn(), update: jest.fn(), findMany: jest.fn() },
         outboundMessageIdempotency: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },

@@ -36,9 +36,7 @@ export const upsertSingletonAdmin = async (
     return { created: false, sessionBumped: false };
   }
 
-  const passwordHash = passwordMatches
-    ? existing.passwordHash
-    : await hashPassword(input.password);
+  const passwordHash = passwordMatches ? existing.passwordHash : await hashPassword(input.password);
   const credentialsChanged = !passwordMatches || !emailUnchanged;
   await prisma.admin.update({
     where: { id: existing.id },

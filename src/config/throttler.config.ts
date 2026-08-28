@@ -9,12 +9,16 @@ import {
 } from '../common/utils/rate-limit-tracker';
 
 const v1ThrottleKind = (context: ExecutionContext): 'send' | 'read' | undefined => {
-  const { path, method } = requestPath(context.switchToHttp().getRequest<Record<string, unknown>>());
+  const { path, method } = requestPath(
+    context.switchToHttp().getRequest<Record<string, unknown>>(),
+  );
   return classifyV1Throttle(path, method);
 };
 
 const isWahaInboundPath = (context: ExecutionContext): boolean => {
-  const { path, method } = requestPath(context.switchToHttp().getRequest<Record<string, unknown>>());
+  const { path, method } = requestPath(
+    context.switchToHttp().getRequest<Record<string, unknown>>(),
+  );
   return method === 'POST' && path === '/internal/waha/events';
 };
 
@@ -23,9 +27,7 @@ const liveLimit = (key: string, fallback: number): number => {
   return Number.isFinite(n) && n >= 1 ? n : fallback;
 };
 
-export const buildThrottlerOptions = (
-  configService: ConfigService<EnvironmentVariables, true>,
-) => {
+export const buildThrottlerOptions = (configService: ConfigService<EnvironmentVariables, true>) => {
   const pepper = configService.get('TOKEN_PEPPER', { infer: true });
   const sendLimit = configService.get('RATE_LIMIT_SEND', { infer: true });
   const v1Send = configService.get('RATE_LIMIT_V1_SEND', { infer: true });

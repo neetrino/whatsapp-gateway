@@ -34,7 +34,9 @@ const requireMultiSession = (status: number, body: unknown, name: string): void 
     );
   }
   if (status < 200 || status >= 300) {
-    throw new Error(`WAHA session create/start for "${name}" failed: HTTP ${status} ${text.slice(0, 300)}`);
+    throw new Error(
+      `WAHA session create/start for "${name}" failed: HTTP ${status} ${text.slice(0, 300)}`,
+    );
   }
 };
 
