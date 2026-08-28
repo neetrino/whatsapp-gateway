@@ -89,9 +89,9 @@
       <thead>
         <tr>
           <th>Name</th>
-          <th>Prefix</th>
-          <th>Last 4</th>
-          <th>Last used</th>
+          <th class="col-center">Prefix</th>
+          <th class="col-center">Last 4</th>
+          <th class="col-center">Last used</th>
           <th class="col-revoked">Revoked</th>
           <th></th>
         </tr>
@@ -100,9 +100,9 @@
         {{#each tokens}}
           <tr>
             <td>{{this.name}}</td>
-            <td><code>{{this.tokenPrefix}}</code></td>
-            <td><code>…{{this.last4}}</code></td>
-            <td>{{#if this.lastUsedAt}}{{this.lastUsedAt}}{{else}}—{{/if}}</td>
+            <td class="col-center"><code>{{this.tokenPrefix}}</code></td>
+            <td class="col-center"><code>…{{this.last4}}</code></td>
+            <td class="col-center">{{#if this.lastUsedAt}}{{this.lastUsedAt}}{{else}}—{{/if}}</td>
             <td class="col-revoked">
               <form
                 method="post"
