@@ -23,7 +23,7 @@ Required:
 - `DATABASE_URL=file:/app/data/gateway.db` in Docker
 - `COOKIE_SECRET`, `JWT_SECRET`, `TOKEN_PEPPER` — each ≥ 32 chars. **Do not rotate `TOKEN_PEPPER` after tokens are issued.**
 - `WAHA_API_KEY`, `WAHA_WEBHOOK_SECRET` (≥ 32 chars)
-- `ADMIN_EMAIL` / `ADMIN_PASSWORD` — used only when the SQLite file has no admin yet
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` — singleton admin. Applied on every start; if they differ from the database, the login is updated.
 
 ## First start
 

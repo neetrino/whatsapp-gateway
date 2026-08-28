@@ -12,8 +12,8 @@ export const bootstrapAdminFromEnv = async (prisma: PrismaClient): Promise<void>
     logger.warn('ADMIN_PASSWORD is shorter than 12 characters; admin seed skipped.');
     return;
   }
-  const existing = await prisma.admin.findUnique({ where: { singleton: 1 } });
-  if (existing) return;
   const result = await upsertSingletonAdmin(prisma, { email, password });
-  logger.log(`Admin ${email} ${result.created ? 'created' : 'unchanged'}.`);
+  logger.log(
+    `Admin ${email} ${result.created ? 'created' : result.sessionBumped ? 'updated' : 'unchanged'}.`,
+  );
 };
