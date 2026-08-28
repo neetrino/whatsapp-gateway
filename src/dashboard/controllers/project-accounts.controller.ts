@@ -132,6 +132,34 @@ export class ProjectAccountsController {
     return { status: refreshed.status, phoneNumber: refreshed.phoneNumber };
   }
 
+  @Get(':accountId/qr.json')
+  async qrJson(
+    @Req() req: Request,
+    @Param('projectId') projectId: string,
+    @Param('accountId') accountId: string,
+  ): Promise<{
+    status: string;
+    phoneNumber: string | null;
+    label: string;
+    qrDataUrl: string | null;
+    qrError: string | null;
+    qrErrorCode: string | null;
+  }> {
+    const account = await this.accountsService.getByIdForProject(projectId, accountId);
+    await this.accountsService.startOrEnsureSession(account);
+    const refreshed = await this.accountsService.refreshStatus(account);
+    const requestId = (req as RequestWithId).requestId;
+    const qr = await this.accountsService.getQrForPage(refreshed, requestId);
+    return {
+      status: refreshed.status,
+      phoneNumber: refreshed.phoneNumber,
+      label: refreshed.label,
+      qrDataUrl: qr.dataUrl,
+      qrError: qr.errorSummary,
+      qrErrorCode: qr.errorCode,
+    };
+  }
+
   @Post(':accountId/restart')
   @HttpCode(HttpStatus.SEE_OTHER)
   async restart(
