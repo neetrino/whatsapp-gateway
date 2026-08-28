@@ -254,8 +254,13 @@ describe('Dashboard project/account/token flows (e2e)', () => {
 
   it('creates an account, warns when two are active, then deactivates one', async () => {
     await formPost('/projects', { name: 'Beta', slug: 'beta' });
-    const newPage = await htmlGet('/projects/proj_beta/accounts/new');
-    expect(newPage.text).toContain('MESSENGER enables NOWEB Store and v1 chats/history APIs');
+    const newRedirect = await htmlGet('/projects/proj_beta/accounts/new').redirects(0);
+    expect(newRedirect.status).toBe(303);
+    expect(newRedirect.headers.location).toBe('/projects/proj_beta#create-account');
+
+    const createSheet = await htmlGet('/projects/proj_beta');
+    expect(createSheet.text).toContain('MESSENGER enables NOWEB Store and v1 chats/history APIs');
+    expect(createSheet.text).toContain('data-open-create-account');
 
     const first = await formPost('/projects/proj_beta/accounts', {
       label: 'Primary',
