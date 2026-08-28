@@ -147,6 +147,9 @@
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && sheet && sheet.classList.contains('is-open')) {
       closeCreateSheet();
+      if (document.activeElement && document.activeElement.blur) {
+        document.activeElement.blur();
+      }
     }
   });
 

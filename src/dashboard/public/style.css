@@ -31,6 +31,27 @@
 
 * { box-sizing: border-box; }
 
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid rgba(62, 207, 142, 0.55);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a.primary:focus-visible,
+.detail-tab:focus-visible,
+.link-button:focus-visible,
+.topbar .nav a:focus-visible,
+.custom-select__trigger:focus-visible,
+.side-sheet__rail-btn:focus-visible,
+.icon-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
 html, body {
   margin: 0;
   padding: 0;

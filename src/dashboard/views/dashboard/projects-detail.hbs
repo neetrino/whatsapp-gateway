@@ -701,9 +701,17 @@
       if (t) t.setAttribute('aria-expanded', 'false');
       if (m) m.hidden = true;
       e.preventDefault();
+      if (document.activeElement && document.activeElement.blur) {
+        document.activeElement.blur();
+      }
       return;
     }
-    if (openTab || isSheetOpen('qr') || isSheetOpen('create-account')) closeSheet();
+    if (openTab || isSheetOpen('qr') || isSheetOpen('create-account')) {
+      closeSheet();
+      if (document.activeElement && document.activeElement.blur) {
+        document.activeElement.blur();
+      }
+    }
   });
 
   document.querySelectorAll('[data-active-switch]').forEach(function (input) {
