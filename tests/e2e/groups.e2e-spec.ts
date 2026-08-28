@@ -16,6 +16,7 @@ describe('GET /api/groups (e2e)', () => {
   const findValidByRaw = jest.fn();
   const touchLastUsed = jest.fn();
   const listGroups = jest.fn();
+  const listChats = jest.fn();
 
   const prismaMock = {
     onModuleInit: async () => {},
@@ -47,6 +48,7 @@ describe('GET /api/groups (e2e)', () => {
       .useValue({
         healthCheck: jest.fn().mockResolvedValue(true),
         listGroups,
+        listChats,
       })
       .compile();
     app = moduleRef.createNestApplication();
@@ -63,6 +65,7 @@ describe('GET /api/groups (e2e)', () => {
     listGroups.mockResolvedValue({
       groups: [{ id: '120363123456789012@g.us', subject: 'Product' }],
     });
+    listChats.mockResolvedValue([]);
     const res = await request(app.getHttpServer())
       .get('/api/groups?limit=1&offset=0')
       .set('Authorization', `Bearer ${raw}`);
@@ -71,7 +74,7 @@ describe('GET /api/groups (e2e)', () => {
     expect(res.body.data.groups).toHaveLength(1);
     expect(listGroups).toHaveBeenCalledWith(
       'wa_test',
-      expect.objectContaining({ limit: 1, offset: 0 }),
+      expect.objectContaining({ limit: 200, offset: 0 }),
     );
   });
 
@@ -82,6 +85,7 @@ describe('GET /api/groups (e2e)', () => {
       '120363111111111111@g.us': { id: '120363111111111111@g.us', subject: 'Alpha' },
       '120363222222222222@g.us': { id: '120363222222222222@g.us', subject: 'Beta' },
     });
+    listChats.mockResolvedValue([]);
     const res = await request(app.getHttpServer())
       .get('/api/groups?limit=1&offset=0')
       .set('Authorization', `Bearer ${raw}`);
@@ -90,5 +94,28 @@ describe('GET /api/groups (e2e)', () => {
       expect.objectContaining({ id: '120363111111111111@g.us', name: 'Alpha' }),
     ]);
     expect(res.body.data.pagination).toEqual({ limit: 1, offset: 0, count: 1 });
+  });
+
+  it('finds a later group by search and prefers recent chats', async () => {
+    const raw = generateApiToken(prefix).raw;
+    findValidByRaw.mockResolvedValue({ ...validResolvedToken });
+    listGroups.mockResolvedValue({
+      '120363111111111111@g.us': { id: '120363111111111111@g.us', subject: '$Ardana.ru' },
+      '120363222222222222@g.us': { id: '120363222222222222@g.us', subject: 'Qualitech' },
+    });
+    listChats.mockResolvedValue([{ id: '120363222222222222@g.us', name: 'Qualitech' }]);
+    const listed = await request(app.getHttpServer())
+      .get('/api/groups?limit=1&offset=0')
+      .set('Authorization', `Bearer ${raw}`);
+    expect(listed.body.data.groups[0]).toEqual(
+      expect.objectContaining({ name: 'Qualitech' }),
+    );
+    const searched = await request(app.getHttpServer())
+      .get('/api/groups?limit=20&offset=0&search=Quali')
+      .set('Authorization', `Bearer ${raw}`);
+    expect(searched.status).toBe(200);
+    expect(searched.body.data.groups).toEqual([
+      expect.objectContaining({ name: 'Qualitech' }),
+    ]);
   });
 });

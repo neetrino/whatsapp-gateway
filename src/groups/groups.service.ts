@@ -12,14 +12,8 @@ import {
   INVITE_CODE_REGEX,
   WHATSAPP_INVITE_BASE_URL,
 } from './constants/group.constants';
-import {
-  describeRawGroupsShape,
-  extractGroupId,
-  extractGroupName,
-  isWahaGroupsJidMap,
-  mapWahaGroup,
-  mapWahaGroups,
-} from './mappers/waha-group.mapper';
+import { applyGroupSearch, fetchAllWahaGroups, mergeRecentChatOrder, paginateGroups } from './group-catalog';
+import { extractGroupId, extractGroupName, mapWahaGroup } from './mappers/waha-group.mapper';
 import { extractInviteCode, mapWahaParticipants } from './mappers/waha-participant.mapper';
 import { IdempotencyScope } from '../common/db-enums';
 import { IdempotencyStore } from '../common/idempotency/idempotency.store';
@@ -53,32 +47,30 @@ export class GroupsService {
   ): Promise<GroupsListResult> {
     const sessionName = await this.sessionOf(account);
     try {
-      const raw = await this.wahaClient.listGroups(sessionName, {
-        limit: query.limit,
-        offset: query.offset,
-        sortBy: 'subject',
-        sortOrder: 'asc',
-        exclude: 'participants',
-      });
-      let groups = mapWahaGroups(raw);
-      if (groups.length === 0) {
-        this.logger.warn({ msg: 'waha_groups_mapped_empty', ...describeRawGroupsShape(raw) });
+      const { groups: catalog, rawShape } = await fetchAllWahaGroups((page) =>
+        this.wahaClient.listGroups(sessionName, page),
+      );
+      if (catalog.length === 0) {
+        this.logger.warn({ msg: 'waha_groups_mapped_empty', ...rawShape });
       }
-      if (query.search) {
-        const needle = query.search.toLowerCase();
-        groups = groups.filter(
-          (g) => g.name.toLowerCase().includes(needle) || g.id.toLowerCase().includes(needle),
-        );
-      }
-      if (isWahaGroupsJidMap(raw)) {
-        groups = groups.slice(query.offset, query.offset + query.limit);
-      }
-      return {
-        groups,
-        pagination: { limit: query.limit, offset: query.offset, count: groups.length },
-      };
+      const chatsRaw = await this.loadRecentChats(sessionName);
+      const filtered = applyGroupSearch(mergeRecentChatOrder(catalog, chatsRaw), query.search);
+      return paginateGroups(filtered, query.limit, query.offset);
     } catch (error) {
       throw mapGroupProviderError(error, ERROR_CODES.GROUP_LIST_FAILED, 'Failed to list groups.');
+    }
+  }
+
+  private async loadRecentChats(sessionName: string): Promise<unknown> {
+    try {
+      return await this.wahaClient.listChats(sessionName, {
+        limit: 200,
+        offset: 0,
+        sortBy: 'messageTimestamp',
+        sortOrder: 'desc',
+      });
+    } catch {
+      return [];
     }
   }
 
