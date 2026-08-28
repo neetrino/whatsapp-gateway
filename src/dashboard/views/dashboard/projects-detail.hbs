@@ -207,40 +207,44 @@
     <div class="side-sheet__body">
       <div class="side-sheet__section">
         <p class="meta">Manage connected WhatsApp sessions for this project.</p>
-        <table class="data-table">
+        <table class="data-table accounts-table">
           <thead>
             <tr>
-              <th>Label</th>
-              <th>Mode</th>
-              <th>Status</th>
-              <th>Phone</th>
-              <th>Active</th>
-              <th></th>
+              <th class="col-label">Label</th>
+              <th class="col-mode">Mode</th>
+              <th class="col-status">Status</th>
+              <th class="col-phone">Phone</th>
+              <th class="col-active">Active</th>
+              <th class="col-actions"></th>
             </tr>
           </thead>
           <tbody>
             {{#each accounts}}
               <tr>
-                <td>{{this.label}}</td>
-                <td>{{this.mode}}</td>
-                <td><span class="status status-{{this.status}}">{{this.status}}</span></td>
-                <td>{{#if this.phoneNumber}}{{this.phoneNumber}}{{else}}—{{/if}}</td>
-                <td>
-                  {{#if this.isActive}}
-                    Active
-                    <form method="post" action="/projects/{{../project.id}}/accounts/{{this.id}}/deactivate" class="inline">
-                      <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
-                      <button type="submit" class="danger">Deactivate</button>
-                    </form>
-                  {{else}}
-                    Inactive
-                    <form method="post" action="/projects/{{../project.id}}/accounts/{{this.id}}/activate" class="inline">
-                      <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
-                      <button type="submit">Activate</button>
-                    </form>
-                  {{/if}}
+                <td class="col-label">{{this.label}}</td>
+                <td class="col-mode">{{this.mode}}</td>
+                <td class="col-status"><span class="status status-{{this.status}}">{{this.status}}</span></td>
+                <td class="col-phone">{{#if this.phoneNumber}}{{this.phoneNumber}}{{else}}—{{/if}}</td>
+                <td class="col-active">
+                  <form
+                    method="post"
+                    action="/projects/{{../project.id}}/accounts/{{this.id}}/{{#if this.isActive}}deactivate{{else}}activate{{/if}}"
+                    class="switch-form"
+                  >
+                    <input type="hidden" name="_csrf" value="{{../csrfToken}}" />
+                    <label class="switch">
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        data-active-switch
+                        {{#if this.isActive}}checked{{/if}}
+                        aria-label="{{#if this.isActive}}Deactivate{{else}}Activate{{/if}} {{this.label}}"
+                      />
+                      <span class="switch__track" aria-hidden="true"></span>
+                    </label>
+                  </form>
                 </td>
-                <td>
+                <td class="col-actions">
                   <a href="/projects/{{../project.id}}/accounts/{{this.id}}">Detail</a>
                   ·
                   <a href="/projects/{{../project.id}}/accounts/{{this.id}}/qr">QR</a>
@@ -337,8 +341,16 @@
     if (e.key === 'Escape' && openTab) closeSheet();
   });
 
+  document.querySelectorAll('[data-active-switch]').forEach(function (input) {
+    input.addEventListener('change', function () {
+      if (input.form) input.form.submit();
+    });
+  });
+
   {{#if revealedWebhook}}
   openSheet('webhook');
+  {{else}}
+  if (location.hash === '#accounts') openSheet('accounts');
   {{/if}}
 })();
 </script>

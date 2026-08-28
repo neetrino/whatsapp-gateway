@@ -180,7 +180,7 @@ export class ProjectAccountsController {
     @Res() res: Response,
   ): Promise<void> {
     await this.accountsService.setActiveForProject(projectId, accountId, true);
-    res.redirect(303, `/projects/${projectId}/accounts/${accountId}`);
+    res.redirect(303, `/projects/${projectId}#accounts`);
   }
 
   @Post(':accountId/deactivate')
@@ -192,6 +192,6 @@ export class ProjectAccountsController {
     @Res() res: Response,
   ): Promise<void> {
     await this.accountsService.setActiveForProject(projectId, accountId, false);
-    res.redirect(303, `/projects/${projectId}/accounts/${accountId}`);
+    res.redirect(303, `/projects/${projectId}#accounts`);
   }
 }
