@@ -3,8 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 import type { EnvironmentVariables } from '../config/env.validation';
 import {
+  WahaAddParticipantsInput,
   WahaApiError,
+  WahaCreateGroupInput,
   WahaListChatsQuery,
+  WahaListGroupsQuery,
   WahaListChatMessagesQuery,
   WahaQrPayload,
   WahaSendTextResult,
@@ -381,6 +384,87 @@ export class WahaClient {
       data: { session: sessionName, chatId, text },
     });
     return { id: response.id ?? response.messageId };
+  }
+
+  async listGroups(sessionName: string, query: WahaListGroupsQuery): Promise<unknown> {
+    const session = encodeURIComponent(sessionName);
+    return this.invoke<unknown>('list groups', {
+      method: 'GET',
+      url: `/api/${session}/groups`,
+      params: {
+        limit: query.limit,
+        offset: query.offset,
+        sortBy: query.sortBy ?? 'subject',
+        sortOrder: query.sortOrder ?? 'asc',
+        exclude: query.exclude ?? 'participants',
+      },
+    });
+  }
+
+  async createGroup(sessionName: string, input: WahaCreateGroupInput): Promise<unknown> {
+    const session = encodeURIComponent(sessionName);
+    return this.invoke<unknown>('create group', {
+      method: 'POST',
+      url: `/api/${session}/groups`,
+      data: { name: input.name, participants: input.participants },
+    });
+  }
+
+  async getGroup(sessionName: string, groupId: string): Promise<unknown> {
+    const session = encodeURIComponent(sessionName);
+    const encodedGroupId = encodeURIComponent(groupId);
+    return this.invoke<unknown>('get group', {
+      method: 'GET',
+      url: `/api/${session}/groups/${encodedGroupId}`,
+    });
+  }
+
+  async refreshGroups(sessionName: string): Promise<unknown> {
+    const session = encodeURIComponent(sessionName);
+    return this.invoke<unknown>('refresh groups', {
+      method: 'POST',
+      url: `/api/${session}/groups/refresh`,
+    });
+  }
+
+  async listGroupParticipants(sessionName: string, groupId: string): Promise<unknown> {
+    const session = encodeURIComponent(sessionName);
+    const encodedGroupId = encodeURIComponent(groupId);
+    try {
+      return await this.invoke<unknown>('list group participants v2', {
+        method: 'GET',
+        url: `/api/${session}/groups/${encodedGroupId}/participants/v2`,
+      });
+    } catch (error) {
+      if (!(error instanceof WahaApiError) || error.status !== 404) throw error;
+    }
+    return this.invoke<unknown>('list group participants', {
+      method: 'GET',
+      url: `/api/${session}/groups/${encodedGroupId}/participants`,
+    });
+  }
+
+  async addGroupParticipants(
+    sessionName: string,
+    groupId: string,
+    input: WahaAddParticipantsInput,
+  ): Promise<unknown> {
+    const session = encodeURIComponent(sessionName);
+    const encodedGroupId = encodeURIComponent(groupId);
+    return this.invoke<unknown>('add group participants', {
+      method: 'POST',
+      url: `/api/${session}/groups/${encodedGroupId}/participants/add`,
+      data: { participants: input.participants },
+    });
+  }
+
+  async getGroupInviteCode(sessionName: string, groupId: string): Promise<unknown> {
+    const session = encodeURIComponent(sessionName);
+    const encodedGroupId = encodeURIComponent(groupId);
+    return this.invoke<unknown>('get group invite code', {
+      method: 'GET',
+      url: `/api/${session}/groups/${encodedGroupId}/invite-code`,
+    });
   }
 
   /**
