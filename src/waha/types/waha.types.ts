@@ -1,5 +1,11 @@
 export type WahaSessionStatusRaw =
-  'STARTING' | 'SCAN_QR_CODE' | 'WORKING' | 'FAILED' | 'STOPPED' | 'STOPPING' | string;
+  | 'STARTING'
+  | 'SCAN_QR_CODE'
+  | 'WORKING'
+  | 'FAILED'
+  | 'STOPPED'
+  | 'STOPPING'
+  | string;
 
 export interface WahaSessionInfo {
   name: string;

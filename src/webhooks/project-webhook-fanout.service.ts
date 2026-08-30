@@ -16,10 +16,7 @@ export class ProjectWebhookFanoutService {
     private readonly config: ConfigService<EnvironmentVariables, true>,
   ) {}
 
-  async deliver(
-    projectId: string,
-    payload: ProjectWebhookPayload,
-  ): Promise<void> {
+  async deliver(projectId: string, payload: ProjectWebhookPayload): Promise<void> {
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
       select: {

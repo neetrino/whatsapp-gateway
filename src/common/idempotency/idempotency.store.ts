@@ -142,11 +142,13 @@ export class IdempotencyStore {
       },
     });
     const latest = await this.prisma.apiIdempotency.findUnique({ where: { id: existing.id } });
-    return latest ? replayOf(latest) : replayOf({
-      ...existing,
-      status: IdempotencyStatus.OUTCOME_UNKNOWN,
-      errorCode: ERROR_CODES.MESSAGE_OUTCOME_UNKNOWN,
-    });
+    return latest
+      ? replayOf(latest)
+      : replayOf({
+          ...existing,
+          status: IdempotencyStatus.OUTCOME_UNKNOWN,
+          errorCode: ERROR_CODES.MESSAGE_OUTCOME_UNKNOWN,
+        });
   }
 
   private findRow(input: IdempotencyBeginInput): Promise<IdempotencyRow | null> {

@@ -64,8 +64,7 @@ interface ControlPlaneDump {
   api_tokens?: DumpToken[];
 }
 
-const toDate = (value: string | null | undefined): Date | null =>
-  value ? new Date(value) : null;
+const toDate = (value: string | null | undefined): Date | null => (value ? new Date(value) : null);
 
 const main = async (): Promise<void> => {
   const path = process.env.CONTROL_PLANE_IMPORT ?? 'data/neon-control-plane.json';

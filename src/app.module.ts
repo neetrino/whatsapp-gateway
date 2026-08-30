@@ -22,6 +22,7 @@ import { ApiTokensModule } from './api-tokens/api-tokens.module';
 import { WahaModule } from './waha/waha.module';
 import { MessagesModule } from './messages/messages.module';
 import { GroupsModule } from './groups/groups.module';
+import { ChatsModule } from './chats/chats.module';
 import { HealthModule } from './health/health.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { V1Module } from './v1/v1.module';
@@ -49,6 +50,7 @@ import { AppController } from './app.controller';
     WahaModule,
     MessagesModule,
     GroupsModule,
+    ChatsModule,
     HealthModule,
     DashboardModule,
     V1Module,

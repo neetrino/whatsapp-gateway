@@ -12,7 +12,12 @@ import {
   INVITE_CODE_REGEX,
   WHATSAPP_INVITE_BASE_URL,
 } from './constants/group.constants';
-import { applyGroupSearch, fetchAllWahaGroups, mergeRecentChatOrder, paginateGroups } from './group-catalog';
+import {
+  applyGroupSearch,
+  fetchAllWahaGroups,
+  mergeRecentChatOrder,
+  paginateGroups,
+} from './group-catalog';
 import { extractGroupId, extractGroupName, mapWahaGroup } from './mappers/waha-group.mapper';
 import { extractInviteCode, mapWahaParticipants } from './mappers/waha-participant.mapper';
 import { IdempotencyScope } from '../common/db-enums';
@@ -99,7 +104,11 @@ export class GroupsService {
       await this.wahaClient.refreshGroups(sessionName);
       return { refreshed: true };
     } catch (error) {
-      throw mapGroupProviderError(error, ERROR_CODES.GROUP_REFRESH_FAILED, 'Failed to refresh groups.');
+      throw mapGroupProviderError(
+        error,
+        ERROR_CODES.GROUP_REFRESH_FAILED,
+        'Failed to refresh groups.',
+      );
     }
   }
 
@@ -220,7 +229,9 @@ export class GroupsService {
     assertGroupId(groupId);
     const sessionName = await this.sessionOf(account);
     try {
-      const code = extractInviteCode(await this.wahaClient.getGroupInviteCode(sessionName, groupId));
+      const code = extractInviteCode(
+        await this.wahaClient.getGroupInviteCode(sessionName, groupId),
+      );
       if (!code || !INVITE_CODE_REGEX.test(code)) {
         throw new AppException({
           code: ERROR_CODES.GROUP_INVITE_INVALID_PROVIDER_RESPONSE,
@@ -244,8 +255,12 @@ export class GroupsService {
     groupId: string,
     participants: string[],
   ): Promise<AddParticipantsResult> {
-    const current = mapWahaParticipants(await this.wahaClient.listGroupParticipants(sessionName, groupId));
-    const memberIds = new Set(current.filter((p) => p.role !== 'left').map((p) => p.id.toLowerCase()));
+    const current = mapWahaParticipants(
+      await this.wahaClient.listGroupParticipants(sessionName, groupId),
+    );
+    const memberIds = new Set(
+      current.filter((p) => p.role !== 'left').map((p) => p.id.toLowerCase()),
+    );
     const alreadyMembers: string[] = [];
     const toAdd: string[] = [];
     for (const id of participants) {

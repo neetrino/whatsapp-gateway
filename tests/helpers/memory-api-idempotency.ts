@@ -32,7 +32,10 @@ export const memoryApiIdempotency = () => {
     }
     const compound = where.whatsappAccountId_scope_idempotencyKey;
     if (!compound) return null;
-    return rows.get(compoundKey(compound.whatsappAccountId, compound.scope, compound.idempotencyKey)) ?? null;
+    return (
+      rows.get(compoundKey(compound.whatsappAccountId, compound.scope, compound.idempotencyKey)) ??
+      null
+    );
   };
 
   return {
@@ -58,28 +61,24 @@ export const memoryApiIdempotency = () => {
       return row;
     }),
     updateMany: jest.fn(
-      async ({
-        where,
-        data,
-      }: {
-        where: { id: string; status?: string };
-        data: Partial<Row>;
-      }) => {
+      async ({ where, data }: { where: { id: string; status?: string }; data: Partial<Row> }) => {
         const row = [...rows.values()].find((item) => item.id === where.id);
         if (!row || (where.status && row.status !== where.status)) return { count: 0 };
         Object.assign(row, data, { updatedAt: data.updatedAt ?? new Date() });
         return { count: 1 };
       },
     ),
-    deleteMany: jest.fn(async ({ where }: { where: { id?: string; expiresAt?: { lte: Date } } }) => {
-      let count = 0;
-      for (const [key, row] of rows) {
-        if (where.id && row.id !== where.id) continue;
-        if (where.expiresAt && row.expiresAt.getTime() > where.expiresAt.lte.getTime()) continue;
-        rows.delete(key);
-        count += 1;
-      }
-      return { count };
-    }),
+    deleteMany: jest.fn(
+      async ({ where }: { where: { id?: string; expiresAt?: { lte: Date } } }) => {
+        let count = 0;
+        for (const [key, row] of rows) {
+          if (where.id && row.id !== where.id) continue;
+          if (where.expiresAt && row.expiresAt.getTime() > where.expiresAt.lte.getTime()) continue;
+          rows.delete(key);
+          count += 1;
+        }
+        return { count };
+      },
+    ),
   };
 };

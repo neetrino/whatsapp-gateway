@@ -15,15 +15,11 @@ export const GROUP_CATALOG_CAP = 2000;
 const byNameThenId = (left: NormalizedGroup, right: NormalizedGroup): number =>
   left.name.localeCompare(right.name) || left.id.localeCompare(right.id);
 
-export const applyGroupSearch = (
-  groups: NormalizedGroup[],
-  search?: string,
-): NormalizedGroup[] => {
+export const applyGroupSearch = (groups: NormalizedGroup[], search?: string): NormalizedGroup[] => {
   if (!search) return groups;
   const needle = search.toLowerCase();
   return groups.filter(
-    (group) =>
-      group.name.toLowerCase().includes(needle) || group.id.toLowerCase().includes(needle),
+    (group) => group.name.toLowerCase().includes(needle) || group.id.toLowerCase().includes(needle),
   );
 };
 
@@ -78,7 +74,11 @@ export const fetchAllWahaGroups = async (
 ): Promise<{ groups: NormalizedGroup[]; rawShape: ReturnType<typeof describeRawGroupsShape> }> => {
   const groups: NormalizedGroup[] = [];
   let firstRaw: unknown = [];
-  for (let pageIndex = 0, offset = 0; pageIndex < 10 && groups.length < GROUP_CATALOG_CAP; pageIndex++) {
+  for (
+    let pageIndex = 0, offset = 0;
+    pageIndex < 10 && groups.length < GROUP_CATALOG_CAP;
+    pageIndex++
+  ) {
     const raw = await list({
       limit: WAHA_GROUPS_PAGE,
       offset,

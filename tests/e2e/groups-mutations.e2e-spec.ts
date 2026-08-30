@@ -8,14 +8,19 @@ import { WahaClient } from '../../src/waha/waha.client';
 import { SessionStatus } from '../../src/common/db-enums';
 import { generateApiToken } from '../../src/common/utils/tokens';
 import { validResolvedToken } from '../helpers/resolved-token';
+import { memoryApiIdempotency } from '../helpers/memory-api-idempotency';
 
-describe('GET /api/groups (e2e)', () => {
+const GROUP_ID = '120363123456789012@g.us';
+
+describe('group mutations (e2e)', () => {
   let app: INestApplication;
   const prefix = process.env.API_TOKEN_PREFIX ?? 'gw_test';
   const findValidByRaw = jest.fn();
   const touchLastUsed = jest.fn();
-  const listGroups = jest.fn();
-  const listChats = jest.fn();
+  const setGroupSubject = jest.fn();
+  const removeGroupParticipants = jest.fn();
+  const leaveGroup = jest.fn();
+  const listGroupParticipants = jest.fn();
 
   const prismaMock = {
     onModuleInit: async () => {},
@@ -35,6 +40,7 @@ describe('GET /api/groups (e2e)', () => {
       findMany: jest.fn().mockResolvedValue([]),
     },
     apiToken: { findMany: jest.fn().mockResolvedValue([]), findUnique: jest.fn() },
+    apiIdempotency: memoryApiIdempotency(),
   };
 
   beforeAll(async () => {
@@ -46,8 +52,10 @@ describe('GET /api/groups (e2e)', () => {
       .overrideProvider(WahaClient)
       .useValue({
         healthCheck: jest.fn().mockResolvedValue(true),
-        listGroups,
-        listChats,
+        setGroupSubject,
+        removeGroupParticipants,
+        leaveGroup,
+        listGroupParticipants,
       })
       .compile();
     app = moduleRef.createNestApplication();
@@ -58,59 +66,53 @@ describe('GET /api/groups (e2e)', () => {
     await app.close();
   });
 
-  it('lists groups for the project token', async () => {
-    const raw = generateApiToken(prefix).raw;
-    findValidByRaw.mockResolvedValue({ ...validResolvedToken });
-    listGroups.mockResolvedValue({
-      groups: [{ id: '120363123456789012@g.us', subject: 'Product' }],
-    });
-    listChats.mockResolvedValue([]);
-    const res = await request(app.getHttpServer())
-      .get('/api/groups?limit=1&offset=0')
-      .set('Authorization', `Bearer ${raw}`);
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data.groups).toHaveLength(1);
-    expect(listGroups).toHaveBeenCalledWith(
-      'wa_test',
-      expect.objectContaining({ limit: 200, offset: 0 }),
-    );
+  const authHeaders = (raw: string, key: string) => ({
+    Authorization: `Bearer ${raw}`,
+    'Idempotency-Key': key,
   });
 
-  it('maps a NOWEB JID-keyed object and paginates locally', async () => {
+  it('renames a group', async () => {
     const raw = generateApiToken(prefix).raw;
     findValidByRaw.mockResolvedValue({ ...validResolvedToken });
-    listGroups.mockResolvedValue({
-      '120363111111111111@g.us': { id: '120363111111111111@g.us', subject: 'Alpha' },
-      '120363222222222222@g.us': { id: '120363222222222222@g.us', subject: 'Beta' },
-    });
-    listChats.mockResolvedValue([]);
+    setGroupSubject.mockResolvedValue(true);
     const res = await request(app.getHttpServer())
-      .get('/api/groups?limit=1&offset=0')
-      .set('Authorization', `Bearer ${raw}`);
+      .put(`/api/groups/${encodeURIComponent(GROUP_ID)}`)
+      .set(authHeaders(raw, 'rename-1'))
+      .send({ name: 'New Title' });
     expect(res.status).toBe(200);
-    expect(res.body.data.groups).toEqual([
-      expect.objectContaining({ id: '120363111111111111@g.us', name: 'Alpha' }),
-    ]);
-    expect(res.body.data.pagination).toEqual({ limit: 1, offset: 0, count: 1 });
+    expect(res.body.data).toEqual({ id: GROUP_ID, name: 'New Title' });
+    expect(setGroupSubject).toHaveBeenCalledWith('wa_test', GROUP_ID, 'New Title');
   });
 
-  it('finds a later group by search and prefers recent chats', async () => {
+  it('removes members and treats already-absent as success', async () => {
     const raw = generateApiToken(prefix).raw;
     findValidByRaw.mockResolvedValue({ ...validResolvedToken });
-    listGroups.mockResolvedValue({
-      '120363111111111111@g.us': { id: '120363111111111111@g.us', subject: '$Ardana.ru' },
-      '120363222222222222@g.us': { id: '120363222222222222@g.us', subject: 'Qualitech' },
+    listGroupParticipants.mockResolvedValue([{ id: '37499111111@c.us', role: 'participant' }]);
+    removeGroupParticipants.mockResolvedValue(true);
+    const res = await request(app.getHttpServer())
+      .post(`/api/groups/${encodeURIComponent(GROUP_ID)}/participants/remove`)
+      .set(authHeaders(raw, 'remove-1'))
+      .send({ participants: ['37499111111@c.us', '37499222222@c.us'] });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({
+      groupId: GROUP_ID,
+      status: 'completed',
+      removed: ['37499111111@c.us'],
+      alreadyAbsent: ['37499222222@c.us'],
+      failed: [],
     });
-    listChats.mockResolvedValue([{ id: '120363222222222222@g.us', name: 'Qualitech' }]);
-    const listed = await request(app.getHttpServer())
-      .get('/api/groups?limit=1&offset=0')
-      .set('Authorization', `Bearer ${raw}`);
-    expect(listed.body.data.groups[0]).toEqual(expect.objectContaining({ name: 'Qualitech' }));
-    const searched = await request(app.getHttpServer())
-      .get('/api/groups?limit=20&offset=0&search=Quali')
-      .set('Authorization', `Bearer ${raw}`);
-    expect(searched.status).toBe(200);
-    expect(searched.body.data.groups).toEqual([expect.objectContaining({ name: 'Qualitech' })]);
+  });
+
+  it('leaves a group', async () => {
+    const raw = generateApiToken(prefix).raw;
+    findValidByRaw.mockResolvedValue({ ...validResolvedToken });
+    leaveGroup.mockResolvedValue(true);
+    const res = await request(app.getHttpServer())
+      .post(`/api/groups/${encodeURIComponent(GROUP_ID)}/leave`)
+      .set(authHeaders(raw, 'leave-group-1'))
+      .send();
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ groupId: GROUP_ID, left: true });
+    expect(leaveGroup).toHaveBeenCalledWith('wa_test', GROUP_ID);
   });
 });
