@@ -467,6 +467,39 @@ export class WahaClient {
     });
   }
 
+  async setGroupSubject(sessionName: string, groupId: string, subject: string): Promise<unknown> {
+    const session = encodeURIComponent(sessionName);
+    const encodedGroupId = encodeURIComponent(groupId);
+    return this.invoke<unknown>('set group subject', {
+      method: 'PUT',
+      url: `/api/${session}/groups/${encodedGroupId}/subject`,
+      data: { subject },
+    });
+  }
+
+  async removeGroupParticipants(
+    sessionName: string,
+    groupId: string,
+    input: WahaAddParticipantsInput,
+  ): Promise<unknown> {
+    const session = encodeURIComponent(sessionName);
+    const encodedGroupId = encodeURIComponent(groupId);
+    return this.invoke<unknown>('remove group participants', {
+      method: 'POST',
+      url: `/api/${session}/groups/${encodedGroupId}/participants/remove`,
+      data: { participants: input.participants },
+    });
+  }
+
+  async leaveGroup(sessionName: string, groupId: string): Promise<unknown> {
+    const session = encodeURIComponent(sessionName);
+    const encodedGroupId = encodeURIComponent(groupId);
+    return this.invoke<unknown>('leave group', {
+      method: 'POST',
+      url: `/api/${session}/groups/${encodedGroupId}/leave`,
+    });
+  }
+
   /**
    * WAHA Core: POST /api/sendImage — `file.url` is fetched by WAHA (not by this Gateway).
    * @see https://waha.devlike.pro/docs/how-to/send-messages/

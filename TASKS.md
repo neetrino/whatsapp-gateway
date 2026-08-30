@@ -101,7 +101,7 @@ WAHA REST paths in [`src/waha/waha.client.ts`](src/waha/waha.client.ts) should b
 - [x] `docker-compose.yml` (gateway + pinned `devlikeapro/waha:noweb-2026.8.1` + `waha_sessions` volume; WAHA not published).
 - [x] `.env.example` with every variable.
 - [x] `README.md`.
-- [x] `docs/API.md`, `docs/NBOS_INTEGRATION.md`, `docs/DEPLOYMENT.md`, `docs/SECURITY.md`, `docs/WAHA_SETUP.md`, `docs/OPERATIONS.md`.
+- [x] `docs/API.md`, `docs/INTEGRATION.md`, `docs/DEPLOYMENT.md`, `docs/SECURITY.md`, `docs/WAHA_SETUP.md`, `docs/OPERATIONS.md`.
 - [x] Unit tests: tokens, messages, accounts, projects, auth, token reveal, loaders, v1 idempotency, project token guard.
 - [x] E2E tests: send, send-media, groups, dashboard-access, dashboard projects/tokens/CSRF/reveal, v1 accounts/send, v1 rate limit.
 - [x] `npm run test:waha` live multi-session check (skipped unless `WAHA_INTEGRATION=1`).

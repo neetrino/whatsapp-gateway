@@ -200,10 +200,9 @@ describe('V1MessagesService', () => {
 
   it('rejects a disconnected account before WAHA', async () => {
     const sendText = jest.fn();
-    const service = serviceFor(
-      connected('acc1', 'wa_sess', SessionStatus.DISCONNECTED),
-      { sendText },
-    );
+    const service = serviceFor(connected('acc1', 'wa_sess', SessionStatus.DISCONNECTED), {
+      sendText,
+    });
     await expect(service.send(project, 'acc1', textInput, KEY)).rejects.toMatchObject({
       code: ERROR_CODES.WHATSAPP_NOT_CONNECTED,
     });

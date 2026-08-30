@@ -15,6 +15,9 @@ export enum IdempotencyScope {
   SEND = 'SEND',
   GROUP_CREATE = 'GROUP_CREATE',
   GROUP_ADD = 'GROUP_ADD',
+  GROUP_RENAME = 'GROUP_RENAME',
+  GROUP_REMOVE = 'GROUP_REMOVE',
+  GROUP_LEAVE = 'GROUP_LEAVE',
 }
 
 export enum IdempotencyStatus {

@@ -213,7 +213,9 @@ describe('v1 account-scoped API (e2e)', () => {
         mediaUrl: 'https://cdn.example.com/photo.jpg',
       });
     expect(image.status).toBe(200);
-    expect(image.body.data).toEqual(expect.objectContaining({ messageId: 'wimg1', status: 'sent' }));
+    expect(image.body.data).toEqual(
+      expect.objectContaining({ messageId: 'wimg1', status: 'sent' }),
+    );
     expect(sendImageByUrl).toHaveBeenCalledWith(
       'wa_aaa',
       '37499111222@c.us',

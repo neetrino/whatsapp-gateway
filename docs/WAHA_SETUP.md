@@ -64,6 +64,10 @@ See root [`docker-compose.yml`](../docker-compose.yml):
 | `POST` | `/api/{session}/groups/refresh` | Refresh groups cache |
 | `GET` | `/api/{session}/groups/{groupId}/participants/v2` | Participants (fallback: `/participants`) |
 | `POST` | `/api/{session}/groups/{groupId}/participants/add` | Add participants |
+| `POST` | `/api/{session}/groups/{groupId}/participants/remove` | Remove participants |
+| `PUT` | `/api/{session}/groups/{groupId}/subject` | Rename group |
+| `POST` | `/api/{session}/groups/{groupId}/leave` | Leave group |
+| `GET` | `/api/{session}/chats` | Recent chats (picker) |
 | `GET` | `/api/{session}/groups/{groupId}/invite-code` | Invite code |
 
 If your WAHA build uses different paths, update **`WahaClient` only**.

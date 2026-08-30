@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -17,10 +18,12 @@ import { ApiAccount, ApiAccountContext } from '../common/decorators/api-account.
 import { AppException } from '../common/errors/app.exception';
 import { ERROR_CODES } from '../common/errors/error-codes';
 import { GroupsService } from './groups.service';
+import { GroupsMutationsService } from './groups-mutations.service';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { ListGroupsQueryDto } from './dto/list-groups-query.dto';
 import { GroupIdParamDto } from './dto/group-id-param.dto';
 import { AddGroupParticipantsDto } from './dto/add-group-participants.dto';
+import { RenameGroupDto } from './dto/rename-group.dto';
 import { requireIdempotencyKey } from './idempotency';
 import type {
   AddParticipantsResult,
@@ -28,13 +31,19 @@ import type {
   GroupParticipantsResult,
   GroupsListResult,
   InviteLinkResult,
+  LeaveGroupResult,
   NormalizedGroup,
   RefreshGroupsResult,
+  RemoveParticipantsResult,
+  RenameGroupResult,
 } from './types/group.types';
 
 @Controller('api/groups')
 export class GroupsController {
-  constructor(private readonly groupsService: GroupsService) {}
+  constructor(
+    private readonly groupsService: GroupsService,
+    private readonly mutations: GroupsMutationsService,
+  ) {}
 
   @Public()
   @UseGuards(ApiTokenGuard)
@@ -77,6 +86,67 @@ export class GroupsController {
     @ApiAccount() account: ApiAccountContext | undefined,
   ): Promise<{ success: true; data: RefreshGroupsResult }> {
     const data = await this.groupsService.refreshGroups(this.requireAccount(account));
+    return { success: true, data };
+  }
+
+  @Public()
+  @UseGuards(ApiTokenGuard)
+  @Put(':groupId')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 200 } })
+  async rename(
+    @Param() params: GroupIdParamDto,
+    @Body() dto: RenameGroupDto,
+    @Headers() headers: Record<string, unknown>,
+    @ApiAccount() account: ApiAccountContext | undefined,
+  ): Promise<{ success: true; data: RenameGroupResult }> {
+    const idempotencyKey = requireIdempotencyKey(headers);
+    const data = await this.mutations.renameGroup(
+      this.requireAccount(account),
+      params.groupId,
+      dto.name,
+      idempotencyKey,
+    );
+    return { success: true, data };
+  }
+
+  @Public()
+  @UseGuards(ApiTokenGuard)
+  @Post(':groupId/leave')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 200 } })
+  async leave(
+    @Param() params: GroupIdParamDto,
+    @Headers() headers: Record<string, unknown>,
+    @ApiAccount() account: ApiAccountContext | undefined,
+  ): Promise<{ success: true; data: LeaveGroupResult }> {
+    const idempotencyKey = requireIdempotencyKey(headers);
+    const data = await this.mutations.leaveGroup(
+      this.requireAccount(account),
+      params.groupId,
+      idempotencyKey,
+    );
+    return { success: true, data };
+  }
+
+  @Public()
+  @UseGuards(ApiTokenGuard)
+  @Post(':groupId/participants/remove')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 400 } })
+  async removeParticipants(
+    @Param() params: GroupIdParamDto,
+    @Body() dto: AddGroupParticipantsDto,
+    @Headers() headers: Record<string, unknown>,
+    @ApiAccount() account: ApiAccountContext | undefined,
+  ): Promise<{ success: true; data: RemoveParticipantsResult }> {
+    const idempotencyKey = requireIdempotencyKey(headers);
+    const data = await this.mutations.removeParticipants(
+      this.requireAccount(account),
+      params.groupId,
+      dto.participants,
+      idempotencyKey,
+    );
     return { success: true, data };
   }
 

@@ -42,10 +42,7 @@ describe('group-catalog', () => {
   });
 
   it('paginates after search and sort', () => {
-    const catalog = [
-      group('120363111111111111@g.us', 'A'),
-      group('120363222222222222@g.us', 'B'),
-    ];
+    const catalog = [group('120363111111111111@g.us', 'A'), group('120363222222222222@g.us', 'B')];
     expect(paginateGroups(catalog, 1, 1)).toEqual({
       groups: [group('120363222222222222@g.us', 'B')],
       pagination: { limit: 1, offset: 1, count: 1 },

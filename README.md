@@ -95,7 +95,7 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Hetzner + reverse proxy guidanc
 
 Full contract: [docs/API.md](docs/API.md).
 
-### Example client (NBOS / any service)
+### Example client (any project)
 
 ```ts
 async function sendWhatsappMessage(chatId: string, text: string) {
@@ -121,14 +121,14 @@ async function sendWhatsappMessage(chatId: string, text: string) {
 }
 ```
 
-Image and video helpers (same auth; `mediaUrl` must be a **public HTTPS** URL) are in [docs/NBOS_INTEGRATION.md](docs/NBOS_INTEGRATION.md).
+Image and video helpers (same auth; `mediaUrl` must be a **public HTTPS** URL) are in [docs/INTEGRATION.md](docs/INTEGRATION.md).
 
 ## Documentation
 
 | Doc | Purpose |
 |-----|---------|
 | [docs/API.md](docs/API.md) | Public send API, errors, curl |
-| [docs/NBOS_INTEGRATION.md](docs/NBOS_INTEGRATION.md) | What NBOS needs (URL + token + chatId + text or media URL) |
+| [docs/INTEGRATION.md](docs/INTEGRATION.md) | How any project connects (URL + token + chatId + send, chats, groups) |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Docker, SQLite volume, HTTPS |
 | [docs/SECURITY.md](docs/SECURITY.md) | Tokens, cookies, WAHA isolation |
 | [docs/WAHA_SETUP.md](docs/WAHA_SETUP.md) | WAHA container, API key, sessions volume |

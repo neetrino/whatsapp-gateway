@@ -416,6 +416,33 @@ Returns **safe** operational status (no secrets, no raw WAHA payloads).
 
 Values may be `ok` or `unavailable` for `database` / `waha` when dependencies fail.
 
+## Chats picker API
+
+Same Project-token rule as Groups (exactly one active WhatsApp account). Not the v1 account-scoped chats API.
+
+### `GET /api/chats`
+
+Query: `limit` (1–200, default 100), `offset` (≥0, default 0), optional `search` (max 100, name or id).
+
+Loads the full group catalog, merges recent WAHA chats (`@c.us` and `@g.us`), then searches and paginates locally. Recent chats first. If `listChats` fails (`SEND_ONLY` / Store down), groups are still returned.
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      { "id": "37499111222@c.us", "name": "Armen", "type": "direct" },
+      { "id": "120363123456789012@g.us", "name": "Qualitech", "type": "group" }
+    ],
+    "pagination": { "limit": 20, "offset": 0, "count": 2 }
+  }
+}
+```
+
+`type` is `group` (`@g.us`) or `direct` (`digits@c.us`). Other suffixes are dropped. Empty WAHA name stays `""`.
+
+Rate limit: 60 / minute (route throttle).
+
 ## Groups API
 
 All group endpoints require `Authorization: Bearer <API_TOKEN>` using the **legacy** Project-token rule (exactly one active WhatsApp account). There is **no** v1 account-scoped Groups API.
@@ -489,6 +516,17 @@ Refreshes WAHA group cache. Do not call on every list. Rate limit: **1 / minute*
 { "success": true, "data": { "refreshed": true } }
 ```
 
+### `PUT /api/groups/:groupId`
+
+**Required header:** `Idempotency-Key`.
+
+Body: `{ "name": "New title" }` (max 100). Calls WAHA `PUT .../subject`.
+
+Success: `{ "id": "…@g.us", "name": "New title" }`.  
+Transport timeout may yield `503 GROUP_RENAME_OUTCOME_UNKNOWN`.
+
+Rate limit: 10 / minute.
+
 ### `GET /api/groups/:groupId`
 
 `groupId` must match `…@g.us`.
@@ -523,10 +561,44 @@ When WAHA fails at operation level without reliable per-id mapping, `status` may
 
 Rate limit: 20 / minute.
 
+### `POST /api/groups/:groupId/participants/remove`
+
+**Required header:** `Idempotency-Key`.
+
+Body: `{ "participants": ["37499333333@c.us"] }` (same JID rules as add).
+
+Already-absent ids are successful no-ops. Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "groupId": "120363123456789012@g.us",
+    "status": "completed",
+    "removed": ["37499333333@c.us"],
+    "alreadyAbsent": [],
+    "failed": []
+  }
+}
+```
+
+Partial WAHA failure uses `failed[].code = PARTICIPANT_REMOVE_FAILED`.
+
+Rate limit: 20 / minute.
+
+### `POST /api/groups/:groupId/leave`
+
+**Required header:** `Idempotency-Key`. Empty body. The connected WhatsApp account leaves the group.
+
+Success: `{ "groupId": "…@g.us", "left": true }`.  
+Transport timeout may yield `503 GROUP_LEAVE_OUTCOME_UNKNOWN`.
+
+Rate limit: 10 / minute.
+
 ### `GET /api/groups/:groupId/invite-link`
 
 Returns `{ groupId, inviteUrl }` where `inviteUrl` is `https://chat.whatsapp.com/{code}`.  
-Invite URLs are sensitive — Gateway does not log them. NBOS should send the URL to clients via `POST /api/messages/send` if needed.
+Invite URLs are sensitive — Gateway does not log them. The integrating app should send the URL via `POST /api/messages/send` if needed.
 
 Rate limit: 30 / minute.
 
@@ -541,11 +613,12 @@ Rate limit: 30 / minute.
 | 409 | `IDEMPOTENT_OPERATION_IN_PROGRESS` | Concurrent same key |
 | 404 | `GROUP_NOT_FOUND` | Unknown group |
 | 502 | `GROUP_*_FAILED` / `GROUP_CREATE_INVALID_PROVIDER_RESPONSE` / invite invalid | Provider failure |
-| 503 | `GROUP_CREATE_OUTCOME_UNKNOWN` | Create transport timeout after possible success |
+| 503 | `GROUP_CREATE_OUTCOME_UNKNOWN` / `GROUP_RENAME_OUTCOME_UNKNOWN` / `GROUP_LEAVE_OUTCOME_UNKNOWN` | Write transport timeout after possible success |
 | 503 | `WAHA_UNAVAILABLE` | Transport / disconnect |
+| 502 | `CHATS_LIST_FAILED` | Picker could not load groups |
 
 ### Safe retry rules
 
-- **Safe:** `GET` list/group/participants/invite-link (and `POST refresh` within rate limit).
-- **Unsafe without same Idempotency-Key:** `POST` create group.
-- **Add participants:** replay same Idempotency-Key; Gateway reconciles membership.
+- **Safe:** `GET` chats/groups/group/participants/invite-link (and `POST refresh` within rate limit).
+- **Unsafe without same Idempotency-Key:** create, rename, leave.
+- **Add / remove participants:** replay same Idempotency-Key; Gateway reconciles membership.

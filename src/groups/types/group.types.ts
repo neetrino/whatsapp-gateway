@@ -57,3 +57,21 @@ export interface InviteLinkResult {
   groupId: string;
   inviteUrl: string;
 }
+
+export interface RenameGroupResult {
+  id: string;
+  name: string;
+}
+
+export interface RemoveParticipantsResult {
+  groupId: string;
+  status: 'completed' | 'partial';
+  removed: string[];
+  alreadyAbsent: string[];
+  failed: ParticipantAddFailure[];
+}
+
+export interface LeaveGroupResult {
+  groupId: string;
+  left: true;
+}

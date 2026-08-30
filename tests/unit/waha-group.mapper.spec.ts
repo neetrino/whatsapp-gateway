@@ -38,9 +38,7 @@ describe('waha-group.mapper', () => {
   });
 
   it('reads JID and Name fields used by GOWS', () => {
-    expect(
-      mapWahaGroups([{ JID: '120363123456789012@g.us', Name: 'Ops' }]),
-    ).toEqual([
+    expect(mapWahaGroups([{ JID: '120363123456789012@g.us', Name: 'Ops' }])).toEqual([
       {
         id: '120363123456789012@g.us',
         name: 'Ops',
