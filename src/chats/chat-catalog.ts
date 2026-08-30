@@ -1,8 +1,20 @@
 import { GROUP_ID_REGEX, PARTICIPANT_JID_REGEX } from '../groups/constants/group.constants';
 import { extractGroupName } from '../groups/mappers/waha-group.mapper';
 import type { NormalizedGroup } from '../groups/types/group.types';
+import type { WahaListChatsQuery } from '../waha/types/waha.types';
 import { unwrapWahaList } from '../waha/waha-chats.mapper';
+import {
+  compareByLastActivity,
+  extractLastMessageAtMs,
+  stripActivityRank,
+  type ActivityRank,
+} from './activity-rank';
 import type { ChatListItem, ChatType, ChatsListResult } from './chats.types';
+
+export const WAHA_CHATS_PAGE = 200;
+export const CHAT_CATALOG_CAP = 1000;
+
+type RankedChat = ChatListItem & ActivityRank;
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -54,9 +66,6 @@ export const mapWahaChatItem = (raw: unknown): ChatListItem | null => {
   return { id, name: extractGroupName(raw), type };
 };
 
-const byNameThenId = (left: ChatListItem, right: ChatListItem): number =>
-  left.name.localeCompare(right.name) || left.id.localeCompare(right.id);
-
 export const applyChatSearch = (items: ChatListItem[], search?: string): ChatListItem[] => {
   if (!search) return items;
   const needle = search.toLowerCase();
@@ -74,25 +83,70 @@ export const paginateChats = (
   return { items: page, pagination: { limit, offset, count: page.length } };
 };
 
+export const fetchRecentWahaChats = async (
+  list: (query: WahaListChatsQuery) => Promise<unknown>,
+): Promise<unknown[]> => {
+  const items: unknown[] = [];
+  for (
+    let pageIndex = 0, offset = 0;
+    pageIndex < 5 && items.length < CHAT_CATALOG_CAP;
+    pageIndex++
+  ) {
+    const page = unwrapWahaList(
+      await list({
+        limit: WAHA_CHATS_PAGE,
+        offset,
+        sortBy: 'messageTimestamp',
+        sortOrder: 'desc',
+      }),
+    );
+    if (page.length === 0) break;
+    items.push(...page);
+    offset += page.length;
+    if (page.length < WAHA_CHATS_PAGE) break;
+  }
+  return items;
+};
+
+export const loadWahaRecentChats = async (
+  list: (query: WahaListChatsQuery) => Promise<unknown>,
+): Promise<unknown[]> => {
+  try {
+    return await fetchRecentWahaChats(list);
+  } catch {
+    return [];
+  }
+};
+
 export const buildChatCatalog = (groups: NormalizedGroup[], chatsRaw: unknown): ChatListItem[] => {
-  const byId = new Map<string, ChatListItem>(
-    groups.map((group) => [
-      group.id.toLowerCase(),
-      { id: group.id, name: group.name, type: 'group' as const },
-    ]),
-  );
-  const ordered: ChatListItem[] = [];
-  const seen = new Set<string>();
+  const byId = new Map<string, RankedChat>();
+  for (const group of groups) {
+    byId.set(group.id.toLowerCase(), {
+      id: group.id,
+      name: group.name,
+      type: 'group',
+      lastMessageAt: null,
+      inboxIndex: null,
+    });
+  }
+  let inboxIndex = 0;
   for (const chat of unwrapWahaList(chatsRaw)) {
     const fromChat = mapWahaChatItem(chat);
     if (!fromChat) continue;
     const key = fromChat.id.toLowerCase();
-    if (seen.has(key)) continue;
     const existing = byId.get(key);
-    ordered.push(existing ? { ...existing, name: existing.name || fromChat.name } : fromChat);
-    seen.add(key);
-    byId.delete(key);
+    if (existing && existing.inboxIndex !== null) {
+      inboxIndex += 1;
+      continue;
+    }
+    byId.set(key, {
+      id: existing?.id ?? fromChat.id,
+      name: existing?.name || fromChat.name,
+      type: existing?.type ?? fromChat.type,
+      lastMessageAt: extractLastMessageAtMs(chat),
+      inboxIndex,
+    });
+    inboxIndex += 1;
   }
-  const rest = [...byId.values()].sort(byNameThenId);
-  return [...ordered, ...rest];
+  return [...byId.values()].sort(compareByLastActivity).map(stripActivityRank);
 };

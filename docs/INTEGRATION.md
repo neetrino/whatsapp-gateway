@@ -95,10 +95,12 @@ Do **not** use `GET /api/groups` as the picker. That list is groups-only (manage
 }
 ```
 
+Order is the WhatsApp inbox: **last message first**, not group creation date. A group created a year ago that got a message a minute ago is at the top. Conversations with no last-message activity (dead / unused groups) come after the live inbox, by name. `offset` continues that same list.
+
 In your UI:
 
 - Label `type=group` vs `type=direct`.
-- Title: `name` if non-empty, otherwise `id` (WAHA sometimes has no subject).
+- Title: `name` if non-empty, otherwise `id`. Gateway fills a missing name from WAHA get-by-id on the current page; if still empty, the WAHA store has no subject.
 - Search: send `search=` on **every** request. Do not filter only the current page in the browser.
 - Load more: raise `offset` by `limit`, keep the same `search`.
 - After pick: store `id` + `type` on your record.

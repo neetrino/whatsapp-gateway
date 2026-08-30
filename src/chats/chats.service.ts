@@ -6,8 +6,14 @@ import type { ApiAccountContext } from '../common/decorators/api-account.decorat
 import { loadConnectedAccount } from '../whatsapp-accounts/load-connected-account';
 import { ERROR_CODES } from '../common/errors/error-codes';
 import { fetchAllWahaGroups } from '../groups/group-catalog';
+import { hydrateEmptyGroupNames } from '../groups/hydrate-group-names';
 import { mapGroupProviderError } from '../groups/groups-errors';
-import { applyChatSearch, buildChatCatalog, paginateChats } from './chat-catalog';
+import {
+  applyChatSearch,
+  buildChatCatalog,
+  loadWahaRecentChats,
+  paginateChats,
+} from './chat-catalog';
 import type { ChatsListResult } from './chats.types';
 
 @Injectable()
@@ -32,24 +38,17 @@ export class ChatsService {
       if (groups.length === 0) {
         this.logger.warn({ msg: 'waha_groups_mapped_empty', ...rawShape });
       }
-      const chatsRaw = await this.loadRecentChats(sessionName);
+      const chatsRaw = await loadWahaRecentChats((page) =>
+        this.wahaClient.listChats(sessionName, page),
+      );
       const catalog = applyChatSearch(buildChatCatalog(groups, chatsRaw), query.search);
-      return paginateChats(catalog, query.limit, query.offset);
+      const page = paginateChats(catalog, query.limit, query.offset);
+      page.items = await hydrateEmptyGroupNames(page.items, (id) =>
+        this.wahaClient.getGroup(sessionName, id),
+      );
+      return page;
     } catch (error) {
       throw mapGroupProviderError(error, ERROR_CODES.CHATS_LIST_FAILED, 'Failed to list chats.');
-    }
-  }
-
-  private async loadRecentChats(sessionName: string): Promise<unknown> {
-    try {
-      return await this.wahaClient.listChats(sessionName, {
-        limit: 200,
-        offset: 0,
-        sortBy: 'messageTimestamp',
-        sortOrder: 'desc',
-      });
-    } catch {
-      return [];
     }
   }
 

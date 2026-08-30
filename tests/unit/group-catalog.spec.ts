@@ -41,6 +41,29 @@ describe('group-catalog', () => {
     expect(merged[0]?.name).toBe('Qualitech');
   });
 
+  it('ranks a year-old group above a newer one when its last message is later', () => {
+    const catalog = [
+      group('120363111111111111@g.us', 'YearOld'),
+      group('120363222222222222@g.us', 'CreatedYesterday'),
+    ];
+    const merged = mergeRecentChatOrder(catalog, [
+      {
+        id: '120363222222222222@g.us',
+        name: 'CreatedYesterday',
+        lastMessage: { timestamp: 1_700_000_000 },
+      },
+      {
+        id: '120363111111111111@g.us',
+        name: 'YearOld',
+        lastMessage: { timestamp: 1_800_000_000 },
+      },
+    ]);
+    expect(merged.map((item) => item.id)).toEqual([
+      '120363111111111111@g.us',
+      '120363222222222222@g.us',
+    ]);
+  });
+
   it('paginates after search and sort', () => {
     const catalog = [group('120363111111111111@g.us', 'A'), group('120363222222222222@g.us', 'B')];
     expect(paginateGroups(catalog, 1, 1)).toEqual({

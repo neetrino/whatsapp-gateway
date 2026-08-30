@@ -16,6 +16,7 @@ describe('GET /api/groups (e2e)', () => {
   const touchLastUsed = jest.fn();
   const listGroups = jest.fn();
   const listChats = jest.fn();
+  const getGroup = jest.fn();
 
   const prismaMock = {
     onModuleInit: async () => {},
@@ -48,6 +49,7 @@ describe('GET /api/groups (e2e)', () => {
         healthCheck: jest.fn().mockResolvedValue(true),
         listGroups,
         listChats,
+        getGroup,
       })
       .compile();
     app = moduleRef.createNestApplication();
@@ -112,5 +114,20 @@ describe('GET /api/groups (e2e)', () => {
       .set('Authorization', `Bearer ${raw}`);
     expect(searched.status).toBe(200);
     expect(searched.body.data.groups).toEqual([expect.objectContaining({ name: 'Qualitech' })]);
+  });
+
+  it('hydrates an empty group name from get-by-id', async () => {
+    const raw = generateApiToken(prefix).raw;
+    findValidByRaw.mockResolvedValue({ ...validResolvedToken });
+    listGroups.mockResolvedValue({
+      '120363111111111111@g.us': { id: '120363111111111111@g.us' },
+    });
+    listChats.mockResolvedValue([]);
+    getGroup.mockResolvedValue({ id: '120363111111111111@g.us', subject: 'Hydrated' });
+    const res = await request(app.getHttpServer())
+      .get('/api/groups?limit=20&offset=0')
+      .set('Authorization', `Bearer ${raw}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.groups).toEqual([expect.objectContaining({ name: 'Hydrated' })]);
   });
 });

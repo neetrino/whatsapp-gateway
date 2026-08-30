@@ -1,3 +1,9 @@
+import {
+  compareByLastActivity,
+  extractLastMessageAtMs,
+  stripActivityRank,
+  type ActivityRank,
+} from '../chats/activity-rank';
 import type { WahaListGroupsQuery } from '../waha/types/waha.types';
 import { unwrapWahaList } from '../waha/waha-chats.mapper';
 import {
@@ -9,11 +15,10 @@ import {
 } from './mappers/waha-group.mapper';
 import type { GroupsListResult, NormalizedGroup } from './types/group.types';
 
+type RankedGroup = NormalizedGroup & ActivityRank;
+
 export const WAHA_GROUPS_PAGE = 200;
 export const GROUP_CATALOG_CAP = 2000;
-
-const byNameThenId = (left: NormalizedGroup, right: NormalizedGroup): number =>
-  left.name.localeCompare(right.name) || left.id.localeCompare(right.id);
 
 export const applyGroupSearch = (groups: NormalizedGroup[], search?: string): NormalizedGroup[] => {
   if (!search) return groups;
@@ -48,25 +53,35 @@ export const mergeRecentChatOrder = (
   groups: NormalizedGroup[],
   chatsRaw: unknown,
 ): NormalizedGroup[] => {
-  const byId = new Map(groups.map((group) => [group.id.toLowerCase(), { ...group }]));
-  const ordered: NormalizedGroup[] = [];
-  const seen = new Set<string>();
+  const byId = new Map<string, RankedGroup>();
+  for (const group of groups) {
+    byId.set(group.id.toLowerCase(), { ...group, lastMessageAt: null, inboxIndex: null });
+  }
+  let inboxIndex = 0;
   for (const chat of unwrapWahaList(chatsRaw)) {
     const fromChat = mapWahaGroup(chat);
     const id = fromChat?.id ?? extractGroupId(chat);
     if (!id) continue;
     const key = id.toLowerCase();
-    if (seen.has(key)) continue;
     const existing = byId.get(key);
+    if (existing && existing.inboxIndex !== null) {
+      inboxIndex += 1;
+      continue;
+    }
     const merged = existing
-      ? { ...existing, name: existing.name || fromChat?.name || '' }
-      : fromChat;
-    if (!merged) continue;
-    ordered.push(merged);
-    seen.add(key);
+      ? {
+          ...existing,
+          name: existing.name || fromChat?.name || '',
+          lastMessageAt: extractLastMessageAtMs(chat),
+          inboxIndex,
+        }
+      : fromChat
+        ? { ...fromChat, lastMessageAt: extractLastMessageAtMs(chat), inboxIndex }
+        : null;
+    if (merged) byId.set(key, merged);
+    inboxIndex += 1;
   }
-  const rest = groups.filter((group) => !seen.has(group.id.toLowerCase())).sort(byNameThenId);
-  return [...ordered, ...rest];
+  return [...byId.values()].sort(compareByLastActivity).map(stripActivityRank);
 };
 
 export const fetchAllWahaGroups = async (
