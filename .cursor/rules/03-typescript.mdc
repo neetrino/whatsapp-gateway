@@ -1,0 +1,18 @@
+---
+description: TypeScript — strict types, no any, generics, narrowing. Applies to TS/TSX.
+globs: ["**/*.ts", "**/*.tsx"]
+alwaysApply: false
+---
+
+# TypeScript
+
+- **`strict: true`** in `tsconfig.json` — non-negotiable.
+- Avoid unjustified **`any`**. Use `unknown` plus narrowing for unknown data; document rare interoperability exceptions.
+- **Explicit types** for exported functions and public APIs; infer locally where clear.
+- **No `@ts-ignore`** without comment and issue link.
+- **Discriminated unions** + exhaustive `switch` / `assertNever` for variants.
+- **`as const`** for literal tuples and config objects.
+- **Generics** where reuse is real — avoid over-abstraction.
+- **Enums:** prefer `as const` + union or string enum; avoid numeric enums leaking to API unless needed.
+- **Imports:** type-only `import type` when only types are needed (helps bundlers).
+- **Assertions:** use type assertions only when a runtime or external contract makes the type provable; never use `as` merely to hide a type error.

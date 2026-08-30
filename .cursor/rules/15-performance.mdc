@@ -1,0 +1,13 @@
+---
+description: Performance — Web Vitals, bundle, DB queries, caching.
+globs: ["**/app/**", "**/components/**", "**/*.tsx"]
+alwaysApply: false
+---
+
+# Performance
+
+- **Core Web Vitals** — monitor LCP, INP, CLS; optimize critical path and images.
+- **Bundle** — dynamic import for heavy client-only code; avoid huge deps without need.
+- **DB** — indexes, no N+1, explain slow queries; connection pooling per `06-database.mdc`.
+- **Caching** — Next `fetch` cache / `revalidate`, HTTP cache headers, Redis only when justified.
+- **Serverless** — respect timeouts; move long work to queues/background workers.

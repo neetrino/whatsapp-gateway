@@ -6,6 +6,7 @@ import { WahaApiError, WahaTransportError } from '../waha/types/waha.types';
 import { AppException } from '../common/errors/app.exception';
 import { ERROR_CODES } from '../common/errors/error-codes';
 import type { ApiAccountContext } from '../common/decorators/api-account.decorator';
+import { loadWahaRecentChats } from '../chats/chat-catalog';
 import { loadConnectedAccount } from '../whatsapp-accounts/load-connected-account';
 import {
   GROUP_ID_REGEX,
@@ -18,6 +19,7 @@ import {
   mergeRecentChatOrder,
   paginateGroups,
 } from './group-catalog';
+import { hydrateEmptyGroupNames } from './hydrate-group-names';
 import { extractGroupId, extractGroupName, mapWahaGroup } from './mappers/waha-group.mapper';
 import { extractInviteCode, mapWahaParticipants } from './mappers/waha-participant.mapper';
 import { IdempotencyScope } from '../common/db-enums';
@@ -58,24 +60,17 @@ export class GroupsService {
       if (catalog.length === 0) {
         this.logger.warn({ msg: 'waha_groups_mapped_empty', ...rawShape });
       }
-      const chatsRaw = await this.loadRecentChats(sessionName);
+      const chatsRaw = await loadWahaRecentChats((page) =>
+        this.wahaClient.listChats(sessionName, page),
+      );
       const filtered = applyGroupSearch(mergeRecentChatOrder(catalog, chatsRaw), query.search);
-      return paginateGroups(filtered, query.limit, query.offset);
+      const page = paginateGroups(filtered, query.limit, query.offset);
+      page.groups = await hydrateEmptyGroupNames(page.groups, (id) =>
+        this.wahaClient.getGroup(sessionName, id),
+      );
+      return page;
     } catch (error) {
       throw mapGroupProviderError(error, ERROR_CODES.GROUP_LIST_FAILED, 'Failed to list groups.');
-    }
-  }
-
-  private async loadRecentChats(sessionName: string): Promise<unknown> {
-    try {
-      return await this.wahaClient.listChats(sessionName, {
-        limit: 200,
-        offset: 0,
-        sortBy: 'messageTimestamp',
-        sortOrder: 'desc',
-      });
-    } catch {
-      return [];
     }
   }
 

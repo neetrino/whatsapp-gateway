@@ -1,0 +1,15 @@
+---
+description: Figma → code — tokens, components, visual parity.
+globs: ["**/*.tsx", "**/components/**", "**/styles/**", "**/ui/**"]
+alwaysApply: false
+---
+
+# Figma and UI
+
+For the complete design-analysis, implementation, and visual-verification workflow, use [`figma-to-production`](../../.agents/skills/figma-to-production/SKILL.md).
+
+- Use **design tokens** (CSS variables / Tailwind theme) — avoid one-off hex in many places.
+- **Match layout and spacing** from specs; ask if design is ambiguous.
+- **Responsive** breakpoints as in design system.
+- **Accessibility**: semantic HTML, labels, focus states, contrast.
+- Prefer **existing UI primitives** in the repo over new ad-hoc styles.

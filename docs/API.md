@@ -424,7 +424,7 @@ Same Project-token rule as Groups (exactly one active WhatsApp account). Not the
 
 Query: `limit` (1–200, default 100), `offset` (≥0, default 0), optional `search` (max 100, name or id).
 
-Loads the full group catalog, merges recent WAHA chats (`@c.us` and `@g.us`), then searches and paginates locally. Recent chats first. If `listChats` fails (`SEND_ONLY` / Store down), groups are still returned.
+Loads the full group catalog, merges WAHA chats (`@c.us` and `@g.us`, up to 1000, `sortBy=messageTimestamp`), then searches and paginates locally. Order is last message first (not creation date); groups with no inbox activity follow, by name. Empty group names on the current page are filled via WAHA get-by-id. If `listChats` fails (`SEND_ONLY` / Store down), groups are still returned (name order).
 
 ```json
 {
@@ -453,7 +453,7 @@ Clients must **not** send `session`, `accountId`, or WAHA credentials.
 
 Query: `limit` (1–200, default 100), `offset` (≥0, default 0), optional `search` (max 100, case-insensitive over normalized `name`/`id`).
 
-Gateway calls WAHA `GET /api/{session}/groups` with `sortBy=subject`, `sortOrder=asc`, `exclude=participants`. Search is applied after normalization (not forwarded to WAHA).
+Gateway calls WAHA `GET /api/{session}/groups` with `sortBy=subject`, `sortOrder=asc`, `exclude=participants` only to fetch pages. Final order is last-message activity (same as `GET /api/chats`), then idle groups by name. Search is applied after normalization (not forwarded to WAHA). Empty names on the current page are filled via get-by-id.
 
 ```json
 {

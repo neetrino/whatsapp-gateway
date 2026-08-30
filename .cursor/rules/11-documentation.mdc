@@ -1,0 +1,13 @@
+---
+description: Project docs — docs/ layout, README, ADR, TECH_CARD.
+globs: ["**/docs/**", "**/*.md", "**/README*"]
+alwaysApply: false
+---
+
+# Documentation
+
+- Keep project documents proportional to the approved TECH_CARD and repository templates: `BRIEF`, `TECH_CARD`, architecture, progress, decisions, and other material only as needed.
+- **README** at repo root: how to run, test, env vars (see `.env.example`).
+- **ADR** for significant architectural decisions.
+- **Public APIs** documented (OpenAPI or markdown) and updated with changes.
+- **Comments** in code in English per user rules; docs can follow team language policy.

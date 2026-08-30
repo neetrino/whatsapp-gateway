@@ -1,0 +1,16 @@
+---
+description: REST/API design — versioning, errors, pagination, idempotency, webhooks.
+globs: ["**/api/**", "**/*.controller.ts", "**/routes/**"]
+alwaysApply: false
+---
+
+# API design
+
+- **REST-ish** resources; correct **HTTP verbs** and **status codes** (2xx/4xx/5xx).
+- **Consistent envelope** if project uses one — e.g. `{ data, error, meta }` — follow existing codebase.
+- **Validation** on every input (Zod/DTO). **Pagination** (`cursor` or `limit/offset`) with caps.
+- **Versioning** `/v1/` when breaking changes are expected.
+- **Idempotency-Key** (or equivalent) for payments and create-once operations.
+- **Webhooks**: signature verification, replay protection, return 2xx only after durable processing.
+- **CORS** and **rate limits** per `08-security.mdc`.
+- **OpenAPI** / Swagger kept in sync if exposed.

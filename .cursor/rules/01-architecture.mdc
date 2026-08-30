@@ -1,0 +1,35 @@
+---
+description: Architecture — layers, feature modules, boundaries, project size layouts. Agent-requested when designing structure.
+globs: []
+alwaysApply: false
+---
+
+# Architecture
+
+## Proportional architecture
+
+- Match structure to project size, domain complexity, team, expected lifetime, and the existing codebase.
+- When the project separates presentation, application, domain, and infrastructure, dependencies point toward domain policy rather than framework or infrastructure details.
+- Do not add repositories, factories, use cases, adapters, or interfaces to simple CRUD unless they provide a real boundary, substitution point, or testability benefit.
+
+## By project size (from `TECH_CARD` / [`project-sizing`](../../.agents/skills/project-onboarding/references/project-sizing.md))
+
+- **A (small):** `src/app`, `components`, `lib`, `types` — simple tree.
+- **B (medium):** `features/*` with `components`, `hooks`, `services`, `types`; `shared/` for UI and utils.
+- **C (large):** `apps/*`, `packages/*` monorepo; shared UI and domain packages.
+
+## Feature modules
+
+- Public API via `index.ts` — export only what other features need. No deep imports into internal paths.
+- **features/X** may depend on **shared**; **shared** must not depend on **features**. Cross-feature deps only when explicit and documented.
+
+## Patterns
+
+- **Composition over inheritance** for UI/logic.
+- **Dependency inversion** — introduce abstractions for payments, mail, storage, and similar boundaries when multiple implementations, isolation, or testing justify them.
+
+## Checklist
+
+- [ ] Folder layout matches declared project size
+- [ ] No circular imports between features
+- [ ] No SQL or server-only secrets in client components

@@ -48,6 +48,24 @@ describe('chat-catalog', () => {
     ]);
   });
 
+  it('orders by last message time, not creation or list array order', () => {
+    const catalog = buildChatCatalog(
+      [group('120363111111111111@g.us', 'YearOld'), group('120363222222222222@g.us', 'Fresh')],
+      [
+        { id: '120363222222222222@g.us', name: 'Fresh', lastMessage: { timestamp: 1_700_000_000 } },
+        {
+          id: '120363111111111111@g.us',
+          name: 'YearOld',
+          lastMessage: { timestamp: 1_800_000_000 },
+        },
+      ],
+    );
+    expect(catalog.map((item) => item.id)).toEqual([
+      '120363111111111111@g.us',
+      '120363222222222222@g.us',
+    ]);
+  });
+
   it('paginates after merge', () => {
     const items = [
       { id: '37499111222@c.us', name: 'A', type: 'direct' as const },

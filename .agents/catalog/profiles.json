@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "profiles": {
+    "core": {
+      "description": "Baseline workflows useful for most software projects.",
+      "extends": [],
+      "skills": [
+        "debug-first",
+        "verify-before-completion",
+        "code-review"
+      ]
+    },
+    "frontend": {
+      "description": "Frontend and design implementation workflows.",
+      "extends": [
+        "core"
+      ],
+      "skills": [
+        "figma-to-production",
+        "react-performance-review",
+        "ui-accessibility-review"
+      ]
+    },
+    "backend": {
+      "description": "Backend and database development workflows.",
+      "extends": [
+        "core"
+      ],
+      "skills": [
+        "safe-database-migration",
+        "setup-production-migrations"
+      ]
+    },
+    "security-sensitive": {
+      "description": "Security review workflows for authentication, permissions, payments, personal data, webhooks, multi-tenant systems and sensitive integrations.",
+      "extends": [
+        "core"
+      ],
+      "skills": [
+        "security-review"
+      ]
+    },
+    "fullstack": {
+      "description": "Combined frontend and backend workflows.",
+      "extends": [
+        "frontend",
+        "backend"
+      ],
+      "skills": []
+    },
+    "greenfield": {
+      "description": "New-project initialization plus full-stack development workflows.",
+      "extends": [
+        "fullstack"
+      ],
+      "skills": [
+        "project-onboarding"
+      ]
+    }
+  }
+}

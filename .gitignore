@@ -1,17 +1,38 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Env and secrets
+.env
+.env.*
+!.env.example
+.env.local
+.env.*.local
+
+# Dependencies
 node_modules
+
+# Build output
 dist
 coverage
-.env
+build
+.tsbuildinfo
+.next
+.turbo
+
+# Local data
 data/*.db
 data/*.db-journal
 data/*control-plane*.json
 docker-compose.override.yml
-.env.local
-.env.*.local
+
+# Logs and temp
 *.log
-.DS_Store
+npm-debug.log*
+tmp/
+temp/
+.cache/
+
+# IDE
 .idea
 .vscode
-.tsbuildinfo
-.next
-.turbo
