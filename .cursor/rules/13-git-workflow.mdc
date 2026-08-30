@@ -1,0 +1,12 @@
+---
+description: Git — branches, conventional commits, PR hygiene.
+globs: []
+alwaysApply: false
+---
+
+# Git workflow
+
+- Follow the repository's branch and commit conventions; when none exist, prefer focused branches and Conventional Commits.
+- **PRs** — small, focused, green CI, description template, self-review first.
+- **No force-push** to `main`/`develop`; no secrets in commits.
+- **CHANGELOG** maintained if project ships versions.

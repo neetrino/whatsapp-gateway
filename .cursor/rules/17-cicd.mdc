@@ -1,0 +1,19 @@
+---
+description: CI/CD — pipelines, secrets, Docker, managed deploys. Detailed examples live in docs/reference/.
+globs: [".github/**", "**/Dockerfile", "**/docker-compose*", "**/cloudbuild*.y*ml", "**/vercel.json"]
+alwaysApply: false
+---
+
+# CI/CD
+
+- **Fail fast:** run the repository's relevant formatting, linting, type, test, and build checks in a useful order; block merge on required red checks.
+- **Reproducible:** use the detected package manager's frozen/locked install mode, commit its lockfile, and pin runtime/tool versions where the project requires them.
+- **Concurrency:** cancel in-progress runs for the same PR/branch where useful.
+- **Secrets:** only GitHub Actions secrets / OIDC — never in workflow YAML or logs.
+- **Stages:** select unit, integration, and E2E jobs by project risk; use the ecosystem's dependency audit or scanner.
+- **Deploy:** exact commit → build → one production migration job → only then deploy/promote. Failure blocks rollout. Local machines must not apply production migrations. Schema changes use [`safe-database-migration`](../../.agents/skills/safe-database-migration/SKILL.md); wiring the job uses [`setup-production-migrations`](../../.agents/skills/setup-production-migrations/SKILL.md). Invariants: [`06-database.mdc`](06-database.mdc).
+- **Managed hosts (Vercel, Cloud Run, Coolify/Hetzner, Railway, Render, Fly):** use platform env + health checks; full Dockerfile/K8s only when self-hosting. Do not run migrations in app startup or as an uncontrolled `next build` side effect.
+- **Feature flags:** document each flag; remove after full rollout; log which variant served.
+- **Dependency policy:** patch quickly; minor after changelog review; major as planned work with tests.
+
+**Templates:** [`ci-quality.yml.example`](../../docs/reference/workflows/ci-quality.yml.example), [production migrations](../../docs/reference/workflows/production-database-migrations.md). Extended patterns previously in this file now belong in `docs/reference/` or team docs — keep `.mdc` lean.

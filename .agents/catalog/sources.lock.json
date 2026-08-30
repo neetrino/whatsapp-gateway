@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "vercel-web-interface-guidelines",
+      "repository": "https://github.com/vercel-labs/web-interface-guidelines",
+      "commit": "4e799d45c17aec1498c269287a83b9dba22b966b",
+      "sourcePath": "command.md",
+      "license": "MIT",
+      "licenseReviewed": true,
+      "reviewedAt": "2026-07-12",
+      "importedAs": "ui-accessibility-review",
+      "adaptation": "adapted",
+      "adaptationNotes": "Retained general accessibility and high-impact UX guidance, removed Vercel-specific brand and English copy preferences from mandatory findings, made URL-state guidance contextual, and bundled reviewed guidance locally without runtime remote fetching."
+    }
+  ]
+}

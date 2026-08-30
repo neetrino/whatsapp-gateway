@@ -1,0 +1,33 @@
+---
+description: Observability and reliability — structured logs, metrics, timeouts, retries, health. Merged from former 14-observability and 18-reliability.
+globs: ["**/api/**", "**/server/**", "**/backend/**"]
+alwaysApply: false
+---
+
+# Ops — observability and reliability
+
+## Observability
+
+- Use structured logging (JSON in prod). Prefer `pino` or project logger — never raw `console.log` in production paths.
+- Propagate `request-id` / `x-request-id` across API → services → logs; include in error responses when useful.
+- Log levels: `error` / `warn` / `info` in prod; `debug` / `trace` only in dev. Log business events (`order.created`) with safe fields.
+- Redact: passwords, tokens, `Authorization`, full cookies, full PII — use redaction lists or serializers.
+- Metrics (when infra exists): HTTP rate/errors/duration; DB pool usage; queue depth. Dashboards for prod.
+- Alerts: spikes in 5xx, latency, failed jobs — not only Sentry; integrate with Vercel/Render/CF as applicable.
+- Tracing: OpenTelemetry optional for multi-service; at minimum correlate by request id.
+
+## Reliability
+
+- **Timeouts** on outbound HTTP, database work where configurable, and long-running operations. Choose values from workload, user experience, and provider constraints rather than universal defaults (see `06-database.mdc`).
+- **Retries** with exponential backoff + jitter for transient failures (429, 502–504). Cap retries; idempotent methods only for safe retries.
+- Consider a **circuit breaker** or bulkhead for high-impact flaky dependencies when simpler bounded failure handling is insufficient.
+- **Graceful shutdown**: drain connections, stop accepting new work, finish in-flight with timeout.
+- **Health checks**: lightweight `/health` or `/ready` — liveness vs readiness if needed; do not run heavy DB work on every ping unless required.
+- **Degradation**: return cached/stale or partial data for non-critical paths when dependencies fail; never leak internal errors to clients.
+- **Rate limiting**: client-side backoff when API returns 429; server-side limits per `08-security.mdc` / edge.
+
+## Forbidden
+
+- Logging secrets, full JWTs, credit card data, or unmasked PII.
+- Infinite retries or retry on non-idempotent POST without idempotency keys.
+- Omitting timeouts on external calls.

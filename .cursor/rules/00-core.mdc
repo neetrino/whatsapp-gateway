@@ -1,0 +1,95 @@
+---
+description: Core project rules for AI. Always applied. Domain rules load by globs. CONTEXT/token economy lives in User Rules only — do not duplicate here.
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Core
+
+Other `.mdc` files apply by **globs** and task. If a rule seems missing, check the file type matches that rule’s globs.
+
+For greenfield setup, project sizing, and TECH_CARD preparation, use the
+[`project-onboarding`](../../.agents/skills/project-onboarding/SKILL.md) skill. Do not rerun onboarding during ordinary development tasks.
+
+## Each task
+
+Understand the ask → inspect existing code → propose for large/risky changes → implement after agreement → keep docs in sync when behavior changes.
+
+## Never
+
+- **TS:** `any` (unless documented exception).
+- **UI:** bypassing the project's styling system with unrelated ad-hoc patterns.
+- **Maintainability:** meaningful duplication, mixed responsibilities, or deeply nested control flow left without review.
+- **Prod:** `console.log` — use logger.
+- **Dead:** commented-out code — remove.
+- **Secrets** in code/commits — env only.
+- **Prod DB:** production URLs do not belong in local `.env`; do not run production migrations from a developer machine.
+- **SQL:** no string-concatenated user input; parameterized / prepared only.
+- **eval** and similar — never.
+- **CORS/CSRF off** without explicit approval.
+- **Architecture / stack / public API** changes without agreement or an explicitly approved task.
+- **Remove tests** or **ignore lint** to “pass” CI.
+
+## Always
+
+- TypeScript **strict**; explicit types at boundaries.
+- Prefer **named exports** for reusable application modules and components. Follow framework-required exports in route, page, layout, configuration, and other convention files.
+- **Validate** external input at boundaries.
+- **Handle errors** with logging; no silent swallow in production paths.
+- **JSDoc** on exported public APIs where non-obvious.
+
+## Maintainability
+
+- One file, one responsibility.
+- Review long functions and files for mixed responsibilities. Refactor when separation improves cohesion, readability, testability, or ownership; do not split solely to meet a line-count threshold.
+- Avoid meaningful duplication, but do not introduce abstractions for coincidentally similar code.
+- Name domain, configuration, timeout, limit, and other non-obvious values. Keep obvious local UI or algorithm values inline when extracting them would reduce clarity.
+- Follow the existing approved project structure; use feature grouping and shared modules only where the architecture calls for them.
+
+## Decisions
+
+**Hard (apply without asking):** protect secrets, validate external input, use secure password hashing when passwords are stored, preserve security controls, keep TypeScript strict where TypeScript is used, and handle errors without leaking sensitive internals.
+
+**Technology precedence:** explicit approved task or migration decision → approved `docs/TECH_CARD.md` → existing project implementation → template recommendation → generic fallback. Preserve the existing implementation unless the task or approved TECH_CARD explicitly requires a migration.
+
+**Adaptive (ask before picking values):** timeouts, pool limits, rate limits, cache TTL — explain options and tradeoffs; never silently use a generic default like `statement_timeout=30s` without team alignment.
+
+**Autonomous:** naming, local implementation details, low-risk refactors, obvious bugfixes, and formatting that follow existing project decisions.
+
+**Requires approval:** architecture, stack/libraries, folder layout, DB schema, removing/renaming public API, business-logic changes.
+
+**Proposal format:** context → options with pros/cons → recommendation → wait for confirmation.
+
+## Secrets and credentials
+
+Do not invent accounts or keys. Ask the developer when `DATABASE_URL`, OAuth, R2, deploy keys, etc. are needed. Do not commit code with `YOUR_API_KEY_HERE` placeholders and continue — stop and request credentials.
+
+## Human checklists
+
+Full DoD/PR/release checklists: [`docs/reference/Check/Quality/project-quality-checklist.md`](../../docs/reference/Check/Quality/project-quality-checklist.md) (not loaded as Cursor rules — open when needed).
+
+## Rules index (by domain)
+
+| Area | File |
+|------|------|
+| Architecture | `01-architecture.mdc` |
+| TypeScript | `03-typescript.mdc` |
+| React / Next | `04-react-nextjs.mdc` |
+| NestJS | `05-backend-nestjs.mdc` |
+| Database | `06-database.mdc` |
+| API | `07-api-design.mdc` |
+| Security | `08-security.mdc` |
+| Figma | `09-figma-design.mdc` |
+| Testing | `10-testing.mdc` |
+| Docs | `11-documentation.mdc` |
+| Errors | `12-error-handling.mdc` |
+| Git | `13-git-workflow.mdc` |
+| Ops + reliability | `14-ops.mdc` |
+| Performance | `15-performance.mdc` |
+| State | `16-state-management.mdc` |
+| CI/CD | `17-cicd.mdc` |
+| i18n | `20-i18n.mdc` |
+
+Workflows: [`.agents/skills/`](../../.agents/skills/). Platform how-tos and other long-form material live under `docs/reference/`.
+
+**Version:** 3.0 · **Date:** 2026-04-02

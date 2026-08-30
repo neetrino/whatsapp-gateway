@@ -1,0 +1,15 @@
+---
+description: i18n — externalized strings, locale-aware formatting, RTL when required.
+globs: ["**/locales/**", "**/i18n/**", "**/messages/**", "**/middleware.ts", "**/middleware.tsx"]
+alwaysApply: false
+---
+
+# Internationalization (i18n)
+
+- **No hardcoded UI copy** in components — use message catalogs (`next-intl`, `react-intl`, or project standard).
+- **Routing:** locale prefix (`app/[locale]/...`) or agreed strategy; middleware for detection only as in existing codebase.
+- **Formatting:** `Intl.NumberFormat`, `Intl.DateTimeFormat`, `Intl.RelativeTimeFormat`, `Intl.DisplayNames` — never manual date/number concatenation for display.
+- **Pluralization:** use ICU / library plural rules — do not concatenate “count + word” in English-only order.
+- **Fallback:** default locale when a key is missing; log missing keys in dev.
+- **SEO:** `hreflang` / canonical per project SEO rules.
+- **RTL:** layout/mirroring when Arabic/Hebrew/etc. are in scope.

@@ -1,0 +1,15 @@
+---
+description: Risk-based testing — unit, integration, regression, and end-to-end coverage selected by behavior and impact.
+globs: ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/tests/**", "**/__tests__/**"]
+alwaysApply: false
+---
+
+# Testing
+
+- Select tests by risk and behavior changed; do not require the same test mix for every change.
+- Prioritize critical business logic, auth, payments, permissions, data integrity, regressions, and complex transformations.
+- Use **unit tests** for isolated logic, **integration tests** for meaningful boundaries, and **E2E** for critical user flows; keep tests deterministic.
+- Treat coverage targets as project-specific signals, not substitutes for behavior verification.
+- **Factories/fixtures** for test data; isolate tests — no shared mutable state.
+- Do not delete tests to green CI — fix code or update test if requirement changed.
+- After meaningful implementation work, use [`verify-before-completion`](../../.agents/skills/verify-before-completion/SKILL.md) for the final project-aware validation sequence.

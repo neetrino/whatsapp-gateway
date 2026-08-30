@@ -1,0 +1,48 @@
+---
+description: Security — secrets, auth, validation, headers, CORS. Human-run checklist: docs/reference/Check/Security/0-security-checklist.md
+globs: ["**/auth/**", "**/api/**", "**/middleware.ts", "**/middleware.tsx", "**/*.env*", "**/middleware/**"]
+alwaysApply: false
+---
+
+# Security
+
+**Operational checklist (panels, WAF, MFA, backups):** read when auditing — [`docs/reference/Check/Security/0-security-checklist.md`](../../docs/reference/Check/Security/0-security-checklist.md). For a dedicated security audit of auth, payments, tenants, or integrations use the [`security-review`](../../.agents/library/security-review/SKILL.md) skill.
+
+## Never
+
+- Secrets in code, logs, or client bundles (`NEXT_PUBLIC_*` only for truly public values).
+- `eval`, `new Function(userInput)`, or executing user-controlled strings.
+- SQL built from concatenated user input; use the project ORM or parameterized queries.
+- `cors({ origin: '*' })` for authenticated APIs; disable CSRF without explicit approval.
+- Logging passwords, tokens, full `Authorization` headers.
+
+## Auth (follow `docs/TECH_CARD.md` / section 5)
+
+- Follow the approved authentication approach. Auth.js and Clerk are template options, not universal requirements; avoid custom token/session implementations without an explicit need and security review.
+- Passwords: use the approved modern password-hashing algorithm and parameters (argon2id is the template default); never use general-purpose hashes such as MD5 or SHA-256 for password storage.
+- Cookies: `httpOnly`, `secure`, `sameSite` appropriate for your flow.
+- **Authorization** on every protected route handler / Server Action / Nest guard — never trust UI-only hiding.
+- **Object-level authorization (IDOR/BOLA):** verify the requested resource belongs to the current user/tenant on every read and mutation — a role check alone is not enough.
+
+## API / input
+
+- Validate **body, query, params** with the project's boundary-validation approach.
+- Sanitize HTML if rendering user HTML; avoid `dangerouslySetInnerHTML` with raw user data.
+- **CORS** allowlist for prod/staging; no `*` with credentials.
+- **Webhooks**: verify HMAC/signature; idempotency + replay protection for payments.
+- **Rate limit** auth and sensitive endpoints (app or edge/WAF per `docs/reference/Check/Security/`).
+- **SSRF:** never fetch user-supplied URLs directly; use a destination allowlist and block private/internal addresses.
+- **File uploads:** validate type by content (not extension), enforce size limits, generate storage names server-side — never trust the client filename/path.
+
+## Responses
+
+- Production: no stack traces or internal paths in client responses.
+- **Errors**: generic message to client; details in server logs only.
+
+## Dependencies
+
+- Keep `npm audit` / CI clean; no ignored critical vulns without ticket.
+
+## Headers
+
+- Set security headers (e.g. `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, CSP baseline) via Next `headers()` or `helmet` on Nest.
