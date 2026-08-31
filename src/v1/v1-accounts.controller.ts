@@ -1,10 +1,11 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { Public } from '../common/decorators/public.decorator';
 import { ProjectApiTokenGuard } from '../common/guards/project-api-token.guard';
 import { ApiProject, type ApiProjectContext } from '../common/decorators/api-project.decorator';
+import type { RequestWithId } from '../common/interceptors/request-id.middleware';
 import { AppException } from '../common/errors/app.exception';
 import { ERROR_CODES } from '../common/errors/error-codes';
-import { V1AccountsService, type V1AccountStatus } from './v1-accounts.service';
+import { V1AccountsService, type V1AccountQr, type V1AccountStatus } from './v1-accounts.service';
 import type { V1AccountPublic } from '../whatsapp-accounts/account-public';
 
 @Controller('api/v1/accounts')
@@ -29,6 +30,41 @@ export class V1AccountsController {
     @ApiProject() project: ApiProjectContext | undefined,
   ): Promise<{ success: true; data: V1AccountStatus }> {
     const data = await this.accountsService.status(this.requireProject(project), accountId);
+    return { success: true, data };
+  }
+
+  @Get(':accountId/qr')
+  @HttpCode(HttpStatus.OK)
+  async qr(
+    @Req() req: RequestWithId,
+    @Param('accountId') accountId: string,
+    @ApiProject() project: ApiProjectContext | undefined,
+  ): Promise<{ success: true; data: V1AccountQr }> {
+    const data = await this.accountsService.getQr(
+      this.requireProject(project),
+      accountId,
+      req.requestId ?? 'unknown',
+    );
+    return { success: true, data };
+  }
+
+  @Post(':accountId/session/restart')
+  @HttpCode(HttpStatus.OK)
+  async restart(
+    @Param('accountId') accountId: string,
+    @ApiProject() project: ApiProjectContext | undefined,
+  ): Promise<{ success: true; data: V1AccountStatus }> {
+    const data = await this.accountsService.restart(this.requireProject(project), accountId);
+    return { success: true, data };
+  }
+
+  @Post(':accountId/session/logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(
+    @Param('accountId') accountId: string,
+    @ApiProject() project: ApiProjectContext | undefined,
+  ): Promise<{ success: true; data: V1AccountStatus }> {
+    const data = await this.accountsService.logout(this.requireProject(project), accountId);
     return { success: true, data };
   }
 

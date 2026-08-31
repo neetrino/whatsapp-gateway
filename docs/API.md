@@ -10,7 +10,7 @@ All v1 routes require `Authorization: Bearer <PROJECT_API_TOKEN>`. The guard val
 
 Ownership: every account is loaded with `{ id: accountId, projectId: authenticatedProjectId }`. A Project A token against a Project B account returns **404 `NOT_FOUND`**. Inactive Project → **403 `PROJECT_INACTIVE`**. Inactive account on send → **409 `ACCOUNT_INACTIVE`**. Disconnected session on send → **409 `WHATSAPP_NOT_CONNECTED`**.
 
-Rate limits: one named Nest throttler per route class — v1 send uses **only** `RATE_LIMIT_V1_SEND`, v1 list/status use **only** `RATE_LIMIT_V1_READ`. They are not also counted against `RATE_LIMIT_SEND`. Keys are HMAC of the Bearer token (never the raw token). If no Bearer is present, the client IP is used. `trust proxy` is `1` in `main.ts` so a reverse proxy’s `X-Forwarded-For` is honored for one hop. Behind NAT, IP fallback is coarse — use Project tokens. Storage is in-process (bounded, TTL eviction); multiple Gateway replicas do not share counters unless Redis is added later.
+Rate limits: one named Nest throttler per route class — v1 send and session mutations (`POST .../session/restart`, `POST .../session/logout`) use **only** `RATE_LIMIT_V1_SEND`; v1 list/status/QR/chats use **only** `RATE_LIMIT_V1_READ`. They are not also counted against `RATE_LIMIT_SEND`. Keys are HMAC of the Bearer token (never the raw token). If no Bearer is present, the client IP is used. `trust proxy` is `1` in `main.ts` so a reverse proxy’s `X-Forwarded-For` is honored for one hop. Behind NAT, IP fallback is coarse — use Project tokens. Storage is in-process (bounded, TTL eviction); multiple Gateway replicas do not share counters unless Redis is added later.
 
 ### `GET /api/v1/accounts`
 
@@ -39,6 +39,52 @@ Never includes `sessionName`, WAHA URL, or WAHA API key. Both `SEND_ONLY` and `M
 ### `GET /api/v1/accounts/:accountId/status`
 
 Same ownership rule. Returns `id`, `label`, `mode`, `status`, `isActive`, masked `phoneNumber` after a WAHA status refresh.
+
+### `GET /api/v1/accounts/:accountId/qr`
+
+Starts the WAHA session if needed, refreshes status, and returns a pairing QR when the account is not `CONNECTED`. Same ownership rule as status. Admin dashboard QR remains available; this is the public path for any integrating app.
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "acc_...",
+    "status": "QR_REQUIRED",
+    "phoneNumber": null,
+    "qrDataUrl": "data:image/png;base64,..."
+  }
+}
+```
+
+| `status` | `qrDataUrl` | Client action |
+|----------|-------------|---------------|
+| `CONNECTED` | `null` | Already paired. Show connected state. |
+| `QR_REQUIRED` / `CONNECTING` / `DISCONNECTED` | data URL | Show the image and poll this endpoint or `GET .../status`. |
+| `QR_REQUIRED` / `CONNECTING` / `DISCONNECTED` | `null` | Session is starting. Poll again (1–2s). |
+| `ERROR` and no image | — | `503 WAHA_UNAVAILABLE` or `409 SESSION_CONFLICT`. Restart, then fetch QR again. |
+
+`qrDataUrl` is a WhatsApp login credential. Treat it like a secret: HTTPS only, show only to the operator who should scan, never log or persist it. Response never includes `sessionName`, WAHA URL, or WAHA API key. Cross-project → **404 `NOT_FOUND`**.
+
+Poll until `status` is `CONNECTED` (or call `GET .../status`). Do not treat a temporary `null` QR as a hard failure.
+
+### `POST /api/v1/accounts/:accountId/session/restart`
+
+Re-applies session config or starts the session if it is missing. Does **not** always log out of WhatsApp. Use when the session is stuck (`ERROR`, `SESSION_CONFLICT`) and you want to recover without forcing a new scan. Returns the same shape as `GET .../status`. Counts against `RATE_LIMIT_V1_SEND`.
+
+After restart, call `GET .../qr` if status is not `CONNECTED`.
+
+### `POST /api/v1/accounts/:accountId/session/logout`
+
+Logs the WhatsApp account out (same as Admin **Unlink**). Clears pairing. Returns refreshed status (`DISCONNECTED`, masked phone cleared). Counts against `RATE_LIMIT_V1_SEND`.
+
+Reconnect flow for any integrating app:
+
+1. `POST /api/v1/accounts/:accountId/session/logout`
+2. `GET /api/v1/accounts/:accountId/qr` until `qrDataUrl` is present
+3. Operator scans the QR in your UI
+4. Poll `GET /api/v1/accounts/:accountId/status` (or `/qr`) until `CONNECTED`
+
+Creating the Project, account, token, and mode switch stay in the Admin dashboard.
 
 ### `GET /api/v1/accounts/:accountId/chats`
 
@@ -225,7 +271,8 @@ Unknown JSON properties are rejected (`forbidNonWhitelisted`).
 | 400 | `PHONE_NOT_SUPPORTED` | `phone` field present. |
 | 400 | `INVALID_CHAT_ID` | `chatId` suffix not `@c.us` or `@g.us`. |
 | 409 | `WHATSAPP_NOT_CONNECTED` | Account inactive or session not `CONNECTED`. |
-| 503 | `WAHA_UNAVAILABLE` | Cannot reach WAHA (network/timeout). |
+| 409 | `SESSION_CONFLICT` | WhatsApp session is in a conflict state. `POST .../session/restart`, then fetch QR again. |
+| 503 | `WAHA_UNAVAILABLE` | Cannot reach WAHA (network/timeout) or QR/session is temporarily unavailable. |
 | 502 | `MESSAGE_SEND_FAILED` | WAHA returned an error response. |
 | 429 | `RATE_LIMITED` | Too many requests (throttling). |
 

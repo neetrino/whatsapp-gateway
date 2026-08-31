@@ -1,9 +1,9 @@
 # Integrating with WhatsApp Gateway
 
 Any external project talks **only** to this Gateway over HTTPS.  
-It does **not** call WAHA, handle QR codes, or manage WhatsApp sessions.
+It does **not** call WAHA. Pairing QR, reconnect, and logout go through the Gateway v1 API (or the Admin dashboard).
 
-Use this file as the handoff: env, send, chat picker, groups, inbound/messenger, errors, and what the Gateway will never do. Take the sections you need.
+Use this file as the handoff: env, connect/QR, send, chat picker, groups, inbound/messenger, errors, and what the Gateway will never do. Take the sections you need.
 
 ## Environment
 
@@ -23,6 +23,31 @@ There is **one token type**. `SEND_ONLY` vs `MESSENGER` is the **WhatsApp accoun
 
 - `SEND_ONLY` — outbound send and group management work. Personal chats in `GET /api/chats` may be empty. Inbound webhooks and v1 history are off.
 - `MESSENGER` — same outbound API, plus recent personal chats, inbound project webhooks, and v1 chat history.
+
+## 0. Connect WhatsApp (QR on your site)
+
+Create the **Project**, WhatsApp **account**, and API **token** in the Gateway dashboard once. After that, any integrating app can pair the number on its own page.
+
+Admin QR still works. Use whichever surface the operator is already in.
+
+Typical connect:
+
+1. `GET /api/v1/accounts` — pick `id`
+2. `GET /api/v1/accounts/:accountId/qr` — show `qrDataUrl` (`<img src="…">`)
+3. Poll `/qr` or `GET /api/v1/accounts/:accountId/status` every 1–2s until `status` is `CONNECTED`
+4. Then send / list chats as usual
+
+If `qrDataUrl` is `null` and status is not `CONNECTED`, keep polling — the session may still be starting.
+
+Reconnect after a problem (logout + new scan):
+
+1. `POST /api/v1/accounts/:accountId/session/logout`
+2. `GET /api/v1/accounts/:accountId/qr` until the image appears
+3. Scan again; poll until `CONNECTED`
+
+Stuck session without forcing a new login: `POST /api/v1/accounts/:accountId/session/restart`, then fetch QR if still not connected.
+
+`qrDataUrl` is a WhatsApp login. HTTPS only. Show it only to the person who should scan. Do not log or store it.
 
 ## Identifiers
 
@@ -229,13 +254,14 @@ Envelope: `{ "success": false, "error": { "code", "message", "requestId" } }`.
 | 400 | `IDEMPOTENCY_KEY_REQUIRED` / `IDEMPOTENCY_KEY_INVALID` | Missing/bad key |
 | 401 / 403 | `INVALID_TOKEN` / `TOKEN_REVOKED` / `UNAUTHORIZED` | Token |
 | 409 | `IDEMPOTENCY_KEY_REUSED` | Same key, different body |
-| 409 | `WHATSAPP_NOT_CONNECTED` | Scan QR in Gateway dashboard |
+| 409 | `WHATSAPP_NOT_CONNECTED` | Session not paired. Show QR via `GET /api/v1/accounts/:id/qr` (or Admin dashboard) |
+| 409 | `SESSION_CONFLICT` | Restart session, then fetch QR again |
 | 404 | `GROUP_NOT_FOUND` | Unknown group |
 | 429 | `RATE_LIMITED` | Slow down |
 | 502 | `GROUP_*_FAILED` / `MESSAGE_SEND_FAILED` / media codes | Provider rejected |
 | 503 | `WAHA_UNAVAILABLE` / `*_OUTCOME_UNKNOWN` / `STORE_NOT_READY` | Transport / unknown write / store |
 
-`WHATSAPP_NOT_CONNECTED` is fixed in the Gateway dashboard, not in your app.
+`WHATSAPP_NOT_CONNECTED` is fixed by pairing again: `GET /api/v1/accounts/:id/qr` in your app, or the Admin dashboard QR page. After a broken session, `POST .../session/logout` then fetch QR.
 
 ## What the Gateway does not do
 
@@ -255,6 +281,27 @@ const headers = {
   'Content-Type': 'application/json',
   Authorization: `Bearer ${token}`,
 };
+
+async function getAccountQr(accountId: string) {
+  const response = await fetch(`${gatewayUrl}/api/v1/accounts/${accountId}/qr`, { headers });
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error?.message || 'Failed to load WhatsApp QR');
+  }
+  return result.data as { status: string; qrDataUrl: string | null };
+}
+
+async function reconnectWhatsapp(accountId: string) {
+  const response = await fetch(`${gatewayUrl}/api/v1/accounts/${accountId}/session/logout`, {
+    method: 'POST',
+    headers,
+  });
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error?.message || 'Failed to logout WhatsApp session');
+  }
+  return getAccountQr(accountId);
+}
 
 async function sendText(chatId: string, text: string) {
   const response = await fetch(`${gatewayUrl}/api/messages/send`, {

@@ -57,7 +57,7 @@ WAHA session storage: persistent Docker volume mounted at `/app/.sessions`.
 | `api-tokens`         | Tokens belong to a Project. HMAC-SHA256 with `TOKEN_PEPPER`. Show-once via signed cookie.          |
 | `waha`               | Isolated WAHA boundary. Only place that knows WAHA URL shape and status strings.                |
 | `messages`           | Legacy `POST /api/messages/send` (+ media). ApiToken guard. Strict DTO. Outbound log lifecycle.          |
-| `v1`                 | Project-token `/api/v1/accounts` list/status/send. Account-scoped. Durable idempotency. No Messenger.   |
+| `v1`                 | Project-token `/api/v1/accounts` list/status/QR/session/send. Account-scoped. Durable idempotency. No Messenger.   |
 | `groups`             | Group lifecycle API: list/create/get/refresh/participants/invite-link. Idempotent mutations.     |
 | `health`             | `GET /health` returning `{ gateway, database, waha }`.                                          |
 | `dashboard`          | Handlebars Admin pages: Dashboard, Projects, System/Health. QR poll JSON.                       |
@@ -191,6 +191,7 @@ Standardized error codes:
 | 400  | `INVALID_CHAT_ID`        | `chatId` does not end with `@c.us` or `@g.us`.                  |
 | 409  | `ACCOUNT_INACTIVE`       | v1: the targeted account exists but `isActive = false`.         |
 | 409  | `WHATSAPP_NOT_CONNECTED` | Session status is not `CONNECTED`.                              |
+| 409  | `SESSION_CONFLICT`       | v1 QR: WAHA session conflict. Restart, then fetch QR again.     |
 | 409  | `IDEMPOTENCY_KEY_REUSED` | Same key, different request hash.                               |
 | 503  | `MESSAGE_OUTCOME_UNKNOWN`| Timeout/stale PROCESSING after WAHA may have accepted the send. |
 | 503  | `WAHA_UNAVAILABLE`       | Network error / timeout reaching WAHA (legacy).                 |
