@@ -7,7 +7,7 @@ This project is **not** NBOS, **not** a plugin, and **not** a Messenger UI.
 
 ## What this is
 
-- **HTTP JSON API:** `GET /api/v1/accounts`, `GET /api/v1/accounts/:accountId/status`, `POST /api/v1/accounts/:accountId/messages` (Project token, account-scoped, `Idempotency-Key` on send). **MESSENGER** accounts also expose chats/history (WAHA Store proxy, not stored) and inbound HTTPS webhooks. Legacy `POST /api/messages/send` and `POST /api/messages/send-media` remain.
+- **HTTP JSON API:** `GET /api/v1/accounts`, `GET /api/v1/accounts/:accountId/status`, `GET /api/v1/accounts/:accountId/qr`, `POST /api/v1/accounts/:accountId/session/{restart,logout}`, `POST /api/v1/accounts/:accountId/messages` (Project token, account-scoped, `Idempotency-Key` on send). **MESSENGER** accounts also expose chats/history (WAHA Store proxy, not stored) and inbound HTTPS webhooks. Legacy `POST /api/messages/send` and `POST /api/messages/send-media` remain.
 - Minimal **dashboard** (server-rendered) for the singleton **Admin**: login, **Projects** (API tokens + WhatsApp accounts, QR, session actions), system health.
 - **Admin (singleton) → Project → ApiTokens[] + WhatsappAccounts[]**. Tokens and accounts belong to a Project, not to a User. There is no User/Role model and no `ADMIN_NAME`.
 
@@ -89,7 +89,7 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Hetzner + reverse proxy guidanc
 
 ## External API (summary)
 
-- **v1 (preferred):** `GET /api/v1/accounts`, `GET /api/v1/accounts/:id/status`, `POST /api/v1/accounts/:id/messages` with `Authorization: Bearer <PROJECT_TOKEN>` and `Idempotency-Key` on send. Discriminated body `type: TEXT | IMAGE | VIDEO`. See [docs/API.md](docs/API.md).
+- **v1 (preferred):** `GET /api/v1/accounts`, `GET /api/v1/accounts/:id/status`, `GET /api/v1/accounts/:id/qr`, `POST /api/v1/accounts/:id/session/{restart,logout}`, `POST /api/v1/accounts/:id/messages` with `Authorization: Bearer <PROJECT_TOKEN>` and `Idempotency-Key` on send. Discriminated body `type: TEXT | IMAGE | VIDEO`. See [docs/API.md](docs/API.md).
 - **Legacy text:** `POST /api/messages/send` — same auth, JSON `{ "chatId", "text" }` only. Requires exactly one active account on the Project.
 - **Legacy media:** `POST /api/messages/send-media`.
 

@@ -25,11 +25,15 @@ describe('rate-limit tracker', () => {
     expect(isV1SendPath('/api/v1/accounts/acc1/messages', 'POST')).toBe(true);
     expect(isV1ReadPath('/api/v1/accounts', 'GET')).toBe(true);
     expect(isV1ReadPath('/api/v1/accounts/acc1/status', 'GET')).toBe(true);
+    expect(isV1ReadPath('/api/v1/accounts/acc1/qr', 'GET')).toBe(true);
     expect(isV1ReadPath('/api/v1/accounts/acc1/chats', 'GET')).toBe(true);
     expect(isV1ReadPath('/api/v1/accounts/acc1/chats/37499111222@c.us/messages', 'GET')).toBe(true);
     expect(isV1SendPath('/api/messages/send', 'POST')).toBe(false);
     expect(isV1ReadPath('/api/v1/accounts', 'POST')).toBe(false);
     expect(classifyV1Throttle('/api/v1/accounts/acc1/messages', 'POST')).toBe('send');
+    expect(classifyV1Throttle('/api/v1/accounts/acc1/session/restart', 'POST')).toBe('send');
+    expect(classifyV1Throttle('/api/v1/accounts/acc1/session/logout', 'POST')).toBe('send');
+    expect(classifyV1Throttle('/api/v1/accounts/acc1/qr', 'GET')).toBe('read');
     expect(classifyV1Throttle('/api/v1/accounts', 'GET')).toBe('read');
     expect(classifyV1Throttle('/api/messages/send', 'POST')).toBeUndefined();
   });

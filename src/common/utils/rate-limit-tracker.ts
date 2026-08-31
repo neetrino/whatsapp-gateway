@@ -26,17 +26,21 @@ export const rateLimitTrackerKey = (req: unknown, pepper: string): string => {
 export const isV1SendPath = (path: string, method: string): boolean =>
   method === 'POST' && /^\/api\/v1\/accounts\/[^/]+\/messages\/?$/.test(path);
 
+export const isV1SessionPath = (path: string, method: string): boolean =>
+  method === 'POST' && /^\/api\/v1\/accounts\/[^/]+\/session\/(restart|logout)\/?$/.test(path);
+
 export const isV1ReadPath = (path: string, method: string): boolean => {
   if (method !== 'GET') return false;
   if (path === '/api/v1/accounts') return true;
   if (/^\/api\/v1\/accounts\/[^/]+\/status\/?$/.test(path)) return true;
+  if (/^\/api\/v1\/accounts\/[^/]+\/qr\/?$/.test(path)) return true;
   if (/^\/api\/v1\/accounts\/[^/]+\/chats\/?$/.test(path)) return true;
   if (/^\/api\/v1\/accounts\/[^/]+\/chats\/[^/]+\/messages\/?$/.test(path)) return true;
   return false;
 };
 
 export const classifyV1Throttle = (path: string, method: string): 'send' | 'read' | undefined => {
-  if (isV1SendPath(path, method)) return 'send';
+  if (isV1SendPath(path, method) || isV1SessionPath(path, method)) return 'send';
   if (isV1ReadPath(path, method)) return 'read';
   return undefined;
 };

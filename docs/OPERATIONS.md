@@ -24,7 +24,7 @@ Phase 4 does **not** add Redis or a distributed queue. Scale vertically or accep
 
 | Symptom | Likely cause | Action |
 |---------|--------------|--------|
-| `WHATSAPP_NOT_CONNECTED` from API | Session logged out / not scanned | Open dashboard → QR → reconnect |
+| `WHATSAPP_NOT_CONNECTED` from API | Session logged out / not scanned | Pair via `GET /api/v1/accounts/:id/qr` in the integrating app, or dashboard → QR. To force a new scan: `POST .../session/logout` then fetch QR again |
 | `WAHA_UNAVAILABLE` | WAHA container down / network | `docker compose ps`, restart `waha`, verify `WAHA_BASE_URL` |
 | `INVALID_TOKEN` / `TOKEN_REVOKED` | Wrong or revoked API token | Regenerate token in dashboard, update NBOS env |
 | `INVALID_MEDIA_URL` on `send-media` | URL not HTTPS, SSRF-blocked, or failed optional size/type check | Use a public CDN URL; see [SECURITY.md](SECURITY.md) |

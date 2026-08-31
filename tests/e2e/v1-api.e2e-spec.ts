@@ -21,6 +21,10 @@ describe('v1 account-scoped API (e2e)', () => {
   const sendImageByUrl = jest.fn();
   const sendVideoByUrl = jest.fn();
   const getStatus = jest.fn();
+  const getQr = jest.fn();
+  const logoutSession = jest.fn();
+  const sessionExists = jest.fn();
+  const updateSession = jest.fn();
 
   const accountA = {
     id: 'acc-a',
@@ -88,7 +92,10 @@ describe('v1 account-scoped API (e2e)', () => {
         stopSession: jest.fn(),
         restartSession: jest.fn(),
         getStatus,
-        getQr: jest.fn(),
+        getQr,
+        logoutSession,
+        sessionExists,
+        updateSession,
         sendText,
         sendImageByUrl,
         sendVideoByUrl,
@@ -114,6 +121,10 @@ describe('v1 account-scoped API (e2e)', () => {
     prismaMock.whatsappAccount.findFirst.mockResolvedValue(accountA);
     prismaMock.whatsappAccount.findMany.mockResolvedValue([accountA]);
     getStatus.mockResolvedValue({ status: 'WORKING', me: { id: '37499111222@c.us' } });
+    getQr.mockResolvedValue({ mimeType: 'image/png', data: 'iVBORw0KGgo=' });
+    logoutSession.mockResolvedValue(undefined);
+    sessionExists.mockResolvedValue(true);
+    updateSession.mockResolvedValue(undefined);
     sendText.mockResolvedValue({ id: 'wmsg1' });
     sendImageByUrl.mockResolvedValue({ id: 'wimg1' });
     sendVideoByUrl.mockResolvedValue({ id: 'wvid1' });
@@ -315,5 +326,71 @@ describe('v1 account-scoped API (e2e)', () => {
       .send({ type: 'TEXT', chatId: '37499111222@c.us', text: 'Hi' });
     expect(res.status).toBe(502);
     expect(res.body.error.code).toBe('MESSAGE_SEND_FAILED');
+  });
+
+  it('returns a QR data URL for a project-owned account that needs pairing', async () => {
+    prismaMock.whatsappAccount.findFirst.mockResolvedValue({
+      ...accountA,
+      status: SessionStatus.QR_REQUIRED,
+      phoneNumber: null,
+    });
+    getStatus.mockResolvedValue({ status: 'SCAN_QR_CODE' });
+    const res = await request(app.getHttpServer()).get('/api/v1/accounts/acc-a/qr').set(auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual(
+      expect.objectContaining({
+        id: 'acc-a',
+        status: SessionStatus.QR_REQUIRED,
+        qrDataUrl: expect.stringMatching(/^data:image\/png;base64,/),
+      }),
+    );
+    expect(JSON.stringify(res.body)).not.toContain('wa_aaa');
+    expect(getQr).toHaveBeenCalledWith('wa_aaa');
+  });
+
+  it('returns no QR when the account is already connected', async () => {
+    const res = await request(app.getHttpServer()).get('/api/v1/accounts/acc-a/qr').set(auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.qrDataUrl).toBeNull();
+    expect(res.body.data.status).toBe(SessionStatus.CONNECTED);
+    expect(getQr).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 for QR on a cross-project account', async () => {
+    prismaMock.whatsappAccount.findFirst.mockResolvedValueOnce(null);
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/accounts/acc-from-b/qr')
+      .set(auth());
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
+    expect(getQr).not.toHaveBeenCalled();
+  });
+
+  it('logs out a session and returns refreshed status', async () => {
+    getStatus.mockResolvedValue({ status: 'STOPPED' });
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/accounts/acc-a/session/logout')
+      .set(auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual(
+      expect.objectContaining({
+        id: 'acc-a',
+        status: SessionStatus.DISCONNECTED,
+      }),
+    );
+    expect(logoutSession).toHaveBeenCalledWith('wa_aaa');
+    expect(JSON.stringify(res.body)).not.toContain('wa_aaa');
+  });
+
+  it('restarts a session without exposing WAHA identifiers', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/accounts/acc-a/session/restart')
+      .set(auth());
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.id).toBe('acc-a');
+    expect(sessionExists).toHaveBeenCalledWith('wa_aaa');
+    expect(updateSession).toHaveBeenCalled();
+    expect(JSON.stringify(res.body)).not.toContain('wa_aaa');
   });
 });

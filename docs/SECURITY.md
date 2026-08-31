@@ -26,7 +26,8 @@
 - **No message text** in `OutboundMessageLog`, `OutboundMessageIdempotency`, or UI.
 - **No `mediaUrl`, captions, or media binaries** in the database. Logs may record safe metadata only (e.g. `messageType`, `chatId`, status, ids, errors, request hash).
 - **No webhook log UI**, no raw payload storage by default.
-- Structured logs must **not** include message bodies, full API tokens, passwords, or raw WAHA message payloads.
+- Structured logs must **not** include message bodies, full API tokens, passwords, QR image bytes/`qrDataUrl`, or raw WAHA message payloads.
+- `GET /api/v1/accounts/:id/qr` returns a WhatsApp pairing credential. A leaked Project token can fetch a live QR and pair the number. Keep tokens server-side; show the image only to the operator who should scan.
 
 ## SSRF protection (`send-media`)
 
@@ -71,8 +72,8 @@ Optional **`HEAD`** checks (no body download) may enforce `Content-Type` and max
 - Tracker: `token:<hmac>` when a Bearer token is present, else `ip:<req.ip>`.
 - `app.set('trust proxy', 1)` in `main.ts` trusts the first reverse-proxy hop (`X-Forwarded-For`). Configure the proxy to overwrite (not append blindly) that header. Clients behind the same NAT share the IP bucket when they omit a token.
 - `RATE_LIMIT_SEND` — legacy `POST /api/messages/*` + dashboard baseline / 60s (env-driven; not applied to `/api/v1`).
-- `RATE_LIMIT_V1_SEND` — `POST /api/v1/accounts/:id/messages` / 60s.
-- `RATE_LIMIT_V1_READ` — v1 list/status/chats / 60s.
+- `RATE_LIMIT_V1_SEND` — `POST /api/v1/accounts/:id/messages` and `POST /api/v1/accounts/:id/session/{restart,logout}` / 60s.
+- `RATE_LIMIT_V1_READ` — v1 list/status/QR/chats / 60s.
 - `/api/groups*` uses **per-route hardcoded** `@Throttle` limits (not `RATE_LIMIT_SEND`) — see `src/groups/groups.controller.ts`.
 - In-memory buckets expire after the window and are capped (`BoundedThrottlerStorage`, max 10_000 keys). Invalid-token abuse cannot retain keys indefinitely. Multi-instance deployments need Redis (not implemented).
 - Login uses a fixed throttle in `AuthController` (5 attempts / 15 minutes per IP). Token create/regenerate is 3 / hour per IP.
