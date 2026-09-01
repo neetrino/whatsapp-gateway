@@ -20,8 +20,23 @@ import { ProjectsService } from '../../projects/projects.service';
 import { WhatsappAccountsService } from '../../whatsapp-accounts/whatsapp-accounts.service';
 import { CreateWhatsappAccountDto } from '../../whatsapp-accounts/dto/create-whatsapp-account.dto';
 import { SwitchAccountModeDto } from '../../whatsapp-accounts/dto/switch-account-mode.dto';
+import { RequestPairingCodeDto } from '../../whatsapp-accounts/dto/request-pairing-code.dto';
 import { CsrfFormDto } from '../../common/dto/csrf-form.dto';
 import { baseView, type BaseViewModel } from '../view-helpers';
+import type { WhatsappAccount } from '@prisma/client';
+
+type QrPageView = BaseViewModel & {
+  projectId: string;
+  account: WhatsappAccount;
+  qrDataUrl: string | null;
+  qrError: string | null;
+  qrErrorCode: string | null;
+  pairingCode: string | null;
+  pairingError: string | null;
+  pairingErrorCode: string | null;
+  pairingPhone: string;
+  active: 'projects';
+};
 
 @Controller('projects/:projectId/accounts')
 export class ProjectAccountsController {
@@ -95,30 +110,21 @@ export class ProjectAccountsController {
     @CurrentAdmin() admin: AuthenticatedAdmin,
     @Param('projectId') projectId: string,
     @Param('accountId') accountId: string,
-  ): Promise<
-    BaseViewModel & {
-      projectId: string;
-      account: unknown;
-      qrDataUrl: string | null;
-      qrError: string | null;
-      qrErrorCode: string | null;
-      active: 'projects';
-    }
-  > {
-    const account = await this.accountsService.getByIdForProject(projectId, accountId);
-    await this.accountsService.startOrEnsureSession(account);
-    const refreshed = await this.accountsService.refreshStatus(account);
-    const requestId = (req as RequestWithId).requestId;
-    const qr = await this.accountsService.getQrForPage(refreshed, requestId);
-    return {
-      ...baseView(req, admin, `${account.label} — QR`),
-      projectId,
-      account: refreshed,
-      qrDataUrl: qr.dataUrl,
-      qrError: qr.errorSummary,
-      qrErrorCode: qr.errorCode,
-      active: 'projects',
-    };
+  ): Promise<QrPageView> {
+    return this.buildQrPage(req, admin, projectId, accountId);
+  }
+
+  @Post(':accountId/pairing-code')
+  @HttpCode(HttpStatus.OK)
+  @Render('dashboard/accounts-qr')
+  async pairingCodePage(
+    @Req() req: Request,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Param('projectId') projectId: string,
+    @Param('accountId') accountId: string,
+    @Body() dto: RequestPairingCodeDto,
+  ): Promise<QrPageView> {
+    return this.buildQrPage(req, admin, projectId, accountId, dto.phoneNumber);
   }
 
   @Get(':accountId/status.json')
@@ -156,6 +162,38 @@ export class ProjectAccountsController {
       qrDataUrl: qr.dataUrl,
       qrError: qr.errorSummary,
       qrErrorCode: qr.errorCode,
+    };
+  }
+
+  @Post(':accountId/pairing-code.json')
+  @HttpCode(HttpStatus.OK)
+  async pairingCodeJson(
+    @Req() req: Request,
+    @Param('projectId') projectId: string,
+    @Param('accountId') accountId: string,
+    @Body() dto: RequestPairingCodeDto,
+  ): Promise<{
+    status: string;
+    phoneNumber: string | null;
+    pairingCode: string | null;
+    pairingError: string | null;
+    pairingErrorCode: string | null;
+  }> {
+    const account = await this.accountsService.getByIdForProject(projectId, accountId);
+    await this.accountsService.startOrEnsureSession(account);
+    const refreshed = await this.accountsService.refreshStatus(account);
+    const requestId = (req as RequestWithId).requestId;
+    const pairing = await this.accountsService.requestPairingCode(
+      refreshed,
+      dto.phoneNumber,
+      requestId,
+    );
+    return {
+      status: refreshed.status,
+      phoneNumber: refreshed.phoneNumber,
+      pairingCode: pairing.code,
+      pairingError: pairing.errorSummary,
+      pairingErrorCode: pairing.errorCode,
     };
   }
 
@@ -220,5 +258,35 @@ export class ProjectAccountsController {
   ): Promise<void> {
     await this.accountsService.setActiveForProject(projectId, accountId, false);
     res.redirect(303, `/projects/${projectId}#accounts`);
+  }
+
+  private async buildQrPage(
+    req: Request,
+    admin: AuthenticatedAdmin,
+    projectId: string,
+    accountId: string,
+    pairingPhone?: string,
+  ): Promise<QrPageView> {
+    const account = await this.accountsService.getByIdForProject(projectId, accountId);
+    await this.accountsService.startOrEnsureSession(account);
+    const refreshed = await this.accountsService.refreshStatus(account);
+    const requestId = (req as RequestWithId).requestId;
+    const qr = await this.accountsService.getQrForPage(refreshed, requestId);
+    const pairing = pairingPhone
+      ? await this.accountsService.requestPairingCode(refreshed, pairingPhone, requestId)
+      : { code: null, errorCode: null, errorSummary: null };
+    return {
+      ...baseView(req, admin, `${account.label} — Pair WhatsApp`),
+      projectId,
+      account: refreshed,
+      qrDataUrl: qr.dataUrl,
+      qrError: qr.errorSummary,
+      qrErrorCode: qr.errorCode,
+      pairingCode: pairing.code,
+      pairingError: pairing.errorSummary,
+      pairingErrorCode: pairing.errorCode,
+      pairingPhone: pairingPhone ?? '',
+      active: 'projects',
+    };
   }
 }

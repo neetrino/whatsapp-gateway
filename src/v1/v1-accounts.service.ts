@@ -26,6 +26,13 @@ export interface V1AccountQr {
   qrDataUrl: string | null;
 }
 
+export interface V1AccountPairingCode {
+  id: string;
+  status: V1AccountPublic['status'];
+  phoneNumber: string | null;
+  pairingCode: string | null;
+}
+
 @Injectable()
 export class V1AccountsService {
   constructor(private readonly accountsService: WhatsappAccountsService) {}
@@ -53,6 +60,27 @@ export class V1AccountsService {
       return this.toQr(refreshed, null);
     }
     return this.resolveQr(refreshed, requestId);
+  }
+
+  async requestPairingCode(
+    project: ApiProjectContext,
+    accountId: string,
+    phoneNumber: string,
+    requestId: string,
+  ): Promise<V1AccountPairingCode> {
+    const account = await this.accountsService.getByIdForProject(project.projectId, accountId);
+    await this.accountsService.startOrEnsureSession(account);
+    const refreshed = await this.accountsService.refreshStatus(account);
+    if (refreshed.status === SessionStatus.CONNECTED) {
+      return this.toPairing(refreshed, null);
+    }
+    const result = await this.accountsService.requestPairingCode(refreshed, phoneNumber, requestId);
+    if (result.code) return this.toPairing(refreshed, result.code);
+    if (result.errorCode === 'WAHA_ALREADY_CONNECTED') {
+      const connected = await this.accountsService.refreshStatus(account);
+      return this.toPairing(connected, null);
+    }
+    throw toQrUnavailableException(result.errorCode);
   }
 
   async restart(project: ApiProjectContext, accountId: string): Promise<V1AccountStatus> {
@@ -114,6 +142,16 @@ export class V1AccountsService {
       status: publicAccount.status,
       phoneNumber: publicAccount.phoneNumber,
       qrDataUrl,
+    };
+  }
+
+  private toPairing(account: WhatsappAccount, pairingCode: string | null): V1AccountPairingCode {
+    const publicAccount = toV1AccountPublic(account);
+    return {
+      id: publicAccount.id,
+      status: publicAccount.status,
+      phoneNumber: publicAccount.phoneNumber,
+      pairingCode,
     };
   }
 }

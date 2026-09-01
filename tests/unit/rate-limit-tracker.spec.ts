@@ -33,6 +33,7 @@ describe('rate-limit tracker', () => {
     expect(classifyV1Throttle('/api/v1/accounts/acc1/messages', 'POST')).toBe('send');
     expect(classifyV1Throttle('/api/v1/accounts/acc1/session/restart', 'POST')).toBe('send');
     expect(classifyV1Throttle('/api/v1/accounts/acc1/session/logout', 'POST')).toBe('send');
+    expect(classifyV1Throttle('/api/v1/accounts/acc1/pairing-code', 'POST')).toBe('send');
     expect(classifyV1Throttle('/api/v1/accounts/acc1/qr', 'GET')).toBe('read');
     expect(classifyV1Throttle('/api/v1/accounts', 'GET')).toBe('read');
     expect(classifyV1Throttle('/api/messages/send', 'POST')).toBeUndefined();

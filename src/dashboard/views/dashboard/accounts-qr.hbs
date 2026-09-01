@@ -1,6 +1,6 @@
 <section>
   <div class="page-header">
-    <h1>Account QR</h1>
+    <h1>Pair WhatsApp</h1>
     <span class="status status-{{account.status}}" id="status-pill">{{account.status}}</span>
   </div>
   <div class="panel-section">
@@ -10,7 +10,7 @@
         <img src="{{qrDataUrl}}" alt="WhatsApp QR code" />
       {{else}}
         {{#ifEquals account.status "CONNECTED"}}
-          <p class="meta">WhatsApp is connected. QR is not required.</p>
+          <p class="meta">WhatsApp is connected. Pairing is not required.</p>
         {{else}}
           {{#ifEquals qrErrorCode "WAHA_ALREADY_CONNECTED"}}
             <p class="meta">{{qrError}}</p>
@@ -21,6 +21,45 @@
         {{/ifEquals}}
       {{/if}}
     </div>
+    <p class="qr-hint">Scan the QR in WhatsApp → Linked devices, or request a pairing code below.</p>
+  </div>
+
+  {{#ifEquals account.status "CONNECTED"}}
+  {{else}}
+  <div class="panel-section">
+    <h2 class="panel-section-title">Pairing code</h2>
+    <p class="meta">Enter the WhatsApp number with country code. Then on the phone: Linked devices → Link a device → Link with phone number.</p>
+    <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/pairing-code" class="form">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+      <label>Phone number
+        <input
+          name="phoneNumber"
+          type="tel"
+          inputmode="numeric"
+          autocomplete="tel"
+          required
+          maxlength="20"
+          placeholder="37499111222"
+          value="{{pairingPhone}}"
+        />
+      </label>
+      <div class="actions">
+        <button type="submit" class="primary">Request pairing code</button>
+      </div>
+    </form>
+    {{#if pairingCode}}
+      <p class="meta">Enter this code on the phone:</p>
+      <p class="token-display pairing-code" id="pairing-code">{{pairingCode}}</p>
+    {{else}}
+      {{#if pairingError}}
+        <p class="form-error">{{pairingError}}</p>
+        {{#if pairingErrorCode}}<p class="meta">Code: <code>{{pairingErrorCode}}</code></p>{{/if}}
+      {{/if}}
+    {{/if}}
+  </div>
+  {{/ifEquals}}
+
+  <div class="panel-section">
     <div class="actions">
       <form method="post" action="/projects/{{projectId}}/accounts/{{account.id}}/restart" class="inline">
         <input type="hidden" name="_csrf" value="{{csrfToken}}" />
@@ -32,7 +71,6 @@
       </form>
       <a href="/projects/{{projectId}}/accounts/{{account.id}}">Back to account</a>
     </div>
-    <p class="qr-hint">Open WhatsApp on your phone, scan the QR. The status will refresh automatically.</p>
   </div>
   <script>
     (function () {

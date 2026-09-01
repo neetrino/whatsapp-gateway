@@ -159,6 +159,7 @@ describe('Dashboard project/account/token flows (e2e)', () => {
         restartSession: jest.fn(),
         getStatus: jest.fn().mockRejectedValue(new Error('offline')),
         getQr: jest.fn(),
+        requestPairingCode: jest.fn().mockResolvedValue('ABCD-ABCD'),
         sendText: jest.fn(),
         sendImageByUrl: jest.fn(),
         sendVideoByUrl: jest.fn(),
@@ -285,6 +286,20 @@ describe('Dashboard project/account/token flows (e2e)', () => {
       .send({ _csrf: csrf })
       .redirects(0);
     expect(cross.status).toBe(404);
+  });
+
+  it('requests a pairing code on the QR page without putting it in the URL', async () => {
+    await formPost('/projects/proj_beta/accounts', {
+      label: 'Pairing',
+      mode: WhatsappAccountMode.SEND_ONLY,
+    });
+    const page = await formPost('/projects/proj_beta/accounts/acc_pairing/pairing-code', {
+      phoneNumber: '+374 99 111 222',
+    });
+    expect(page.status).toBe(200);
+    expect(page.text).toContain('ABCD-ABCD');
+    expect(page.text).toContain('Pairing code');
+    expect(page.headers.location).toBeUndefined();
   });
 
   it('reveals a new token once on the issuing project and never on another project', async () => {

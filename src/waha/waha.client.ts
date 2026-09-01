@@ -230,6 +230,35 @@ export class WahaClient {
     throw new WahaTransportError('WAHA get QR failed for all known paths');
   }
 
+  /**
+   * Requests an 8-character WhatsApp pairing code for the given phone (digits only).
+   * @see https://waha.devlike.pro/docs/how-to/sessions/#get-pairing-code
+   */
+  async requestPairingCode(sessionName: string, phoneNumber: string): Promise<string> {
+    const encoded = encodeURIComponent(sessionName);
+    const payload = await this.invoke<unknown>('request pairing code', {
+      method: 'POST',
+      url: `/api/${encoded}/auth/request-code`,
+      data: { phoneNumber },
+    });
+    const code = this.parsePairingCode(payload);
+    if (!code) {
+      throw new WahaApiError('WAHA pairing code response is missing a code', 502);
+    }
+    return code;
+  }
+
+  private parsePairingCode(payload: unknown): string | null {
+    if (typeof payload === 'string') {
+      const trimmed = payload.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+    if (!payload || typeof payload !== 'object') return null;
+    const record = payload as Record<string, unknown>;
+    const raw = record.code ?? record.pairingCode;
+    return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : null;
+  }
+
   private async fetchQrBinary(url: string): Promise<WahaQrPayload> {
     try {
       const response = await this.http.request<ArrayBuffer>({

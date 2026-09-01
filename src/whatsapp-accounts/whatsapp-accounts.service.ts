@@ -6,7 +6,7 @@ import { AppException } from '../common/errors/app.exception';
 import { ERROR_CODES } from '../common/errors/error-codes';
 import { AccountModePolicyService } from '../waha/account-mode-policy.service';
 import { WahaService } from '../waha/waha.service';
-import type { QrViewModel } from '../waha/types/waha.types';
+import type { PairingCodeViewModel, QrViewModel } from '../waha/types/waha.types';
 import { generateSessionName } from '../common/utils/session-name';
 
 export interface SwitchModeResult {
@@ -119,6 +119,17 @@ export class WhatsappAccountsService {
 
   async getQrForPage(account: WhatsappAccount, requestId: string): Promise<QrViewModel> {
     return this.wahaService.getQrForDashboard(account, { requestId, accountId: account.id });
+  }
+
+  async requestPairingCode(
+    account: WhatsappAccount,
+    phoneNumber: string,
+    requestId: string,
+  ): Promise<PairingCodeViewModel> {
+    return this.wahaService.requestPairingCodeForDashboard(account, phoneNumber, {
+      requestId,
+      accountId: account.id,
+    });
   }
 
   private async assertProjectExists(projectId: string): Promise<void> {

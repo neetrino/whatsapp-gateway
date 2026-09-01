@@ -254,14 +254,14 @@ Envelope: `{ "success": false, "error": { "code", "message", "requestId" } }`.
 | 400 | `IDEMPOTENCY_KEY_REQUIRED` / `IDEMPOTENCY_KEY_INVALID` | Missing/bad key |
 | 401 / 403 | `INVALID_TOKEN` / `TOKEN_REVOKED` / `UNAUTHORIZED` | Token |
 | 409 | `IDEMPOTENCY_KEY_REUSED` | Same key, different body |
-| 409 | `WHATSAPP_NOT_CONNECTED` | Session not paired. Show QR via `GET /api/v1/accounts/:id/qr` (or Admin dashboard) |
+| 409 | `WHATSAPP_NOT_CONNECTED` | Session not paired. Show QR via `GET /api/v1/accounts/:id/qr` or request `POST .../pairing-code` (or Admin dashboard) |
 | 409 | `SESSION_CONFLICT` | Restart session, then fetch QR again |
 | 404 | `GROUP_NOT_FOUND` | Unknown group |
 | 429 | `RATE_LIMITED` | Slow down |
 | 502 | `GROUP_*_FAILED` / `MESSAGE_SEND_FAILED` / media codes | Provider rejected |
 | 503 | `WAHA_UNAVAILABLE` / `*_OUTCOME_UNKNOWN` / `STORE_NOT_READY` | Transport / unknown write / store |
 
-`WHATSAPP_NOT_CONNECTED` is fixed by pairing again: `GET /api/v1/accounts/:id/qr` in your app, or the Admin dashboard QR page. After a broken session, `POST .../session/logout` then fetch QR.
+`WHATSAPP_NOT_CONNECTED` is fixed by pairing again: `GET /api/v1/accounts/:id/qr` or `POST /api/v1/accounts/:id/pairing-code` in your app, or the Admin dashboard pair page. After a broken session, `POST .../session/logout` then fetch QR or request a pairing code. Keep QR as a fallback — pairing codes are not always available.
 
 ## What the Gateway does not do
 

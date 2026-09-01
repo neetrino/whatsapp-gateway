@@ -4,6 +4,8 @@ import { LoginDto } from '../../src/auth/dto/login.dto';
 import { CreateProjectDto } from '../../src/projects/dto/create-project.dto';
 import { UpdateProjectDto } from '../../src/projects/dto/update-project.dto';
 import { CreateWhatsappAccountDto } from '../../src/whatsapp-accounts/dto/create-whatsapp-account.dto';
+import { RequestPairingCodeDto } from '../../src/whatsapp-accounts/dto/request-pairing-code.dto';
+import { V1RequestPairingCodeDto } from '../../src/v1/dto/request-pairing-code.dto';
 import { CreateTokenDto } from '../../src/api-tokens/dto/create-token.dto';
 import { SendMessageDto } from '../../src/messages/dto/send-message.dto';
 import { VALIDATION_PIPE_OPTIONS } from '../../src/common/pipes/validation.factory';
@@ -64,6 +66,16 @@ describe('Dashboard DTOs with _csrf (forbidNonWhitelisted)', () => {
     expect(errors).toHaveLength(0);
   });
 
+  it('RequestPairingCodeDto accepts _csrf and normalizes the number', async () => {
+    const dto = plainToInstance(RequestPairingCodeDto, {
+      phoneNumber: '+374 99 111 222',
+      _csrf: 'abc',
+    });
+    const errors = await validate(dto, pipeValidateOpts);
+    expect(errors).toHaveLength(0);
+    expect(dto.phoneNumber).toBe('37499111222');
+  });
+
   it('CreateTokenDto accepts _csrf', async () => {
     const dto = plainToInstance(CreateTokenDto, {
       name: 't',
@@ -71,6 +83,17 @@ describe('Dashboard DTOs with _csrf (forbidNonWhitelisted)', () => {
     });
     const errors = await validate(dto, pipeValidateOpts);
     expect(errors).toHaveLength(0);
+  });
+});
+
+describe('v1 pairing DTO rejects _csrf', () => {
+  it('rejects _csrf on pairing payload', async () => {
+    const dto = plainToInstance(V1RequestPairingCodeDto, {
+      phoneNumber: '37499111222',
+      _csrf: 'should-fail',
+    });
+    const errors = await validate(dto, pipeValidateOpts);
+    expect(errors.length).toBeGreaterThan(0);
   });
 });
 

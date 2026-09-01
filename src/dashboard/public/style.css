@@ -1373,6 +1373,13 @@ button.danger:hover {
   line-height: 1.5;
 }
 
+.pairing-code {
+  font-size: 22px;
+  letter-spacing: 0.12em;
+  text-align: center;
+  word-break: keep-all;
+}
+
 .form-error {
   color: var(--danger);
   margin: 0 0 16px;

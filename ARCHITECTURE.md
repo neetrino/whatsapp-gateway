@@ -53,11 +53,11 @@ WAHA session storage: persistent Docker volume mounted at `/app/.sessions`.
 | `prisma`             | `PrismaService` and `PrismaModule`. Single DB client.                                           |
 | `auth`               | Dashboard Admin login/logout. Argon2id. JWT in httpOnly cookie. CSRF. Session revalidated from DB. |
 | `projects`           | Admin CRUD over projects (name/slug/active). No project login.                                      |
-| `whatsapp-accounts`  | Accounts belong to a Project. Status, restart/stop/unlink, QR. Mode is stored (`SEND_ONLY` / `MESSENGER`). |
+| `whatsapp-accounts`  | Accounts belong to a Project. Status, restart/stop/unlink, QR / pairing code. Mode is stored (`SEND_ONLY` / `MESSENGER`). |
 | `api-tokens`         | Tokens belong to a Project. HMAC-SHA256 with `TOKEN_PEPPER`. Show-once via signed cookie.          |
 | `waha`               | Isolated WAHA boundary. Only place that knows WAHA URL shape and status strings.                |
 | `messages`           | Legacy `POST /api/messages/send` (+ media). ApiToken guard. Strict DTO. Outbound log lifecycle.          |
-| `v1`                 | Project-token `/api/v1/accounts` list/status/QR/session/send. Account-scoped. Durable idempotency. No Messenger.   |
+| `v1`                 | Project-token `/api/v1/accounts` list/status/QR/pairing-code/session/send. Account-scoped. Durable idempotency. No Messenger.   |
 | `groups`             | Group lifecycle API: list/create/get/refresh/participants/invite-link. Idempotent mutations.     |
 | `health`             | `GET /health` returning `{ gateway, database, waha }`.                                          |
 | `dashboard`          | Handlebars Admin pages: Dashboard, Projects, System/Health. QR poll JSON.                       |
@@ -222,20 +222,20 @@ Standardized error codes:
 - API: Bearer only. Tokens in URL/query are rejected. Cookies are not honored on `/api/*`.
 - Ownership: singleton Admin dashboard. Tokens and accounts are scoped to a Project. Project A cannot access Project B. There is no User model, Role enum, or `ADMIN_NAME`.
 - Throttling (`@nestjs/throttler`) uses **named throttlers**: `default` (`RATE_LIMIT_SEND`) for legacy/dashboard, `v1-send` (`RATE_LIMIT_V1_SEND`), `v1-read` (`RATE_LIMIT_V1_READ`). Exactly one applies per request; v1 is not double-counted. Login is 5 / 15 min per IP; token create/regenerate is 3 / hour per IP. Tracker is **HMAC-SHA256(TOKEN_PEPPER, raw token)** when a Bearer token is present, otherwise client IP. Raw tokens are never used as keys. Storage is in-process `BoundedThrottlerStorage` (TTL eviction + hard max keys). **Single Gateway instance only** unless a shared Redis store is added. `app.set('trust proxy', 1)` is set in `main.ts`. Behind NAT/shared egress, IP fallback collapses many clients into one bucket — prefer Project tokens on v1.
-- Privacy: no `text`, no full token, no `rawPayload`, no QR contents in logs. Logger has a redaction list.
+- Privacy: no `text`, no full token, no `rawPayload`, no QR contents or pairing codes in logs. Logger has a redaction list.
 - Tokens: stored as `tokenHash`, `tokenPrefix`, `last4` only. Full token returned exactly once via a project-bound signed httpOnly cookie (never `?revealed=`). A token issued for Project A is not rendered or consumed on Project B.
 - WAHA: not publicly exposed. Internal Docker network only.
 
 ## Dashboard visibility rules
 
-Admin sees: projects, WhatsApp accounts (label, mode, status, active/connected, phoneNumber if connected), QR codes, recent outbound operational logs (no content), API token metadata, system health, action buttons. `sessionName` is not shown on the account page (database/WAHA diagnostics only).
+Admin sees: projects, WhatsApp accounts (label, mode, status, active/connected, phoneNumber if connected), QR codes and pairing codes, recent outbound operational logs (no content), API token metadata, system health, action buttons. `sessionName` is not shown on the account page (database/WAHA diagnostics only).
 
 Strictly absent: User/Role UI, chats UI, conversations UI, message history UI, webhook logs, raw WAHA payloads, Messenger UI.
 Group **management** is available only via the authenticated JSON API (`/api/groups*`), not as a Messenger dashboard. An e2e test asserts legacy dashboard paths like `/chats`, `/groups`, `/webhooks` still return 404.
 
 ## WAHA integration boundary
 
-`src/waha/waha.client.ts` is the only place that knows WAHA URL shapes. Other modules call `WahaClient` / `WahaService`. Methods include session lifecycle (create/update with mode-specific NOWEB Store config on create, switch, restart — not on every send/QR), send text/media, group operations, and Store reads (`listChats`, `listChatMessages` with `downloadMedia: false`).
+`src/waha/waha.client.ts` is the only place that knows WAHA URL shapes. Other modules call `WahaClient` / `WahaService`. Methods include session lifecycle (create/update with mode-specific NOWEB Store config on create, switch, restart — not on every send/QR/pairing-code), QR, pairing code, send text/media, group operations, and Store reads (`listChats`, `listChatMessages` with `downloadMedia: false`).
 
 `WahaService` maps WAHA status strings (`STARTING`, `SCAN_QR_CODE`, `WORKING`, `FAILED`, `STOPPED`, …) to our `SessionStatus` enum and persists transitions on `WhatsappAccount`. Confirm REST paths against the running WAHA container's `/api/docs` before production upgrades.
 
