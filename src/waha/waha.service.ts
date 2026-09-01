@@ -4,6 +4,7 @@ import { SessionStatus } from '../common/db-enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { WahaClient } from './waha.client';
 import {
+  PairingCodeViewModel,
   QrViewModel,
   WahaApiError,
   WahaQrPayload,
@@ -180,6 +181,58 @@ export class WahaService {
         wahaHttpStatus,
       });
       return { dataUrl: null, errorCode: code, errorSummary: summary };
+    }
+  }
+
+  async requestPairingCodeForDashboard(
+    account: WhatsappAccount,
+    phoneNumber: string,
+    ctx: { requestId: string; accountId: string },
+  ): Promise<PairingCodeViewModel> {
+    const wahaSession = this.effectiveSessionName(account);
+    if (account.status === SessionStatus.CONNECTED) {
+      return {
+        code: null,
+        errorCode: 'WAHA_ALREADY_CONNECTED',
+        errorSummary: 'Session is already connected. Pairing is not required.',
+      };
+    }
+    this.logger.log({
+      msg: 'waha_pairing_flow',
+      requestId: ctx.requestId,
+      accountId: ctx.accountId,
+      wahaSession,
+      action: 'requestPairingCode',
+    });
+    try {
+      const code = await this.client.requestPairingCode(wahaSession, phoneNumber);
+      this.logger.log({
+        msg: 'waha_pairing_flow',
+        requestId: ctx.requestId,
+        accountId: ctx.accountId,
+        wahaSession,
+        action: 'requestPairingCode',
+        issued: true,
+        errorCode: null,
+      });
+      return { code, errorCode: null, errorSummary: null };
+    } catch (error) {
+      const { code, summary } = this.mapQrError(error);
+      const already =
+        code === 'WAHA_ALREADY_CONNECTED'
+          ? 'Session is already connected. Pairing is not required.'
+          : summary;
+      this.logger.warn({
+        msg: 'waha_pairing_flow',
+        requestId: ctx.requestId,
+        accountId: ctx.accountId,
+        wahaSession,
+        action: 'requestPairingCode',
+        issued: false,
+        errorCode: code,
+        wahaHttpStatus: error instanceof WahaApiError ? error.status : undefined,
+      });
+      return { code: null, errorCode: code, errorSummary: already };
     }
   }
 

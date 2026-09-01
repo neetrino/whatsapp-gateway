@@ -376,7 +376,7 @@
   </div>
   <div class="side-sheet__panel">
     <div class="side-sheet__header">
-      <h2 id="sheet-qr-title">Account QR</h2>
+      <h2 id="sheet-qr-title">Pair WhatsApp</h2>
       <span class="status status-QR_REQUIRED" id="qr-status-pill">—</span>
     </div>
     <div class="side-sheet__body">
@@ -395,7 +395,25 @@
             <button type="submit" class="danger" title="Unlink WhatsApp from this gateway (WAHA logout)">Disconnect WhatsApp</button>
           </form>
         </div>
-        <p class="qr-hint">Open WhatsApp on your phone, scan the QR. The status will refresh automatically.</p>
+        <p class="qr-hint">Scan the QR, or request a pairing code below. Status refreshes automatically.</p>
+        <form class="form" id="qr-pairing-form">
+          <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+          <label>Phone number
+            <input
+              name="phoneNumber"
+              type="tel"
+              inputmode="numeric"
+              autocomplete="tel"
+              required
+              maxlength="20"
+              placeholder="37499111222"
+            />
+          </label>
+          <div class="actions">
+            <button type="submit" class="primary">Request pairing code</button>
+          </div>
+        </form>
+        <div id="qr-pairing-result" hidden></div>
       </div>
     </div>
   </div>
@@ -494,6 +512,15 @@
     }
     pill.className = 'status status-' + data.status;
     pill.textContent = data.status;
+    var pairingForm = document.getElementById('qr-pairing-form');
+    if (pairingForm) pairingForm.hidden = data.status === 'CONNECTED';
+    if (data.status === 'CONNECTED') {
+      var pairingResult = document.getElementById('qr-pairing-result');
+      if (pairingResult) {
+        pairingResult.hidden = true;
+        pairingResult.innerHTML = '';
+      }
+    }
     if (data.qrDataUrl) {
       block.innerHTML = '<img src="' + esc(data.qrDataUrl) + '" alt="WhatsApp QR code" />';
       return;
@@ -610,8 +637,13 @@
     var title = document.getElementById('sheet-qr-title');
     var labelEl = document.getElementById('qr-account-label');
     qrAccountId = accountId;
-    if (title) title.textContent = 'QR — ' + label;
-    if (labelEl) labelEl.textContent = 'Scan to authenticate ' + label + '.';
+    if (title) title.textContent = 'Pair — ' + label;
+    if (labelEl) labelEl.textContent = 'Scan QR or request a pairing code for ' + label + '.';
+    var pairingResult = document.getElementById('qr-pairing-result');
+    if (pairingResult) {
+      pairingResult.hidden = true;
+      pairingResult.innerHTML = '';
+    }
     var restart = document.getElementById('qr-restart-form');
     var unlink = document.getElementById('qr-unlink-form');
     if (restart) restart.action = '/projects/' + projectId + '/accounts/' + accountId + '/restart';
@@ -733,6 +765,43 @@
       fetch(action, { method: 'POST', body: new FormData(restartForm), credentials: 'same-origin', redirect: 'manual' })
         .then(function () { loadQrContent(true); })
         .catch(function () { loadQrContent(true); });
+    });
+  }
+
+  var pairingForm = document.getElementById('qr-pairing-form');
+  if (pairingForm) {
+    pairingForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!qrAccountId) return;
+      var result = document.getElementById('qr-pairing-result');
+      function esc(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+      fetch('/projects/' + projectId + '/accounts/' + qrAccountId + '/pairing-code.json', {
+        method: 'POST',
+        body: new FormData(pairingForm),
+        credentials: 'same-origin',
+      })
+        .then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
+        .then(function (res) {
+          if (!result) return;
+          result.hidden = false;
+          if (res.body && res.body.pairingCode) {
+            result.innerHTML = '<p class="meta">Enter this code on the phone:</p><p class="token-display pairing-code">' + esc(res.body.pairingCode) + '</p>';
+            return;
+          }
+          var err = (res.body && (res.body.pairingError || (res.body.error && res.body.error.message))) || 'Pairing code is not available. Try QR or retry shortly.';
+          result.innerHTML = '<p class="form-error">' + esc(err) + '</p>';
+        })
+        .catch(function () {
+          if (!result) return;
+          result.hidden = false;
+          result.innerHTML = '<p class="form-error">Failed to request pairing code.</p>';
+        });
     });
   }
 

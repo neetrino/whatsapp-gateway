@@ -29,6 +29,7 @@ describe('V1AccountsService session QR', () => {
     startOrEnsureSession: jest.fn(),
     refreshStatus: jest.fn(),
     getQrForPage: jest.fn(),
+    requestPairingCode: jest.fn(),
     restart: jest.fn(),
     unlink: jest.fn(),
   };
@@ -106,6 +107,48 @@ describe('V1AccountsService session QR', () => {
     const result = await service.restart(project, 'acc-a');
     expect(accountsService.restart).toHaveBeenCalledWith(account);
     expect(result.id).toBe('acc-a');
+  });
+
+  it('returns a pairing code and never exposes sessionName', async () => {
+    accountsService.requestPairingCode.mockResolvedValue({
+      code: 'ABCD-ABCD',
+      errorCode: null,
+      errorSummary: null,
+    });
+    const result = await service.requestPairingCode(project, 'acc-a', '37499111222', 'req_1');
+    expect(result).toEqual({
+      id: 'acc-a',
+      status: SessionStatus.QR_REQUIRED,
+      phoneNumber: null,
+      pairingCode: 'ABCD-ABCD',
+    });
+    expect(JSON.stringify(result)).not.toContain('wa_secret');
+    expect(accountsService.requestPairingCode).toHaveBeenCalledWith(
+      account,
+      '37499111222',
+      'req_1',
+    );
+  });
+
+  it('returns no pairing code when the session is already connected', async () => {
+    accountsService.refreshStatus.mockResolvedValue(connected);
+    const result = await service.requestPairingCode(project, 'acc-a', '37499111222', 'req_1');
+    expect(result.pairingCode).toBeNull();
+    expect(result.status).toBe(SessionStatus.CONNECTED);
+    expect(accountsService.requestPairingCode).not.toHaveBeenCalled();
+  });
+
+  it('maps pairing conflict without leaking provider text', async () => {
+    accountsService.requestPairingCode.mockResolvedValue({
+      code: null,
+      errorCode: 'WAHA_HTTP_409',
+      errorSummary: 'WAHA returned 409 (session conflict). Try “Restart session”.',
+    });
+    await expect(
+      service.requestPairingCode(project, 'acc-a', '37499111222', 'req_1'),
+    ).rejects.toMatchObject({
+      code: ERROR_CODES.SESSION_CONFLICT,
+    });
   });
 
   it('maps session mutation failures to WAHA_UNAVAILABLE', async () => {

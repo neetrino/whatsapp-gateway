@@ -55,6 +55,7 @@ See root [`docker-compose.yml`](../docker-compose.yml):
 | `POST` | `/api/sessions/restart` | Restart session |
 | `GET` | `/api/sessions/:session` | Session status |
 | `GET` | `/api/{session}/auth/qr` | QR (`format=image` or `format=json`) |
+| `POST` | `/api/{session}/auth/request-code` | Pairing code (`phoneNumber` digits only) |
 | `POST` | `/api/sendText` | Outbound text (`session`, `chatId`, `text`) |
 | `POST` | `/api/sendImage` | Outbound image by URL |
 | `POST` | `/api/sendVideo` | Outbound video by URL |

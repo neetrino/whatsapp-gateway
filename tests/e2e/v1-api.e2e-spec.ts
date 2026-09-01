@@ -22,6 +22,7 @@ describe('v1 account-scoped API (e2e)', () => {
   const sendVideoByUrl = jest.fn();
   const getStatus = jest.fn();
   const getQr = jest.fn();
+  const requestPairingCode = jest.fn();
   const logoutSession = jest.fn();
   const sessionExists = jest.fn();
   const updateSession = jest.fn();
@@ -93,6 +94,7 @@ describe('v1 account-scoped API (e2e)', () => {
         restartSession: jest.fn(),
         getStatus,
         getQr,
+        requestPairingCode,
         logoutSession,
         sessionExists,
         updateSession,
@@ -122,6 +124,7 @@ describe('v1 account-scoped API (e2e)', () => {
     prismaMock.whatsappAccount.findMany.mockResolvedValue([accountA]);
     getStatus.mockResolvedValue({ status: 'WORKING', me: { id: '37499111222@c.us' } });
     getQr.mockResolvedValue({ mimeType: 'image/png', data: 'iVBORw0KGgo=' });
+    requestPairingCode.mockResolvedValue('ABCD-ABCD');
     logoutSession.mockResolvedValue(undefined);
     sessionExists.mockResolvedValue(true);
     updateSession.mockResolvedValue(undefined);
@@ -354,6 +357,38 @@ describe('v1 account-scoped API (e2e)', () => {
     expect(res.body.data.qrDataUrl).toBeNull();
     expect(res.body.data.status).toBe(SessionStatus.CONNECTED);
     expect(getQr).not.toHaveBeenCalled();
+  });
+
+  it('returns a pairing code for a project-owned account that needs pairing', async () => {
+    prismaMock.whatsappAccount.findFirst.mockResolvedValue({
+      ...accountA,
+      status: SessionStatus.QR_REQUIRED,
+      phoneNumber: null,
+    });
+    getStatus.mockResolvedValue({ status: 'SCAN_QR_CODE' });
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/accounts/acc-a/pairing-code')
+      .set(auth())
+      .send({ phoneNumber: '+374 99 111 222' });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual(
+      expect.objectContaining({
+        id: 'acc-a',
+        status: SessionStatus.QR_REQUIRED,
+        pairingCode: 'ABCD-ABCD',
+      }),
+    );
+    expect(JSON.stringify(res.body)).not.toContain('wa_aaa');
+    expect(requestPairingCode).toHaveBeenCalledWith('wa_aaa', '37499111222');
+  });
+
+  it('rejects pairing-code requests that use the forbidden phone field', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/accounts/acc-a/pairing-code')
+      .set(auth())
+      .send({ phone: '37499111222' });
+    expect(res.status).toBe(400);
+    expect(requestPairingCode).not.toHaveBeenCalled();
   });
 
   it('returns 404 for QR on a cross-project account', async () => {

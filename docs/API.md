@@ -10,7 +10,7 @@ All v1 routes require `Authorization: Bearer <PROJECT_API_TOKEN>`. The guard val
 
 Ownership: every account is loaded with `{ id: accountId, projectId: authenticatedProjectId }`. A Project A token against a Project B account returns **404 `NOT_FOUND`**. Inactive Project → **403 `PROJECT_INACTIVE`**. Inactive account on send → **409 `ACCOUNT_INACTIVE`**. Disconnected session on send → **409 `WHATSAPP_NOT_CONNECTED`**.
 
-Rate limits: one named Nest throttler per route class — v1 send and session mutations (`POST .../session/restart`, `POST .../session/logout`) use **only** `RATE_LIMIT_V1_SEND`; v1 list/status/QR/chats use **only** `RATE_LIMIT_V1_READ`. They are not also counted against `RATE_LIMIT_SEND`. Keys are HMAC of the Bearer token (never the raw token). If no Bearer is present, the client IP is used. `trust proxy` is `1` in `main.ts` so a reverse proxy’s `X-Forwarded-For` is honored for one hop. Behind NAT, IP fallback is coarse — use Project tokens. Storage is in-process (bounded, TTL eviction); multiple Gateway replicas do not share counters unless Redis is added later.
+Rate limits: one named Nest throttler per route class — v1 send and session mutations (`POST .../session/restart`, `POST .../session/logout`, `POST .../pairing-code`) use **only** `RATE_LIMIT_V1_SEND`; v1 list/status/QR/chats use **only** `RATE_LIMIT_V1_READ`. They are not also counted against `RATE_LIMIT_SEND`. Keys are HMAC of the Bearer token (never the raw token). If no Bearer is present, the client IP is used. `trust proxy` is `1` in `main.ts` so a reverse proxy’s `X-Forwarded-For` is honored for one hop. Behind NAT, IP fallback is coarse — use Project tokens. Storage is in-process (bounded, TTL eviction); multiple Gateway replicas do not share counters unless Redis is added later.
 
 ### `GET /api/v1/accounts`
 
@@ -67,6 +67,38 @@ Starts the WAHA session if needed, refreshes status, and returns a pairing QR wh
 
 Poll until `status` is `CONNECTED` (or call `GET .../status`). Do not treat a temporary `null` QR as a hard failure.
 
+### `POST /api/v1/accounts/:accountId/pairing-code`
+
+Starts the WAHA session if needed and requests an 8-character WhatsApp pairing code. Same ownership rule as QR. Alternative to scanning: the operator enters the code on the phone (**Linked devices → Link a device → Link with phone number**). Counts against `RATE_LIMIT_V1_SEND`. Keep QR as a fallback — WAHA pairing codes are not always available.
+
+Body (digits-only after normalization; `+`, spaces, and dashes are stripped):
+
+```json
+{ "phoneNumber": "37499111222" }
+```
+
+`phone` is rejected (`400`). Use `phoneNumber` with country code, 8–15 digits.
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "acc_...",
+    "status": "QR_REQUIRED",
+    "phoneNumber": null,
+    "pairingCode": "ABCD-ABCD"
+  }
+}
+```
+
+| `status` | `pairingCode` | Client action |
+|----------|---------------|---------------|
+| `CONNECTED` | `null` | Already paired. |
+| not `CONNECTED` | `ABCD-ABCD` | Show the code to the operator. Poll `GET .../status`. |
+| not `CONNECTED` | missing / error | `503 WAHA_UNAVAILABLE` or `409 SESSION_CONFLICT`. Restart, then retry or use QR. |
+
+`pairingCode` is a WhatsApp login credential. Treat it like a secret: HTTPS only, show only to the operator who should enter it, never log or persist it. Response never includes `sessionName`, WAHA URL, or WAHA API key.
+
 ### `POST /api/v1/accounts/:accountId/session/restart`
 
 Re-applies session config or starts the session if it is missing. Does **not** always log out of WhatsApp. Use when the session is stuck (`ERROR`, `SESSION_CONFLICT`) and you want to recover without forcing a new scan. Returns the same shape as `GET .../status`. Counts against `RATE_LIMIT_V1_SEND`.
@@ -80,8 +112,8 @@ Logs the WhatsApp account out (same as Admin **Unlink**). Clears pairing. Return
 Reconnect flow for any integrating app:
 
 1. `POST /api/v1/accounts/:accountId/session/logout`
-2. `GET /api/v1/accounts/:accountId/qr` until `qrDataUrl` is present
-3. Operator scans the QR in your UI
+2. Pair again: `GET .../qr` until `qrDataUrl` is present, **or** `POST .../pairing-code` with `phoneNumber` and show `pairingCode`
+3. Operator scans the QR or enters the pairing code on the phone
 4. Poll `GET /api/v1/accounts/:accountId/status` (or `/qr`) until `CONNECTED`
 
 Creating the Project, account, token, and mode switch stay in the Admin dashboard.

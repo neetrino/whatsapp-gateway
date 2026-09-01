@@ -1,11 +1,27 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { Public } from '../common/decorators/public.decorator';
 import { ProjectApiTokenGuard } from '../common/guards/project-api-token.guard';
 import { ApiProject, type ApiProjectContext } from '../common/decorators/api-project.decorator';
 import type { RequestWithId } from '../common/interceptors/request-id.middleware';
 import { AppException } from '../common/errors/app.exception';
 import { ERROR_CODES } from '../common/errors/error-codes';
-import { V1AccountsService, type V1AccountQr, type V1AccountStatus } from './v1-accounts.service';
+import {
+  V1AccountsService,
+  type V1AccountPairingCode,
+  type V1AccountQr,
+  type V1AccountStatus,
+} from './v1-accounts.service';
+import { V1RequestPairingCodeDto } from './dto/request-pairing-code.dto';
 import type { V1AccountPublic } from '../whatsapp-accounts/account-public';
 
 @Controller('api/v1/accounts')
@@ -43,6 +59,23 @@ export class V1AccountsController {
     const data = await this.accountsService.getQr(
       this.requireProject(project),
       accountId,
+      req.requestId ?? 'unknown',
+    );
+    return { success: true, data };
+  }
+
+  @Post(':accountId/pairing-code')
+  @HttpCode(HttpStatus.OK)
+  async pairingCode(
+    @Req() req: RequestWithId,
+    @Param('accountId') accountId: string,
+    @Body() dto: V1RequestPairingCodeDto,
+    @ApiProject() project: ApiProjectContext | undefined,
+  ): Promise<{ success: true; data: V1AccountPairingCode }> {
+    const data = await this.accountsService.requestPairingCode(
+      this.requireProject(project),
+      accountId,
+      dto.phoneNumber,
       req.requestId ?? 'unknown',
     );
     return { success: true, data };

@@ -44,6 +44,7 @@ describe('Dashboard route safety (e2e)', () => {
         restartSession: jest.fn(),
         getStatus: jest.fn(),
         getQr: jest.fn(),
+        requestPairingCode: jest.fn(),
         sendText: jest.fn(),
         sendImageByUrl: jest.fn(),
         sendVideoByUrl: jest.fn(),
@@ -99,6 +100,14 @@ describe('Dashboard route safety (e2e)', () => {
     const res = await request(app.getHttpServer())
       .get('/projects/p1/accounts/a1/qr')
       .set('Accept', 'application/json');
+    expect(res.status).toBe(401);
+  });
+
+  it('protects pairing-code routes with Admin session', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/projects/p1/accounts/a1/pairing-code')
+      .set('Accept', 'application/json')
+      .send({ phoneNumber: '37499111222' });
     expect(res.status).toBe(401);
   });
 });

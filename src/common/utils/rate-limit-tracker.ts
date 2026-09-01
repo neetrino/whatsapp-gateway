@@ -27,7 +27,9 @@ export const isV1SendPath = (path: string, method: string): boolean =>
   method === 'POST' && /^\/api\/v1\/accounts\/[^/]+\/messages\/?$/.test(path);
 
 export const isV1SessionPath = (path: string, method: string): boolean =>
-  method === 'POST' && /^\/api\/v1\/accounts\/[^/]+\/session\/(restart|logout)\/?$/.test(path);
+  method === 'POST' &&
+  (/^\/api\/v1\/accounts\/[^/]+\/session\/(restart|logout)\/?$/.test(path) ||
+    /^\/api\/v1\/accounts\/[^/]+\/pairing-code\/?$/.test(path));
 
 export const isV1ReadPath = (path: string, method: string): boolean => {
   if (method !== 'GET') return false;

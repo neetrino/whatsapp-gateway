@@ -7,8 +7,8 @@ This project is **not** NBOS, **not** a plugin, and **not** a Messenger UI.
 
 ## What this is
 
-- **HTTP JSON API:** `GET /api/v1/accounts`, `GET /api/v1/accounts/:accountId/status`, `GET /api/v1/accounts/:accountId/qr`, `POST /api/v1/accounts/:accountId/session/{restart,logout}`, `POST /api/v1/accounts/:accountId/messages` (Project token, account-scoped, `Idempotency-Key` on send). **MESSENGER** accounts also expose chats/history (WAHA Store proxy, not stored) and inbound HTTPS webhooks. Legacy `POST /api/messages/send` and `POST /api/messages/send-media` remain.
-- Minimal **dashboard** (server-rendered) for the singleton **Admin**: login, **Projects** (API tokens + WhatsApp accounts, QR, session actions), system health.
+- **HTTP JSON API:** `GET /api/v1/accounts`, `GET /api/v1/accounts/:accountId/status`, `GET /api/v1/accounts/:accountId/qr`, `POST /api/v1/accounts/:accountId/pairing-code`, `POST /api/v1/accounts/:accountId/session/{restart,logout}`, `POST /api/v1/accounts/:accountId/messages` (Project token, account-scoped, `Idempotency-Key` on send). **MESSENGER** accounts also expose chats/history (WAHA Store proxy, not stored) and inbound HTTPS webhooks. Legacy `POST /api/messages/send` and `POST /api/messages/send-media` remain.
+- Minimal **dashboard** (server-rendered) for the singleton **Admin**: login, **Projects** (API tokens + WhatsApp accounts, QR or pairing code, session actions), system health.
 - **Admin (singleton) → Project → ApiTokens[] + WhatsappAccounts[]**. Tokens and accounts belong to a Project, not to a User. There is no User/Role model and no `ADMIN_NAME`.
 
 ## What this is not
@@ -53,7 +53,7 @@ npm run start:dev
 
 Admin is created on first start from `ADMIN_EMAIL` / `ADMIN_PASSWORD` if the SQLite file has no admin yet.
 
-4. Open `http://localhost:3000/login`, sign in as the seeded Admin, create a **Project**, add WhatsApp accounts, scan QR, create API tokens.
+4. Open `http://localhost:3000/login`, sign in as the seeded Admin, create a **Project**, add WhatsApp accounts, pair via QR or pairing code, create API tokens.
 
 ## Environment
 

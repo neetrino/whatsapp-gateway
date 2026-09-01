@@ -26,8 +26,8 @@
 - **No message text** in `OutboundMessageLog`, `OutboundMessageIdempotency`, or UI.
 - **No `mediaUrl`, captions, or media binaries** in the database. Logs may record safe metadata only (e.g. `messageType`, `chatId`, status, ids, errors, request hash).
 - **No webhook log UI**, no raw payload storage by default.
-- Structured logs must **not** include message bodies, full API tokens, passwords, QR image bytes/`qrDataUrl`, or raw WAHA message payloads.
-- `GET /api/v1/accounts/:id/qr` returns a WhatsApp pairing credential. A leaked Project token can fetch a live QR and pair the number. Keep tokens server-side; show the image only to the operator who should scan.
+- Structured logs must **not** include message bodies, full API tokens, passwords, QR image bytes/`qrDataUrl`, pairing codes, or raw WAHA message payloads.
+- `GET /api/v1/accounts/:id/qr` and `POST /api/v1/accounts/:id/pairing-code` return WhatsApp pairing credentials. A leaked Project token can fetch a live QR or pairing code and pair the number. Keep tokens server-side; show the image or code only to the operator who should pair. Never put a pairing code in a URL or query string.
 
 ## SSRF protection (`send-media`)
 

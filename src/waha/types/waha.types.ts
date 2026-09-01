@@ -25,6 +25,13 @@ export interface QrViewModel {
   errorSummary: string | null;
 }
 
+/** Dashboard / v1 pairing-code result. Never persist or log `code`. */
+export interface PairingCodeViewModel {
+  code: string | null;
+  errorCode: string | null;
+  errorSummary: string | null;
+}
+
 export interface WahaSendTextResult {
   id?: string;
 }
