@@ -1,5 +1,6 @@
 import {
   applyGroupSearch,
+  fetchAllWahaGroups,
   mergeRecentChatOrder,
   paginateGroups,
 } from '../../src/groups/group-catalog';
@@ -62,6 +63,42 @@ describe('group-catalog', () => {
       '120363111111111111@g.us',
       '120363222222222222@g.us',
     ]);
+  });
+
+  it('keeps paging a full JID map instead of stopping at 200', async () => {
+    const page = (
+      start: number,
+      count: number,
+    ): Record<string, { id: string; subject: string }> => {
+      const raw: Record<string, { id: string; subject: string }> = {};
+      for (let index = 0; index < count; index += 1) {
+        const n = start + index;
+        const id = `120363${String(n).padStart(12, '0')}@g.us`;
+        raw[id] = { id, subject: `G${n}` };
+      }
+      return raw;
+    };
+    const list = jest.fn().mockResolvedValueOnce(page(1, 200)).mockResolvedValueOnce(page(201, 5));
+    const { groups } = await fetchAllWahaGroups(list);
+    expect(groups).toHaveLength(205);
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(list).toHaveBeenNthCalledWith(2, expect.objectContaining({ offset: 200 }));
+  });
+
+  it('stops when a full JID map page adds no new groups', async () => {
+    const page = (count: number): Record<string, { id: string; subject: string }> => {
+      const raw: Record<string, { id: string; subject: string }> = {};
+      for (let index = 1; index <= count; index += 1) {
+        const id = `120363${String(index).padStart(12, '0')}@g.us`;
+        raw[id] = { id, subject: `G${index}` };
+      }
+      return raw;
+    };
+    const same = page(200);
+    const list = jest.fn().mockResolvedValue(same);
+    const { groups } = await fetchAllWahaGroups(list);
+    expect(groups).toHaveLength(200);
+    expect(list).toHaveBeenCalledTimes(2);
   });
 
   it('paginates after search and sort', () => {

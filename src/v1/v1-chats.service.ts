@@ -38,12 +38,7 @@ export class V1ChatsService {
     const offset = query.offset ?? 0;
     await this.assertStoreReady(account.sessionName);
     try {
-      const raw = await this.client.listChats(account.sessionName, {
-        limit,
-        offset,
-        sortBy: query.sortBy,
-        sortOrder: query.sortOrder,
-      });
+      const raw = await this.readInboxPage(account.sessionName, limit, offset, query.sortBy);
       return mapWahaChatsPage(raw, limit, offset);
     } catch (error) {
       throw toChatsListException(error);
@@ -69,6 +64,23 @@ export class V1ChatsService {
       return mapWahaMessagesPage(raw, chatId, limit, offset, maxText);
     } catch (error) {
       throw toChatMessagesException(error);
+    }
+  }
+
+  private async readInboxPage(
+    sessionName: string,
+    limit: number,
+    offset: number,
+    sortBy?: ListChatsQueryDto['sortBy'],
+  ): Promise<unknown> {
+    try {
+      return await this.client.listChatsOverview(sessionName, { limit, offset });
+    } catch {
+      return this.client.listChats(sessionName, {
+        limit,
+        offset,
+        ...(sortBy === 'id' ? { sortBy: 'id' as const } : {}),
+      });
     }
   }
 

@@ -120,7 +120,7 @@ Do **not** use `GET /api/groups` as the picker. That list is groups-only (manage
 }
 ```
 
-Order is the WhatsApp inbox: **last message first**, not group creation date. A group created a year ago that got a message a minute ago is at the top. Conversations with no last-message activity (dead / unused groups) come after the live inbox, by name. `offset` continues that same list.
+Order is the WhatsApp inbox: **last message first**, not group creation date. A group created a year ago that got a message a minute ago is at the top. Conversations with no last-message activity (dead / unused groups) come after the live inbox, by name. `offset` continues that same list. Search runs on the merged catalog (all groups plus inbox directs), not only the first page.
 
 In your UI:
 

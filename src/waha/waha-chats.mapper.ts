@@ -1,3 +1,5 @@
+import { extractLastMessageAtMs } from '../chats/activity-rank';
+
 export interface V1ChatPublic {
   id: string;
   name: string | null;
@@ -89,16 +91,16 @@ export const mapWahaChat = (raw: unknown): V1ChatPublic | null => {
   const record = raw as Record<string, unknown>;
   const id = readString(record.id);
   if (!id) return null;
-  const lastMessage = record.lastMessage;
-  const ts =
-    lastMessage && typeof lastMessage === 'object'
-      ? readNumber((lastMessage as { timestamp?: unknown }).timestamp)
-      : readNumber(record.timestamp);
+  const nestedChat =
+    record._chat && typeof record._chat === 'object'
+      ? (record._chat as Record<string, unknown>)
+      : null;
+  const ts = extractLastMessageAtMs(raw);
   return {
     id,
-    name: readString(record.name) ?? null,
-    lastMessageAt: ts ? new Date(ts * 1000).toISOString() : null,
-    unreadCount: readNumber(record.unreadCount) ?? null,
+    name: readString(record.name) ?? readString(record.subject) ?? null,
+    lastMessageAt: ts ? new Date(ts).toISOString() : null,
+    unreadCount: readNumber(record.unreadCount) ?? readNumber(nestedChat?.unreadCount) ?? null,
   };
 };
 

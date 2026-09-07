@@ -68,7 +68,8 @@ See root [`docker-compose.yml`](../docker-compose.yml):
 | `POST` | `/api/{session}/groups/{groupId}/participants/remove` | Remove participants |
 | `PUT` | `/api/{session}/groups/{groupId}/subject` | Rename group |
 | `POST` | `/api/{session}/groups/{groupId}/leave` | Leave group |
-| `GET` | `/api/{session}/chats` | Recent chats (picker) |
+| `GET` | `/api/{session}/chats/overview` | Inbox for the chat picker (primary) |
+| `GET` | `/api/{session}/chats` | Recent chats fallback if overview fails |
 | `GET` | `/api/{session}/groups/{groupId}/invite-code` | Invite code |
 
 If your WAHA build uses different paths, update **`WahaClient` only**.

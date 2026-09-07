@@ -1,7 +1,7 @@
 import { GROUP_ID_REGEX, PARTICIPANT_JID_REGEX } from '../groups/constants/group.constants';
 import { extractGroupName } from '../groups/mappers/waha-group.mapper';
 import type { NormalizedGroup } from '../groups/types/group.types';
-import type { WahaListChatsQuery } from '../waha/types/waha.types';
+import type { WahaInboxPageQuery } from '../waha/types/waha.types';
 import { unwrapWahaList } from '../waha/waha-chats.mapper';
 import {
   compareByLastActivity,
@@ -103,7 +103,7 @@ export const paginateChats = (
 };
 
 export const fetchRecentWahaChats = async (
-  list: (query: WahaListChatsQuery) => Promise<unknown>,
+  list: (query: WahaInboxPageQuery) => Promise<unknown>,
 ): Promise<unknown[]> => {
   const items: unknown[] = [];
   for (
@@ -111,14 +111,7 @@ export const fetchRecentWahaChats = async (
     pageIndex < 5 && items.length < CHAT_CATALOG_CAP;
     pageIndex++
   ) {
-    const page = unwrapWahaList(
-      await list({
-        limit: WAHA_CHATS_PAGE,
-        offset,
-        sortBy: 'messageTimestamp',
-        sortOrder: 'desc',
-      }),
-    );
+    const page = unwrapWahaList(await list({ limit: WAHA_CHATS_PAGE, offset }));
     if (page.length === 0) break;
     items.push(...page);
     offset += page.length;
@@ -127,12 +120,19 @@ export const fetchRecentWahaChats = async (
   return items;
 };
 
-export const loadWahaRecentChats = async (
-  list: (query: WahaListChatsQuery) => Promise<unknown>,
+export const loadWahaInboxChats = async (
+  overview: (query: WahaInboxPageQuery) => Promise<unknown>,
+  fallback: (query: WahaInboxPageQuery) => Promise<unknown>,
   onUnavailable?: () => void,
 ): Promise<unknown[]> => {
   try {
-    return await fetchRecentWahaChats(list);
+    const fromOverview = await fetchRecentWahaChats(overview);
+    if (fromOverview.length > 0) return fromOverview;
+  } catch {
+    // Overview is optional; listChats is the fallback inbox.
+  }
+  try {
+    return await fetchRecentWahaChats(fallback);
   } catch {
     onUnavailable?.();
     return [];

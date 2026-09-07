@@ -6,6 +6,7 @@ import {
   WahaAddParticipantsInput,
   WahaApiError,
   WahaCreateGroupInput,
+  WahaInboxPageQuery,
   WahaListChatsQuery,
   WahaListGroupsQuery,
   WahaListChatMessagesQuery,
@@ -114,6 +115,15 @@ export class WahaClient {
         ...(query.sortBy ? { sortBy: query.sortBy } : {}),
         ...(query.sortOrder ? { sortOrder: query.sortOrder } : {}),
       },
+    });
+  }
+
+  async listChatsOverview(sessionName: string, query: WahaInboxPageQuery): Promise<unknown> {
+    const session = encodeURIComponent(sessionName);
+    return this.invoke<unknown>('list chats overview', {
+      method: 'GET',
+      url: `/api/${session}/chats/overview`,
+      params: { limit: query.limit, offset: query.offset },
     });
   }
 
