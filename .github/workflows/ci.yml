@@ -3,20 +3,26 @@ name: CI
 on:
   push:
     branches:
-      - '**'
+      - main
   pull_request:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  verify:
+  quality:
+    name: Quality
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -25,6 +31,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Lint commit messages
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          npx commitlint --from "origin/${{ github.base_ref }}" --to HEAD --verbose
 
       - name: Prisma validate
         run: npx prisma validate
@@ -35,6 +47,12 @@ jobs:
         run: npx prisma generate
         env:
           DATABASE_URL: file:./data/ci.db
+
+      - name: Format
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck
@@ -58,3 +76,27 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit high+ vulnerabilities
+        run: |
+          if npm audit --audit-level=high; then
+            echo "No high+ vulnerabilities."
+          else
+            echo "::warning::npm audit reported high+ vulnerabilities. Review Dependabot; this job is informational."
+          fi

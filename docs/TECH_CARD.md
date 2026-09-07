@@ -108,7 +108,7 @@
 |---|-----------|----------|--------|------|
 | 8.1 | Frontend hosting | Same process as API | ✅ | Handlebars on Nest |
 | 8.2 | Backend hosting | Hetzner + Docker Compose | ✅ | [`docs/DEPLOYMENT.md`](DEPLOYMENT.md) |
-| 8.3 | CI/CD | GitHub Actions | ✅ | `.github/workflows/ci.yml` + SSH deploy on `main` |
+| 8.3 | CI/CD | GitHub Actions | ✅ | `.github/workflows/ci.yml` quality gates on PR/`main` + SSH deploy on `main` |
 | 8.4 | Docker | Dockerfile + compose (gateway + waha) | ✅ | Public ingress: Gateway only |
 | 8.5 | WAF | Reverse proxy / operator choice | ➖ | Terminate TLS in front of `localhost:3000` |
 | 8.6 | Monitoring | `GET /health` | ✅ | `{ gateway, database, waha }` |
@@ -170,7 +170,7 @@ Filled as a living snapshot, not a greenfield gate.
 | # | Check | Status |
 |---|-------|--------|
 | 12.1 | TypeScript: 0 errors | 🔄 | CI `typecheck` |
-| 12.2 | ESLint | 🔄 | `npm run lint` |
+| 12.2 | ESLint | ✅ | CI `npm run lint` |
 | 12.3 | Build succeeds | ✅ | CI `npm run build` |
 | 12.4 | Tests pass | ✅ | CI unit + e2e |
 | 12.5 | No `console.log` in production paths | 🔄 | Use Nest Logger |

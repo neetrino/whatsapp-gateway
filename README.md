@@ -137,12 +137,14 @@ Image and video helpers (same auth; `mediaUrl` must be a **public HTTPS** URL) a
 ## Testing
 
 ```bash
-npm test
+npm run ci:check
 npm run test:e2e
 # Optional live WAHA multi-session (loopback overlay, never public bind):
 # docker compose -f docker-compose.yml -f docker-compose.integration.yml up -d waha
 # WAHA_BASE_URL=http://127.0.0.1:3001 WAHA_INTEGRATION=1 npm run test:waha
 ```
+
+`ci:check` runs format, lint, typecheck, and unit tests. GitHub Actions repeats those plus Prisma validate, e2e, and build on every pull request and on `main`. Commits must follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, …).
 
 ## License
 
