@@ -38,9 +38,17 @@ const readNumber = (value: unknown): number | undefined =>
 
 export const unwrapWahaList = (raw: unknown): unknown[] => {
   if (Array.isArray(raw)) return raw;
-  if (raw && typeof raw === 'object' && Array.isArray((raw as { data?: unknown }).data)) {
-    return (raw as { data: unknown[] }).data;
-  }
+  if (!raw || typeof raw !== 'object') return [];
+  const record = raw as Record<string, unknown>;
+  if (Array.isArray(record.data)) return record.data;
+  if (Array.isArray(record.chats)) return record.chats;
+  if (Array.isArray(record.items)) return record.items;
+  const nested =
+    record.data && typeof record.data === 'object' && !Array.isArray(record.data)
+      ? (record.data as Record<string, unknown>)
+      : null;
+  if (nested && Array.isArray(nested.chats)) return nested.chats;
+  if (nested && Array.isArray(nested.items)) return nested.items;
   return [];
 };
 

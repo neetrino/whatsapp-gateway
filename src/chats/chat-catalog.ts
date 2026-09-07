@@ -38,22 +38,41 @@ const readJid = (value: unknown): string | undefined => {
   );
 };
 
-export const classifyChatId = (id: string): ChatType | null => {
-  if (GROUP_ID_REGEX.test(id)) return 'group';
-  if (PARTICIPANT_JID_REGEX.test(id)) return 'direct';
+const S_WHATSAPP_NET = /@s\.whatsapp\.net$/i;
+
+export const toCanonicalChatId = (id: string): string | null => {
+  const trimmed = id.trim();
+  if (GROUP_ID_REGEX.test(trimmed)) return trimmed;
+  if (PARTICIPANT_JID_REGEX.test(trimmed)) return trimmed;
+  if (S_WHATSAPP_NET.test(trimmed)) {
+    const digits = trimmed.replace(S_WHATSAPP_NET, '');
+    return PARTICIPANT_JID_REGEX.test(`${digits}@c.us`) ? `${digits}@c.us` : null;
+  }
   return null;
 };
 
+export const classifyChatId = (id: string): ChatType | null => {
+  const canonical = toCanonicalChatId(id);
+  if (!canonical) return null;
+  return canonical.endsWith('@g.us') ? 'group' : 'direct';
+};
+
 export const extractChatId = (raw: unknown): string | null => {
-  if (typeof raw === 'string') {
-    const id = raw.trim();
-    return classifyChatId(id) ? id : null;
-  }
+  if (typeof raw === 'string') return toCanonicalChatId(raw);
   const record = asRecord(raw);
   if (!record) return null;
-  for (const candidate of [record.id, record.JID, record.jid, record.chatId]) {
+  for (const candidate of [
+    record.id,
+    record.JID,
+    record.jid,
+    record.chatId,
+    record.pn,
+    record.pnJid,
+    record.contactId,
+  ]) {
     const id = readJid(candidate);
-    if (id && classifyChatId(id)) return id;
+    const canonical = id ? toCanonicalChatId(id) : null;
+    if (canonical) return canonical;
   }
   return null;
 };
@@ -110,22 +129,34 @@ export const fetchRecentWahaChats = async (
 
 export const loadWahaRecentChats = async (
   list: (query: WahaListChatsQuery) => Promise<unknown>,
+  onUnavailable?: () => void,
 ): Promise<unknown[]> => {
   try {
     return await fetchRecentWahaChats(list);
   } catch {
+    onUnavailable?.();
     return [];
   }
 };
 
-export const buildChatCatalog = (groups: NormalizedGroup[], chatsRaw: unknown): ChatListItem[] => {
+export type GroupCatalogInput = NormalizedGroup & { lastMessageAt?: number | null };
+
+export const seedGroupActivityAt = (group: GroupCatalogInput): number | null => {
+  const value = group.lastMessageAt;
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+};
+
+export const buildChatCatalog = (
+  groups: GroupCatalogInput[],
+  chatsRaw: unknown,
+): ChatListItem[] => {
   const byId = new Map<string, RankedChat>();
   for (const group of groups) {
     byId.set(group.id.toLowerCase(), {
       id: group.id,
       name: group.name,
       type: 'group',
-      lastMessageAt: null,
+      lastMessageAt: seedGroupActivityAt(group),
       inboxIndex: null,
     });
   }
@@ -143,7 +174,7 @@ export const buildChatCatalog = (groups: NormalizedGroup[], chatsRaw: unknown): 
       id: existing?.id ?? fromChat.id,
       name: existing?.name || fromChat.name,
       type: existing?.type ?? fromChat.type,
-      lastMessageAt: extractLastMessageAtMs(chat),
+      lastMessageAt: extractLastMessageAtMs(chat) ?? existing?.lastMessageAt ?? null,
       inboxIndex,
     });
     inboxIndex += 1;

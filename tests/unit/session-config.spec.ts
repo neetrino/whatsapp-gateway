@@ -7,9 +7,9 @@ const options = {
 };
 
 describe('session-config', () => {
-  it('disables NOWEB Store for SEND_ONLY without webhooks', () => {
+  it('enables NOWEB Store for SEND_ONLY without inbound webhooks', () => {
     const payload = buildSessionConfig('wa_test', WhatsappAccountMode.SEND_ONLY, options);
-    expect(payload.config.noweb.store).toEqual({ enabled: false, fullSync: false });
+    expect(payload.config.noweb.store).toEqual({ enabled: true, fullSync: false });
     expect(payload.config.webhooks).toBeUndefined();
   });
 

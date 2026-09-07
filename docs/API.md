@@ -503,7 +503,7 @@ Same Project-token rule as Groups (exactly one active WhatsApp account). Not the
 
 Query: `limit` (1–200, default 100), `offset` (≥0, default 0), optional `search` (max 100, name or id).
 
-Loads the full group catalog, merges WAHA chats (`@c.us` and `@g.us`, up to 1000, `sortBy=messageTimestamp`), then searches and paginates locally. Order is last message first (not creation date); groups with no inbox activity follow, by name. Empty group names on the current page are filled via WAHA get-by-id. If `listChats` fails (`SEND_ONLY` / Store down), groups are still returned (name order).
+Loads the full group catalog, merges WAHA chats (`@c.us` and `@g.us`, up to 1000, `sortBy=messageTimestamp`), then searches and paginates locally. Order is last message first (not creation date); groups with no inbox activity follow, by name. Empty group names on the current page are filled via WAHA get-by-id. If `listChats` fails (Store not ready), groups are still returned, ranked by any timestamp on the group list.
 
 ```json
 {

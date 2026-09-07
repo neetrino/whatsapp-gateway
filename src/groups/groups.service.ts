@@ -60,8 +60,9 @@ export class GroupsService {
       if (catalog.length === 0) {
         this.logger.warn({ msg: 'waha_groups_mapped_empty', ...rawShape });
       }
-      const chatsRaw = await loadWahaRecentChats((page) =>
-        this.wahaClient.listChats(sessionName, page),
+      const chatsRaw = await loadWahaRecentChats(
+        (page) => this.wahaClient.listChats(sessionName, page),
+        () => this.logger.warn({ msg: 'waha_chats_unavailable' }),
       );
       const filtered = applyGroupSearch(mergeRecentChatOrder(catalog, chatsRaw), query.search);
       const page = paginateGroups(filtered, query.limit, query.offset);
