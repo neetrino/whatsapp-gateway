@@ -1,27 +1,27 @@
 ---
 name: Feature request
-about: Առաջարկել նոր կանոն, կաղապար կամ բարելավում
+about: Propose a Gateway, dashboard, or integration change
 title: '[Feature] '
 labels: enhancement
 assignees: ''
 ---
 
-## Գաղափար
+## Idea
 
-<!-- Համառոտ. ինչ ցանկանում ես ավելացնել կամ փոխել -->
+<!-- What you want to add or change -->
 
-## Ինչու է դա անհրաժեշտ
+## Why
 
-<!-- Ինչ սցենար կամ խնդիր է լուծվում -->
+<!-- Problem or integration scenario -->
 
-## Առաջարկվող լուծում
+## Proposed solution
 
-<!-- Նոր կանոն, նոր ֆայլ templates/-ում, փոփոխություն առկա կանոնում և այլն -->
+<!-- API, dashboard, WAHA, or ops change -->
 
-## Այլընտրանքներ
+## Alternatives
 
-<!-- Տարբերակներ, որոնք դիտարկել ես -->
+<!-- Options considered -->
 
-## Լրացուցիչ
+## Extra
 
-<!-- Հղումներ օրինակներին, ցիտատներ փաստաթղթերից, screenshot-ներ -->
+<!-- Links, screenshots, related issues -->

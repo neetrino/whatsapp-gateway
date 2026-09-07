@@ -1,31 +1,32 @@
 ---
 name: Bug report
-about: Հաղորդել սխալի կամ ոչ ճիշտ վարքի մասին
+about: Report incorrect Gateway, dashboard, or WAHA behavior
 title: '[Bug] '
 labels: bug
 assignees: ''
 ---
 
-## Բագի նկարագրություն
+## What happened
 
-<!-- Պարզ նկարագրի՛ր, ինչ է սխալ -->
+<!-- Short description of the incorrect behavior -->
 
-## Ինչպես վերարտադրել
+## How to reproduce
 
-1. Անցի՛ր '...'
-2. Կատարի՛ր '...'
-3. Կտեսնես սխալ / ոչ ճիշտ վարք
+1. Go to '...'
+2. Do '...'
+3. See the error
 
-## Ակնկալվող վարք
+## Expected
 
-<!-- Ինչ պետք է տեղի ունենա -->
+<!-- What should happen -->
 
-## Փաստացի վարք
+## Actual
 
-<!-- Ինչ է տեղի ունենում այժմ -->
+<!-- What happens now -->
 
-## Կոնտեքստ
+## Context
 
-- Կանոն/ֆայլ. <!-- օր. 03-typescript.mdc -->
-- Cursor / միջավայր. <!-- տարբերակ, OS անհրաժեշտության դեպքում -->
-- Լրացուցիչ. <!-- screenshot-ներ, լոգեր, կոդի օրինակ -->
+- Environment: <!-- local / production -->
+- Endpoint or screen: <!-- e.g. POST /api/v1/accounts/:id/messages, Projects dashboard -->
+- Account / project (non-secret ids only):
+- Extra: <!-- logs without secrets, screenshots -->

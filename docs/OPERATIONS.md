@@ -104,7 +104,7 @@ Use this before pointing NBOS/production traffic at a new Gateway deployment. **
 - [ ] `.env` reviewed: `GATEWAY_PUBLIC_URL`, `GATEWAY_INTERNAL_URL=http://gateway:3000` (compose service names **`gateway`** + **`waha`**), `WAHA_WEBHOOK_SECRET` ≥ 32 chars, `WEBHOOK_*` timeouts/retries, `TOKEN_PEPPER` / cookie secrets ≥ 32 chars.
 - [ ] WAHA image pinned: `devlikeapro/waha:noweb-2026.8.1`.
 - [ ] Migration plan: `npx prisma migrate deploy` on disposable DB first; **skip** destructive Phase 1 migration on prod data.
-- [ ] `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build` green in CI.
+- [ ] `npm run ci:check`, `npm run test:e2e`, `npm run build` green in CI.
 
 ### Deploy
 

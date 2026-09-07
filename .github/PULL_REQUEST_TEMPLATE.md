@@ -1,26 +1,27 @@
-## Նկարագրություն
+## Summary
 
-<!-- Համառոտ. ինչ արվել է և ինչու -->
+<!-- What changed and why. -->
 
-## Փոփոխությունների տիպ
+## Type of change
 
-- [ ] Բագի ուղղում
-- [ ] Նոր հնարավորություն / կանոն
-- [ ] Փաստաթղթավորման թարմացում
-- [ ] Ռեֆակտորինգ / կառուցվածքի բարելավում
-- [ ] Այլ (նկարագրի՛ր ներքևում)
+- [ ] Bug fix
+- [ ] Feature
+- [ ] Documentation
+- [ ] Refactor
+- [ ] Other
 
-## Կապված issue
+## Related
 
-<!-- Օր. Closes #123 -->
+<!-- Closes #123 -->
 
-## Ստուգացուցակ
+## Test plan
 
-- [ ] Կանոններ/փաստաթղթեր համաձայնեցված են առկա ոճի հետ
-- [ ] Կանոնների ֆայլերի համարակալումն ու անունները համապատասխանում են կոնվենցիաներին (00-core, 01-..., globs)
-- [ ] Կոնֆլիկտներ այլ կանոնների հետ չկան
-- [ ] README-ն թարմացվել է անհրաժեշտության դեպքում
+- [ ] `npm run ci:check` (format, lint, typecheck, unit tests)
+- [ ] `npm run test:e2e` if API, auth, or dashboard paths changed
+- [ ] Docs updated if public behavior or env changed
 
-## Լրացուցիչ
+## Checklist
 
-<!-- Հղումներ, screenshot-ներ, նշումներ revue-ի համար -->
+- [ ] Conventional Commits (`feat:`, `fix:`, `docs:`, …)
+- [ ] No secrets, tokens, or production URLs in the diff
+- [ ] Public API / integration docs match the change
