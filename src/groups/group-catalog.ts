@@ -1,3 +1,4 @@
+import { seedGroupActivityAt, type GroupCatalogInput } from '../chats/chat-catalog';
 import {
   compareByLastActivity,
   extractLastMessageAtMs,
@@ -11,11 +12,21 @@ import {
   extractGroupId,
   isWahaGroupsJidMap,
   mapWahaGroup,
-  mapWahaGroups,
+  unwrapGroupsArray,
 } from './mappers/waha-group.mapper';
 import type { GroupsListResult, NormalizedGroup } from './types/group.types';
 
 type RankedGroup = NormalizedGroup & ActivityRank;
+export type GroupWithActivity = NormalizedGroup & { lastMessageAt: number | null };
+
+export const mapWahaGroupsWithActivity = (raw: unknown): GroupWithActivity[] => {
+  const mapped: GroupWithActivity[] = [];
+  for (const item of unwrapGroupsArray(raw)) {
+    const group = mapWahaGroup(item);
+    if (group) mapped.push({ ...group, lastMessageAt: extractLastMessageAtMs(item) });
+  }
+  return mapped;
+};
 
 export const WAHA_GROUPS_PAGE = 200;
 export const GROUP_CATALOG_CAP = 2000;
@@ -37,9 +48,9 @@ export const paginateGroups = (
   return { groups: page, pagination: { limit, offset, count: page.length } };
 };
 
-export const dedupeGroups = (groups: NormalizedGroup[]): NormalizedGroup[] => {
+export const dedupeGroups = <T extends NormalizedGroup>(groups: T[]): T[] => {
   const seen = new Set<string>();
-  const unique: NormalizedGroup[] = [];
+  const unique: T[] = [];
   for (const group of groups) {
     const key = group.id.toLowerCase();
     if (seen.has(key)) continue;
@@ -50,12 +61,16 @@ export const dedupeGroups = (groups: NormalizedGroup[]): NormalizedGroup[] => {
 };
 
 export const mergeRecentChatOrder = (
-  groups: NormalizedGroup[],
+  groups: GroupCatalogInput[],
   chatsRaw: unknown,
 ): NormalizedGroup[] => {
   const byId = new Map<string, RankedGroup>();
   for (const group of groups) {
-    byId.set(group.id.toLowerCase(), { ...group, lastMessageAt: null, inboxIndex: null });
+    byId.set(group.id.toLowerCase(), {
+      ...group,
+      lastMessageAt: seedGroupActivityAt(group),
+      inboxIndex: null,
+    });
   }
   let inboxIndex = 0;
   for (const chat of unwrapWahaList(chatsRaw)) {
@@ -72,7 +87,7 @@ export const mergeRecentChatOrder = (
       ? {
           ...existing,
           name: existing.name || fromChat?.name || '',
-          lastMessageAt: extractLastMessageAtMs(chat),
+          lastMessageAt: extractLastMessageAtMs(chat) ?? existing.lastMessageAt,
           inboxIndex,
         }
       : fromChat
@@ -86,8 +101,11 @@ export const mergeRecentChatOrder = (
 
 export const fetchAllWahaGroups = async (
   list: (query: WahaListGroupsQuery) => Promise<unknown>,
-): Promise<{ groups: NormalizedGroup[]; rawShape: ReturnType<typeof describeRawGroupsShape> }> => {
-  const groups: NormalizedGroup[] = [];
+): Promise<{
+  groups: GroupWithActivity[];
+  rawShape: ReturnType<typeof describeRawGroupsShape>;
+}> => {
+  const groups: GroupWithActivity[] = [];
   let firstRaw: unknown = [];
   for (
     let pageIndex = 0, offset = 0;
@@ -102,7 +120,7 @@ export const fetchAllWahaGroups = async (
       exclude: 'participants',
     });
     if (pageIndex === 0) firstRaw = raw;
-    const page = mapWahaGroups(raw);
+    const page = mapWahaGroupsWithActivity(raw);
     if (isWahaGroupsJidMap(raw)) {
       return { groups: page, rawShape: describeRawGroupsShape(raw) };
     }

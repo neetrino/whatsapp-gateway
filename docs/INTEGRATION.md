@@ -21,8 +21,8 @@ Every request:
 
 There is **one token type**. `SEND_ONLY` vs `MESSENGER` is the **WhatsApp account mode** in the Gateway dashboard, not a property of the token. Switch mode, then **Restart** the session. Do not recreate the token.
 
-- `SEND_ONLY` — outbound send and group management work. Personal chats in `GET /api/chats` may be empty. Inbound webhooks and v1 history are off.
-- `MESSENGER` — same outbound API, plus recent personal chats, inbound project webhooks, and v1 chat history.
+- `SEND_ONLY` — outbound send and group management work. `GET /api/chats` includes personal chats after the session is created or **Restart**ed (NOWEB Store on, no inbound webhooks). Sessions created before this need one Restart.
+- `MESSENGER` — same outbound API, plus inbound project webhooks and v1 chat history.
 
 ## 0. Connect WhatsApp (QR on your site)
 
@@ -130,7 +130,7 @@ In your UI:
 - Load more: raise `offset` by `limit`, keep the same `search`.
 - After pick: store `id` + `type` on your record.
 
-If the account is `SEND_ONLY` or Store is not ready, `direct` items may be missing; groups still return.
+If the Store is not ready (session not restarted after enabling it), `direct` items may be missing; groups still return.
 
 Form-first-message stays: your app builds `{digits}@c.us` and calls send. The picker is for **existing** threads.
 

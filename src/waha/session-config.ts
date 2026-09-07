@@ -43,20 +43,20 @@ export const buildSessionConfig = (
   mode: string,
   options: BuildSessionConfigOptions,
 ): WahaSessionConfigPayload => {
-  const storeEnabled = mode === WhatsappAccountMode.MESSENGER;
+  const inboundEnabled = mode === WhatsappAccountMode.MESSENGER;
   const base: WahaSessionConfigPayload = {
     name: sessionName,
     config: {
       noweb: {
         store: {
-          enabled: storeEnabled,
+          enabled: true,
           fullSync: false,
         },
       },
     },
   };
 
-  if (!storeEnabled) return base;
+  if (!inboundEnabled) return base;
 
   return {
     ...base,

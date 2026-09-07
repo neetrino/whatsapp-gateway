@@ -2,9 +2,16 @@ import {
   mapWahaChatsPage,
   mapWahaMessage,
   mapWahaMessagesPage,
+  unwrapWahaList,
 } from '../../src/waha/waha-chats.mapper';
 
 describe('waha-chats.mapper', () => {
+  it('unwraps chats from common WAHA envelopes', () => {
+    expect(unwrapWahaList([{ id: 'a' }])).toEqual([{ id: 'a' }]);
+    expect(unwrapWahaList({ chats: [{ id: 'b' }] })).toEqual([{ id: 'b' }]);
+    expect(unwrapWahaList({ data: { items: [{ id: 'c' }] } })).toEqual([{ id: 'c' }]);
+  });
+
   it('maps chats without _data fields', () => {
     const page = mapWahaChatsPage(
       [

@@ -18,6 +18,7 @@ describe('chat-catalog', () => {
   it('classifies group and direct ids and drops others', () => {
     expect(classifyChatId('120363111111111111@g.us')).toBe('group');
     expect(classifyChatId('37499111222@c.us')).toBe('direct');
+    expect(classifyChatId('37499111222@s.whatsapp.net')).toBe('direct');
     expect(classifyChatId('123@lid')).toBeNull();
   });
 
@@ -28,6 +29,25 @@ describe('chat-catalog', () => {
       type: 'direct',
     });
     expect(mapWahaChatItem({ id: '123@lid', name: 'Hidden' })).toBeNull();
+    expect(mapWahaChatItem({ id: '37499111222@s.whatsapp.net', name: 'Armen' })).toEqual({
+      id: '37499111222@c.us',
+      name: 'Armen',
+      type: 'direct',
+    });
+  });
+
+  it('keeps group activity when inbox chats are missing', () => {
+    const catalog = buildChatCatalog(
+      [
+        { ...group('120363111111111111@g.us', 'Idle'), lastMessageAt: 1_000 },
+        { ...group('120363222222222222@g.us', 'Fresh'), lastMessageAt: 2_000 },
+      ],
+      [],
+    );
+    expect(catalog.map((item) => item.id)).toEqual([
+      '120363222222222222@g.us',
+      '120363111111111111@g.us',
+    ]);
   });
 
   it('puts recent chats first and searches the full catalog', () => {

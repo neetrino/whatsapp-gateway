@@ -87,6 +87,7 @@ export class WahaService {
       const exists = await this.client.sessionExists(sessionName);
       if (exists) {
         await this.modePolicy.applySessionConfig(sessionName, account.mode);
+        await this.client.restartSession(sessionName);
         return;
       }
       const configPayload = this.modePolicy.buildSessionConfig(sessionName, account.mode);
