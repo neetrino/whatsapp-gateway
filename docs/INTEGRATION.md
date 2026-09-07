@@ -12,7 +12,7 @@ Use this file as the handoff: env, connect/QR, send, chat picker, groups, inboun
 | `WHATSAPP_GATEWAY_URL` | Public base URL, e.g. `https://whatsapp.example.com` |
 | `WHATSAPP_GATEWAY_TOKEN` | Project API token from the Gateway dashboard (`gw_live_…` / `gw_test_…`) |
 
-Create a **Project** in the Gateway dashboard for each integrating app. Each project has its own token and WhatsApp account(s).
+Create a **Project** in the Gateway dashboard for each integrating app. Each project has its own token and WhatsApp account(s). Unused tokens and accounts can be **deleted** there (not only revoked / deactivated). A deleted token stops working immediately — issue a new one and update `WHATSAPP_GATEWAY_TOKEN`.
 
 Every request:
 

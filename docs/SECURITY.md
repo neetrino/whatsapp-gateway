@@ -5,7 +5,7 @@
 - Raw tokens are shown **exactly once** after create/regenerate in the dashboard via a short-lived **signed httpOnly** cookie `gw_token_reveal` (2 minutes, `Secure` in production, consume-once). The payload is bound to the **issuing Project**; Project A’s token is never rendered on Project B, and a mismatch does not consume the cookie. Never put raw tokens in URLs (`?revealed=`), logs, or query strings.
 - Database stores **`tokenHash` only** (HMAC-SHA256 with `TOKEN_PEPPER`), plus `tokenPrefix` and `last4` for display.
 - `TOKEN_PEPPER` must be high-entropy (≥ 32 chars) and treated like a root secret.
-- Revoked tokens fail closed with `TOKEN_REVOKED`.
+- Revoked tokens fail closed with `TOKEN_REVOKED`. Deleted tokens are removed from the database; later calls return `INVALID_TOKEN`. Revoke is reversible; delete is permanent.
 - Send traffic is rate-limited **per token hash** when `Authorization: Bearer` is present (HMAC-SHA256 with `TOKEN_PEPPER`), otherwise **per client IP**. Raw tokens are never used as keys. v1 send and v1 read use named throttlers `RATE_LIMIT_V1_SEND` / `RATE_LIMIT_V1_READ` only (not also `RATE_LIMIT_SEND`). Legacy traffic uses `RATE_LIMIT_SEND`. In-process storage is bounded; counters are **not** shared across replicas.
 
 ## Dashboard authentication

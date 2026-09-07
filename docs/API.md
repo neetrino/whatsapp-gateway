@@ -294,7 +294,7 @@ Unknown JSON properties are rejected (`forbidNonWhitelisted`).
 | HTTP | `code` | When |
 |------|--------|------|
 | 401 | `UNAUTHORIZED` | Missing `Authorization` header. |
-| 401 | `INVALID_TOKEN` | Unknown token hash. |
+| 401 | `INVALID_TOKEN` | Unknown token hash (including a token that was deleted in the dashboard). |
 | 403 | `TOKEN_REVOKED` | Token revoked. |
 | 403 | `PROJECT_INACTIVE` | Token’s Project is inactive. |
 | 409 | `PROJECT_HAS_NO_ACTIVE_ACCOUNT` | Project has no active WhatsApp account. |

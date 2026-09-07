@@ -9,6 +9,7 @@ interface PrismaStub {
     findUnique: jest.Mock;
     findFirst: jest.Mock;
     update: jest.Mock;
+    delete: jest.Mock;
     findMany: jest.Mock;
   };
   project: {
@@ -32,6 +33,7 @@ const buildPrisma = (): PrismaStub => ({
     findUnique: jest.fn(),
     findFirst: jest.fn(),
     update: jest.fn(),
+    delete: jest.fn(),
     findMany: jest.fn(),
   },
   project: {
@@ -167,6 +169,18 @@ describe('ApiTokensService', () => {
     expect(prisma.apiToken.update.mock.calls[0]?.[0].data.revokedAt).toBeNull();
   });
 
+  it('deletes a token that belongs to the project', async () => {
+    const prisma = buildPrisma();
+    prisma.apiToken.findFirst.mockResolvedValue({
+      id: 'tok1',
+      projectId: 'p1',
+    });
+    prisma.apiToken.delete.mockResolvedValue({ id: 'tok1' });
+    const service = new ApiTokensService(prisma as never, buildConfig() as never);
+    await service.delete('p1', 'tok1');
+    expect(prisma.apiToken.delete).toHaveBeenCalledWith({ where: { id: 'tok1' } });
+  });
+
   it('cannot manage a token that belongs to another project', async () => {
     const prisma = buildPrisma();
     prisma.apiToken.findFirst.mockResolvedValue(null);
@@ -178,5 +192,7 @@ describe('ApiTokensService', () => {
       expect(error).toBeInstanceOf(AppException);
       expect((error as AppException).code).toBe(ERROR_CODES.NOT_FOUND);
     }
+    await expect(service.delete('project-a', 'tok-from-b')).rejects.toBeInstanceOf(AppException);
+    expect(prisma.apiToken.delete).not.toHaveBeenCalled();
   });
 });

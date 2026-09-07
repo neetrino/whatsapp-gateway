@@ -115,6 +115,15 @@
         <input type="hidden" name="_csrf" value="{{csrfToken}}" />
         <button type="submit" class="danger">Unlink</button>
       </form>
+      <form
+        method="post"
+        action="/projects/{{projectId}}/accounts/{{account.id}}/delete"
+        class="inline"
+        data-confirm="Delete this WhatsApp account permanently? The WAHA session will be removed."
+      >
+        <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+        <button type="submit" class="danger">Delete account</button>
+      </form>
     </div>
   </div>
 </section>

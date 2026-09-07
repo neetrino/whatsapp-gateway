@@ -26,7 +26,7 @@ Phase 4 does **not** add Redis or a distributed queue. Scale vertically or accep
 |---------|--------------|--------|
 | `WHATSAPP_NOT_CONNECTED` from API | Session logged out / not scanned | Pair via `GET /api/v1/accounts/:id/qr` in the integrating app, or dashboard → QR. To force a new scan: `POST .../session/logout` then fetch QR again |
 | `WAHA_UNAVAILABLE` | WAHA container down / network | `docker compose ps`, restart `waha`, verify `WAHA_BASE_URL` |
-| `INVALID_TOKEN` / `TOKEN_REVOKED` | Wrong or revoked API token | Regenerate token in dashboard, update NBOS env |
+| `INVALID_TOKEN` / `TOKEN_REVOKED` | Wrong, deleted, or revoked API token | Create/regenerate a token in the dashboard, or restore a revoked one; update NBOS env |
 | `INVALID_MEDIA_URL` on `send-media` | URL not HTTPS, SSRF-blocked, or failed optional size/type check | Use a public CDN URL; see [SECURITY.md](SECURITY.md) |
 | `IMAGE_SEND_FAILED` / `VIDEO_SEND_FAILED` | WAHA could not fetch or send the file | Confirm URL reachable from WAHA, format supported, size within WhatsApp limits |
 | `ACCOUNT_MODE_NOT_SUPPORTED` | v1 chats/history or inbound on `SEND_ONLY` | Switch account to **MESSENGER** in dashboard (CSRF-protected), then **Restart** session |
@@ -36,6 +36,7 @@ Phase 4 does **not** add Redis or a distributed queue. Scale vertically or accep
 | WAHA inbound **401** / HMAC errors | `WAHA_WEBHOOK_SECRET` mismatch or stale timestamp | Align secret on Gateway + WAHA session config; ensure NTP/time sync |
 | 429 on API (not health) | Rate limits | Tune `RATE_LIMIT_*`, investigate abusive client |
 | Inbound events missing after deploy | Old MESSENGER sessions lack webhook config | **Restart** each MESSENGER account (do **not** logout; do **not** wipe `waha_sessions`) |
+| Unused token or WhatsApp account still listed | Only revoke / deactivate existed before | Dashboard → **Delete**. Token delete is immediate. Account delete also removes the WAHA session when WAHA is reachable |
 
 ### After Gateway deploy (MESSENGER accounts)
 

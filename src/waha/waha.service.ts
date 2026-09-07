@@ -64,6 +64,14 @@ export class WahaService {
     }
   }
 
+  async deleteSession(account: WhatsappAccount): Promise<void> {
+    try {
+      await this.client.deleteSession(this.effectiveSessionName(account));
+    } catch (error) {
+      this.logSafeError('delete_session_failed', error);
+    }
+  }
+
   async logoutSession(account: WhatsappAccount): Promise<void> {
     try {
       await this.client.logoutSession(this.effectiveSessionName(account));

@@ -53,8 +53,8 @@ WAHA session storage: persistent Docker volume mounted at `/app/.sessions`.
 | `prisma`             | `PrismaService` and `PrismaModule`. Single DB client.                                           |
 | `auth`               | Dashboard Admin login/logout. Argon2id. JWT in httpOnly cookie. CSRF. Session revalidated from DB. |
 | `projects`           | Admin CRUD over projects (name/slug/active). No project login.                                      |
-| `whatsapp-accounts`  | Accounts belong to a Project. Status, restart/stop/unlink, QR / pairing code. Mode is stored (`SEND_ONLY` / `MESSENGER`). |
-| `api-tokens`         | Tokens belong to a Project. HMAC-SHA256 with `TOKEN_PEPPER`. Show-once via signed cookie.          |
+| `whatsapp-accounts`  | Accounts belong to a Project. Status, restart/stop/unlink/delete, QR / pairing code. Mode is stored (`SEND_ONLY` / `MESSENGER`). |
+| `api-tokens`         | Tokens belong to a Project. HMAC-SHA256 with `TOKEN_PEPPER`. Show-once via signed cookie. Revoke or hard-delete from the dashboard. |
 | `waha`               | Isolated WAHA boundary. Only place that knows WAHA URL shape and status strings.                |
 | `messages`           | Legacy `POST /api/messages/send` (+ media). ApiToken guard. Strict DTO. Outbound log lifecycle.          |
 | `v1`                 | Project-token `/api/v1/accounts` list/status/QR/pairing-code/session/send. Account-scoped. Durable idempotency. No Messenger.   |
@@ -75,7 +75,7 @@ Project (1) ──── (n) ApiToken
                     └── (n) GroupApiOperation           [idempotency for create/add]
 ```
 
-`ApiToken` and `WhatsappAccount` reference `Project` with **`ON DELETE RESTRICT`**. There is no audited project-delete workflow, so deleting a Project that still has tokens or accounts is rejected by the database. Outbound logs and group operations still cascade when a WhatsApp account is removed.
+`ApiToken` and `WhatsappAccount` reference `Project` with **`ON DELETE RESTRICT`**. There is no audited project-delete workflow, so deleting a Project that still has tokens or accounts is rejected by the database. Admin can hard-delete unused tokens and accounts from the dashboard (CSRF). Token delete removes the row (later API calls return `INVALID_TOKEN`). Account delete removes that account’s `ApiIdempotency` rows and best-effort deletes the WAHA session (`DELETE /api/sessions/:name`); a WAHA outage still allows the Gateway row to be removed.
 
 ### `Admin`
 `id, email (unique), passwordHash, isActive, sessionVersion, singleton (unique, always 1), createdAt, updatedAt`.
@@ -228,14 +228,14 @@ Standardized error codes:
 
 ## Dashboard visibility rules
 
-Admin sees: projects, WhatsApp accounts (label, mode, status, active/connected, phoneNumber if connected), QR codes and pairing codes, recent outbound operational logs (no content), API token metadata, system health, action buttons. `sessionName` is not shown on the account page (database/WAHA diagnostics only).
+Admin sees: projects, WhatsApp accounts (label, mode, status, active/connected, phoneNumber if connected), QR codes and pairing codes, recent outbound operational logs (no content), API token metadata, system health, action buttons (including permanent delete for unused tokens and accounts). `sessionName` is not shown on the account page (database/WAHA diagnostics only).
 
 Strictly absent: User/Role UI, chats UI, conversations UI, message history UI, webhook logs, raw WAHA payloads, Messenger UI.
 Group **management** is available only via the authenticated JSON API (`/api/groups*`), not as a Messenger dashboard. An e2e test asserts legacy dashboard paths like `/chats`, `/groups`, `/webhooks` still return 404.
 
 ## WAHA integration boundary
 
-`src/waha/waha.client.ts` is the only place that knows WAHA URL shapes. Other modules call `WahaClient` / `WahaService`. Methods include session lifecycle (create/update with mode-specific NOWEB Store config on create, switch, restart — not on every send/QR/pairing-code), QR, pairing code, send text/media, group operations, and Store reads (`listChats`, `listChatMessages` with `downloadMedia: false`).
+`src/waha/waha.client.ts` is the only place that knows WAHA URL shapes. Other modules call `WahaClient` / `WahaService`. Methods include session lifecycle (create/update with mode-specific NOWEB Store config on create, switch, restart — not on every send/QR/pairing-code), QR, pairing code, session delete, send text/media, group operations, and Store reads (`listChats`, `listChatMessages` with `downloadMedia: false`).
 
 `WahaService` maps WAHA status strings (`STARTING`, `SCAN_QR_CODE`, `WORKING`, `FAILED`, `STOPPED`, …) to our `SessionStatus` enum and persists transitions on `WhatsappAccount`. Confirm REST paths against the running WAHA container's `/api/docs` before production upgrades.
 

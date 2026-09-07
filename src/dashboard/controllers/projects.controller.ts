@@ -207,6 +207,18 @@ export class ProjectsDashboardController {
     res.redirect(303, `/projects/${id}`);
   }
 
+  @Post(':id/tokens/:tokenId/delete')
+  @HttpCode(HttpStatus.SEE_OTHER)
+  async deleteToken(
+    @Param('id') id: string,
+    @Param('tokenId') tokenId: string,
+    @Body() _dto: CsrfFormDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.tokensService.delete(id, tokenId);
+    res.redirect(303, `/projects/${id}`);
+  }
+
   @Post(':id/tokens/:tokenId/regenerate')
   @HttpCode(HttpStatus.SEE_OTHER)
   @Throttle({ default: { ttl: 3_600_000, limit: 100 } })

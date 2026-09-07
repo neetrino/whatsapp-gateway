@@ -157,6 +157,18 @@ export class WahaClient {
     });
   }
 
+  async deleteSession(sessionName: string): Promise<void> {
+    try {
+      await this.invoke('delete session', {
+        method: 'DELETE',
+        url: `/api/sessions/${encodeURIComponent(sessionName)}`,
+      });
+    } catch (error) {
+      if (error instanceof WahaApiError && error.status === 404) return;
+      throw error;
+    }
+  }
+
   async logoutSession(sessionName: string): Promise<void> {
     const encoded = encodeURIComponent(sessionName);
     const route = `/api/sessions/${encoded}/logout`;
