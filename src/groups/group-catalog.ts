@@ -10,7 +10,6 @@ import { unwrapWahaList } from '../waha/waha-chats.mapper';
 import {
   describeRawGroupsShape,
   extractGroupId,
-  isWahaGroupsJidMap,
   mapWahaGroup,
   unwrapGroupsArray,
 } from './mappers/waha-group.mapper';
@@ -46,18 +45,6 @@ export const paginateGroups = (
 ): GroupsListResult => {
   const page = groups.slice(offset, offset + limit);
   return { groups: page, pagination: { limit, offset, count: page.length } };
-};
-
-export const dedupeGroups = <T extends NormalizedGroup>(groups: T[]): T[] => {
-  const seen = new Set<string>();
-  const unique: T[] = [];
-  for (const group of groups) {
-    const key = group.id.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    unique.push(group);
-  }
-  return unique;
 };
 
 export const mergeRecentChatOrder = (
@@ -106,6 +93,7 @@ export const fetchAllWahaGroups = async (
   rawShape: ReturnType<typeof describeRawGroupsShape>;
 }> => {
   const groups: GroupWithActivity[] = [];
+  const seen = new Set<string>();
   let firstRaw: unknown = [];
   for (
     let pageIndex = 0, offset = 0;
@@ -121,13 +109,16 @@ export const fetchAllWahaGroups = async (
     });
     if (pageIndex === 0) firstRaw = raw;
     const page = mapWahaGroupsWithActivity(raw);
-    if (isWahaGroupsJidMap(raw)) {
-      return { groups: page, rawShape: describeRawGroupsShape(raw) };
-    }
-    if (page.length === 0) break;
-    groups.push(...page);
+    const fresh = page.filter((group) => {
+      const key = group.id.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (fresh.length === 0) break;
+    groups.push(...fresh);
     offset += page.length;
     if (page.length < WAHA_GROUPS_PAGE) break;
   }
-  return { groups: dedupeGroups(groups), rawShape: describeRawGroupsShape(firstRaw) };
+  return { groups, rawShape: describeRawGroupsShape(firstRaw) };
 };

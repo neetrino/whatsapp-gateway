@@ -236,6 +236,18 @@ export class ProjectAccountsController {
     res.redirect(303, `/projects/${projectId}/accounts/${accountId}`);
   }
 
+  @Post(':accountId/delete')
+  @HttpCode(HttpStatus.SEE_OTHER)
+  async delete(
+    @Param('projectId') projectId: string,
+    @Param('accountId') accountId: string,
+    @Body() _dto: CsrfFormDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.accountsService.deleteForProject(projectId, accountId);
+    res.redirect(303, `/projects/${projectId}#accounts`);
+  }
+
   @Post(':accountId/activate')
   @HttpCode(HttpStatus.SEE_OTHER)
   async activate(

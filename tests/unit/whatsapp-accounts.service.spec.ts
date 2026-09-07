@@ -49,6 +49,49 @@ describe('WhatsappAccountsService', () => {
     });
   });
 
+  it('deletes an account, its idempotency rows, and the WAHA session', async () => {
+    const account = {
+      id: 'acc1',
+      projectId: 'p1',
+      label: 'A',
+      sessionName: 'wa_1',
+      isActive: true,
+    };
+    const prisma = {
+      project: { findUnique: jest.fn() },
+      whatsappAccount: {
+        findFirst: jest.fn().mockResolvedValue(account),
+        delete: jest.fn().mockResolvedValue(account),
+      },
+      apiIdempotency: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 2 }),
+      },
+    };
+    const waha = { deleteSession: jest.fn().mockResolvedValue(undefined) };
+    const service = new WhatsappAccountsService(prisma as never, waha as never, {} as never);
+    await service.deleteForProject('p1', 'acc1');
+    expect(waha.deleteSession).toHaveBeenCalledWith(account);
+    expect(prisma.apiIdempotency.deleteMany).toHaveBeenCalledWith({
+      where: { whatsappAccountId: 'acc1' },
+    });
+    expect(prisma.whatsappAccount.delete).toHaveBeenCalledWith({ where: { id: 'acc1' } });
+  });
+
+  it('does not delete an account from another project', async () => {
+    const prisma = {
+      project: { findUnique: jest.fn() },
+      whatsappAccount: { findFirst: jest.fn().mockResolvedValue(null) },
+      apiIdempotency: { deleteMany: jest.fn() },
+    };
+    const waha = { deleteSession: jest.fn() };
+    const service = new WhatsappAccountsService(prisma as never, waha as never, {} as never);
+    await expect(service.deleteForProject('project-a', 'acc-from-b')).rejects.toMatchObject({
+      code: ERROR_CODES.NOT_FOUND,
+    });
+    expect(waha.deleteSession).not.toHaveBeenCalled();
+    expect(prisma.apiIdempotency.deleteMany).not.toHaveBeenCalled();
+  });
+
   it('activates and deactivates an account only inside its project', async () => {
     const account = {
       id: 'acc1',

@@ -60,6 +60,8 @@ export interface WahaListChatsQuery {
   sortOrder?: 'asc' | 'desc';
 }
 
+export type WahaInboxPageQuery = Pick<WahaListChatsQuery, 'limit' | 'offset'>;
+
 export interface WahaListChatMessagesQuery {
   limit: number;
   offset: number;

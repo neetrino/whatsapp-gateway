@@ -6,6 +6,7 @@ import {
   WahaAddParticipantsInput,
   WahaApiError,
   WahaCreateGroupInput,
+  WahaInboxPageQuery,
   WahaListChatsQuery,
   WahaListGroupsQuery,
   WahaListChatMessagesQuery,
@@ -117,6 +118,15 @@ export class WahaClient {
     });
   }
 
+  async listChatsOverview(sessionName: string, query: WahaInboxPageQuery): Promise<unknown> {
+    const session = encodeURIComponent(sessionName);
+    return this.invoke<unknown>('list chats overview', {
+      method: 'GET',
+      url: `/api/${session}/chats/overview`,
+      params: { limit: query.limit, offset: query.offset },
+    });
+  }
+
   async listChatMessages(
     sessionName: string,
     chatId: string,
@@ -145,6 +155,18 @@ export class WahaClient {
       url: '/api/sessions/restart',
       data: { name: sessionName },
     });
+  }
+
+  async deleteSession(sessionName: string): Promise<void> {
+    try {
+      await this.invoke('delete session', {
+        method: 'DELETE',
+        url: `/api/sessions/${encodeURIComponent(sessionName)}`,
+      });
+    } catch (error) {
+      if (error instanceof WahaApiError && error.status === 404) return;
+      throw error;
+    }
   }
 
   async logoutSession(sessionName: string): Promise<void> {

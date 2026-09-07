@@ -97,6 +97,11 @@ export class ApiTokensService {
     return toMetadata(updated);
   }
 
+  async delete(projectId: string, tokenId: string): Promise<void> {
+    await this.requireProjectToken(projectId, tokenId);
+    await this.prisma.apiToken.delete({ where: { id: tokenId } });
+  }
+
   async regenerate(projectId: string, tokenId: string): Promise<IssuedApiToken> {
     await this.requireProjectToken(projectId, tokenId);
     const prefix = this.configService.get('API_TOKEN_PREFIX', { infer: true });

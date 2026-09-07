@@ -11,7 +11,7 @@ import { mapGroupProviderError } from '../groups/groups-errors';
 import {
   applyChatSearch,
   buildChatCatalog,
-  loadWahaRecentChats,
+  loadWahaInboxChats,
   paginateChats,
 } from './chat-catalog';
 import type { ChatsListResult } from './chats.types';
@@ -38,7 +38,8 @@ export class ChatsService {
       if (groups.length === 0) {
         this.logger.warn({ msg: 'waha_groups_mapped_empty', ...rawShape });
       }
-      const chatsRaw = await loadWahaRecentChats(
+      const chatsRaw = await loadWahaInboxChats(
+        (page) => this.wahaClient.listChatsOverview(sessionName, page),
         (page) => this.wahaClient.listChats(sessionName, page),
         () => this.logger.warn({ msg: 'waha_chats_unavailable' }),
       );

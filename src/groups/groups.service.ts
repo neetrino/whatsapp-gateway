@@ -6,7 +6,7 @@ import { WahaApiError, WahaTransportError } from '../waha/types/waha.types';
 import { AppException } from '../common/errors/app.exception';
 import { ERROR_CODES } from '../common/errors/error-codes';
 import type { ApiAccountContext } from '../common/decorators/api-account.decorator';
-import { loadWahaRecentChats } from '../chats/chat-catalog';
+import { loadWahaInboxChats } from '../chats/chat-catalog';
 import { loadConnectedAccount } from '../whatsapp-accounts/load-connected-account';
 import {
   GROUP_ID_REGEX,
@@ -60,7 +60,8 @@ export class GroupsService {
       if (catalog.length === 0) {
         this.logger.warn({ msg: 'waha_groups_mapped_empty', ...rawShape });
       }
-      const chatsRaw = await loadWahaRecentChats(
+      const chatsRaw = await loadWahaInboxChats(
+        (page) => this.wahaClient.listChatsOverview(sessionName, page),
         (page) => this.wahaClient.listChats(sessionName, page),
         () => this.logger.warn({ msg: 'waha_chats_unavailable' }),
       );

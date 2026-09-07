@@ -120,6 +120,15 @@ describe('Dashboard project/account/token flows (e2e)', () => {
           return next;
         },
       ),
+      delete: jest.fn(async ({ where }: { where: { id: string } }) => {
+        const current = accounts.get(where.id);
+        if (!current) return null;
+        accounts.delete(where.id);
+        return current;
+      }),
+    },
+    apiIdempotency: {
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
     apiToken: {
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
@@ -142,6 +151,12 @@ describe('Dashboard project/account/token flows (e2e)', () => {
           [...tokens.values()].find((row) => matches(row, where)) ?? null,
       ),
       update: jest.fn(),
+      delete: jest.fn(async ({ where }: { where: { id: string } }) => {
+        const current = tokens.get(where.id);
+        if (!current) return null;
+        tokens.delete(where.id);
+        return current;
+      }),
     },
   };
 
@@ -156,6 +171,7 @@ describe('Dashboard project/account/token flows (e2e)', () => {
         healthCheck: jest.fn().mockResolvedValue(true),
         startSession: jest.fn(),
         stopSession: jest.fn(),
+        deleteSession: jest.fn(),
         restartSession: jest.fn(),
         getStatus: jest.fn().mockRejectedValue(new Error('offline')),
         getQr: jest.fn(),
@@ -288,6 +304,42 @@ describe('Dashboard project/account/token flows (e2e)', () => {
     expect(cross.status).toBe(404);
   });
 
+  it('deletes an unused account from the dashboard and rejects cross-project delete', async () => {
+    const created = await formPost('/projects/proj_beta/accounts', {
+      label: 'Disposable',
+      mode: WhatsappAccountMode.SEND_ONLY,
+    });
+    expect(created.status).toBe(303);
+    expect(accounts.has('acc_disposable')).toBe(true);
+
+    const detail = await htmlGet('/projects/proj_beta/accounts/acc_disposable');
+    expect(detail.status).toBe(200);
+    expect(detail.text).toContain('Delete account');
+
+    const deleted = await formPost('/projects/proj_beta/accounts/acc_disposable/delete', {});
+    expect(deleted.status).toBe(303);
+    expect(deleted.headers.location).toBe('/projects/proj_beta#accounts');
+    expect(accounts.has('acc_disposable')).toBe(false);
+    expect(prismaMock.apiIdempotency.deleteMany).toHaveBeenCalled();
+
+    const missing = await htmlGet('/projects/proj_beta/accounts/acc_disposable');
+    expect(missing.status).toBe(404);
+
+    await formPost('/projects/proj_beta/accounts', {
+      label: 'Owned',
+      mode: WhatsappAccountMode.SEND_ONLY,
+    });
+    const cross = await request(app.getHttpServer())
+      .post('/projects/proj_acme/accounts/acc_owned/delete')
+      .set('Cookie', authCookies)
+      .set('Accept', 'application/json')
+      .type('form')
+      .send({ _csrf: csrf })
+      .redirects(0);
+    expect(cross.status).toBe(404);
+    expect(accounts.has('acc_owned')).toBe(true);
+  });
+
   it('requests a pairing code on the QR page without putting it in the URL', async () => {
     await formPost('/projects/proj_beta/accounts', {
       label: 'Pairing',
@@ -330,6 +382,24 @@ describe('Dashboard project/account/token flows (e2e)', () => {
     );
     expect(second.text).not.toContain('Save this API token now');
     expect(second.text).not.toContain(raw);
+
+    expect(second.text).toContain('/tokens/tok_1/delete');
+    const deleted = await formPost('/projects/proj_acme/tokens/tok_1/delete', {});
+    expect(deleted.status).toBe(303);
+    expect(deleted.headers.location).toBe('/projects/proj_acme');
+    expect(tokens.has('tok_1')).toBe(false);
+
+    const afterDelete = await htmlGet('/projects/proj_acme');
+    expect(afterDelete.text).not.toContain('/tokens/tok_1/delete');
+
+    const cross = await request(app.getHttpServer())
+      .post('/projects/proj_beta/tokens/tok_1/delete')
+      .set('Cookie', authCookies)
+      .set('Accept', 'application/json')
+      .type('form')
+      .send({ _csrf: csrf })
+      .redirects(0);
+    expect(cross.status).toBe(404);
   });
 
   it('saves webhook settings and reveals a regenerated signing key once', async () => {

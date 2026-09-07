@@ -12,7 +12,7 @@ Use this file as the handoff: env, connect/QR, send, chat picker, groups, inboun
 | `WHATSAPP_GATEWAY_URL` | Public base URL, e.g. `https://whatsapp.example.com` |
 | `WHATSAPP_GATEWAY_TOKEN` | Project API token from the Gateway dashboard (`gw_live_…` / `gw_test_…`) |
 
-Create a **Project** in the Gateway dashboard for each integrating app. Each project has its own token and WhatsApp account(s).
+Create a **Project** in the Gateway dashboard for each integrating app. Each project has its own token and WhatsApp account(s). Unused tokens and accounts can be **deleted** there (not only revoked / deactivated). A deleted token stops working immediately — issue a new one and update `WHATSAPP_GATEWAY_TOKEN`.
 
 Every request:
 
@@ -120,7 +120,7 @@ Do **not** use `GET /api/groups` as the picker. That list is groups-only (manage
 }
 ```
 
-Order is the WhatsApp inbox: **last message first**, not group creation date. A group created a year ago that got a message a minute ago is at the top. Conversations with no last-message activity (dead / unused groups) come after the live inbox, by name. `offset` continues that same list.
+Order is the WhatsApp inbox: **last message first**, not group creation date. A group created a year ago that got a message a minute ago is at the top. Conversations with no last-message activity (dead / unused groups) come after the live inbox, by name. `offset` continues that same list. Search runs on the merged catalog (all groups plus inbox directs), not only the first page.
 
 In your UI:
 

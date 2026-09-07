@@ -294,7 +294,7 @@ Unknown JSON properties are rejected (`forbidNonWhitelisted`).
 | HTTP | `code` | When |
 |------|--------|------|
 | 401 | `UNAUTHORIZED` | Missing `Authorization` header. |
-| 401 | `INVALID_TOKEN` | Unknown token hash. |
+| 401 | `INVALID_TOKEN` | Unknown token hash (including a token that was deleted in the dashboard). |
 | 403 | `TOKEN_REVOKED` | Token revoked. |
 | 403 | `PROJECT_INACTIVE` | Token’s Project is inactive. |
 | 409 | `PROJECT_HAS_NO_ACTIVE_ACCOUNT` | Project has no active WhatsApp account. |
@@ -503,7 +503,7 @@ Same Project-token rule as Groups (exactly one active WhatsApp account). Not the
 
 Query: `limit` (1–200, default 100), `offset` (≥0, default 0), optional `search` (max 100, name or id).
 
-Loads the full group catalog, merges WAHA chats (`@c.us` and `@g.us`, up to 1000, `sortBy=messageTimestamp`), then searches and paginates locally. Order is last message first (not creation date); groups with no inbox activity follow, by name. Empty group names on the current page are filled via WAHA get-by-id. If `listChats` fails (Store not ready), groups are still returned, ranked by any timestamp on the group list.
+Loads the full group catalog (pages past a 200-item WAHA JID map), merges WAHA inbox chats (`@c.us` and `@g.us`, up to 1000) from `chats/overview` with a `listChats` fallback, then searches and paginates locally. Gateway sorts by last message itself — it does not send `sortBy=messageTimestamp` to WAHA (that sort 502s on the current NOWEB Store). Groups with no inbox activity follow, by name. Empty group names on the current page are filled via WAHA get-by-id. If both inbox reads fail, groups are still returned.
 
 ```json
 {

@@ -2,6 +2,8 @@ import {
   applyChatSearch,
   buildChatCatalog,
   classifyChatId,
+  fetchRecentWahaChats,
+  loadWahaInboxChats,
   mapWahaChatItem,
   paginateChats,
 } from '../../src/chats/chat-catalog';
@@ -84,6 +86,40 @@ describe('chat-catalog', () => {
       '120363111111111111@g.us',
       '120363222222222222@g.us',
     ]);
+  });
+
+  it('loads overview without asking WAHA to sort by timestamp', async () => {
+    const overview = jest
+      .fn()
+      .mockResolvedValue([
+        { id: '37499111222@c.us', name: 'Armen', lastMessage: { timestamp: 1_800_000_000 } },
+      ]);
+    const fallback = jest.fn();
+    const items = await loadWahaInboxChats(overview, fallback);
+    expect(items).toHaveLength(1);
+    expect(fallback).not.toHaveBeenCalled();
+    expect(overview).toHaveBeenCalledWith({ limit: 200, offset: 0 });
+    expect(overview.mock.calls[0]?.[0]).not.toHaveProperty('sortBy');
+  });
+
+  it('falls back to listChats when overview is empty', async () => {
+    const overview = jest.fn().mockResolvedValue([]);
+    const fallback = jest.fn().mockResolvedValue([{ id: '37499111222@c.us', name: 'Armen' }]);
+    const items = await loadWahaInboxChats(overview, fallback);
+    expect(items).toEqual([{ id: '37499111222@c.us', name: 'Armen' }]);
+  });
+
+  it('falls back to listChats when overview fails', async () => {
+    const overview = jest.fn().mockRejectedValue(new Error('overview down'));
+    const fallback = jest.fn().mockResolvedValue([{ id: '37499111222@c.us', name: 'Armen' }]);
+    const items = await loadWahaInboxChats(overview, fallback);
+    expect(items).toEqual([{ id: '37499111222@c.us', name: 'Armen' }]);
+  });
+
+  it('pages inbox chats without sortBy', async () => {
+    const list = jest.fn().mockResolvedValue([]);
+    await fetchRecentWahaChats(list);
+    expect(list).toHaveBeenCalledWith({ limit: 200, offset: 0 });
   });
 
   it('paginates after merge', () => {

@@ -16,6 +16,7 @@ describe('GET /api/chats (e2e)', () => {
   const touchLastUsed = jest.fn();
   const listGroups = jest.fn();
   const listChats = jest.fn();
+  const listChatsOverview = jest.fn();
   const getGroup = jest.fn();
 
   const prismaMock = {
@@ -49,6 +50,7 @@ describe('GET /api/chats (e2e)', () => {
         healthCheck: jest.fn().mockResolvedValue(true),
         listGroups,
         listChats,
+        listChatsOverview,
         getGroup,
       })
       .compile();
@@ -67,7 +69,7 @@ describe('GET /api/chats (e2e)', () => {
       '120363111111111111@g.us': { id: '120363111111111111@g.us', subject: '$Old' },
       '120363222222222222@g.us': { id: '120363222222222222@g.us', subject: 'Qualitech' },
     });
-    listChats.mockResolvedValue([
+    listChatsOverview.mockResolvedValue([
       { id: '37499111222@c.us', name: 'Armen' },
       { id: '120363222222222222@g.us', name: 'Qualitech' },
     ]);
@@ -88,7 +90,7 @@ describe('GET /api/chats (e2e)', () => {
     listGroups.mockResolvedValue({
       '120363111111111111@g.us': { id: '120363111111111111@g.us', subject: '$Old' },
     });
-    listChats.mockResolvedValue([{ id: '37499111222@c.us', name: 'Armen' }]);
+    listChatsOverview.mockResolvedValue([{ id: '37499111222@c.us', name: 'Armen' }]);
     const res = await request(app.getHttpServer())
       .get('/api/chats?limit=20&offset=0&search=Armen')
       .set('Authorization', `Bearer ${raw}`);
@@ -104,6 +106,7 @@ describe('GET /api/chats (e2e)', () => {
     listGroups.mockResolvedValue({
       groups: [{ id: '120363123456789012@g.us', subject: 'Product' }],
     });
+    listChatsOverview.mockRejectedValue(new Error('store down'));
     listChats.mockRejectedValue(new Error('store down'));
     const res = await request(app.getHttpServer())
       .get('/api/chats?limit=20&offset=0')
@@ -120,7 +123,7 @@ describe('GET /api/chats (e2e)', () => {
     listGroups.mockResolvedValue({
       '120363111111111111@g.us': { id: '120363111111111111@g.us' },
     });
-    listChats.mockResolvedValue([]);
+    listChatsOverview.mockResolvedValue([]);
     getGroup.mockResolvedValue({ id: '120363111111111111@g.us', subject: 'Hydrated' });
     const res = await request(app.getHttpServer())
       .get('/api/chats?limit=20&offset=0')

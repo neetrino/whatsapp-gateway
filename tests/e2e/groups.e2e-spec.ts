@@ -16,6 +16,7 @@ describe('GET /api/groups (e2e)', () => {
   const touchLastUsed = jest.fn();
   const listGroups = jest.fn();
   const listChats = jest.fn();
+  const listChatsOverview = jest.fn();
   const getGroup = jest.fn();
 
   const prismaMock = {
@@ -49,6 +50,7 @@ describe('GET /api/groups (e2e)', () => {
         healthCheck: jest.fn().mockResolvedValue(true),
         listGroups,
         listChats,
+        listChatsOverview,
         getGroup,
       })
       .compile();
@@ -66,7 +68,7 @@ describe('GET /api/groups (e2e)', () => {
     listGroups.mockResolvedValue({
       groups: [{ id: '120363123456789012@g.us', subject: 'Product' }],
     });
-    listChats.mockResolvedValue([]);
+    listChatsOverview.mockResolvedValue([]);
     const res = await request(app.getHttpServer())
       .get('/api/groups?limit=1&offset=0')
       .set('Authorization', `Bearer ${raw}`);
@@ -86,7 +88,7 @@ describe('GET /api/groups (e2e)', () => {
       '120363111111111111@g.us': { id: '120363111111111111@g.us', subject: 'Alpha' },
       '120363222222222222@g.us': { id: '120363222222222222@g.us', subject: 'Beta' },
     });
-    listChats.mockResolvedValue([]);
+    listChatsOverview.mockResolvedValue([]);
     const res = await request(app.getHttpServer())
       .get('/api/groups?limit=1&offset=0')
       .set('Authorization', `Bearer ${raw}`);
@@ -104,7 +106,7 @@ describe('GET /api/groups (e2e)', () => {
       '120363111111111111@g.us': { id: '120363111111111111@g.us', subject: '$Ardana.ru' },
       '120363222222222222@g.us': { id: '120363222222222222@g.us', subject: 'Qualitech' },
     });
-    listChats.mockResolvedValue([{ id: '120363222222222222@g.us', name: 'Qualitech' }]);
+    listChatsOverview.mockResolvedValue([{ id: '120363222222222222@g.us', name: 'Qualitech' }]);
     const listed = await request(app.getHttpServer())
       .get('/api/groups?limit=1&offset=0')
       .set('Authorization', `Bearer ${raw}`);
@@ -122,7 +124,7 @@ describe('GET /api/groups (e2e)', () => {
     listGroups.mockResolvedValue({
       '120363111111111111@g.us': { id: '120363111111111111@g.us' },
     });
-    listChats.mockResolvedValue([]);
+    listChatsOverview.mockResolvedValue([]);
     getGroup.mockResolvedValue({ id: '120363111111111111@g.us', subject: 'Hydrated' });
     const res = await request(app.getHttpServer())
       .get('/api/groups?limit=20&offset=0')

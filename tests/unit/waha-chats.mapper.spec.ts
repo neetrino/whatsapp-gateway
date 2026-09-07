@@ -35,6 +35,27 @@ describe('waha-chats.mapper', () => {
     expect(JSON.stringify(page)).not.toContain('_data');
   });
 
+  it('maps overview fields including subject and conversationTimestamp', () => {
+    const page = mapWahaChatsPage(
+      [
+        {
+          id: '120363111111111111@g.us',
+          subject: 'Qualitech',
+          conversationTimestamp: 1_727_745_026,
+          _chat: { unreadCount: 4 },
+        },
+      ],
+      10,
+      0,
+    );
+    expect(page.items[0]).toEqual({
+      id: '120363111111111111@g.us',
+      name: 'Qualitech',
+      lastMessageAt: new Date(1_727_745_026 * 1000).toISOString(),
+      unreadCount: 4,
+    });
+  });
+
   it('caps message body and sets bodyTruncated', () => {
     const mapped = mapWahaMessage(
       {

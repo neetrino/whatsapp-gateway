@@ -61,6 +61,13 @@ export class WhatsappAccountsService {
     return account;
   }
 
+  async deleteForProject(projectId: string, accountId: string): Promise<void> {
+    const account = await this.getByIdForProject(projectId, accountId);
+    await this.wahaService.deleteSession(account);
+    await this.prisma.apiIdempotency.deleteMany({ where: { whatsappAccountId: account.id } });
+    await this.prisma.whatsappAccount.delete({ where: { id: account.id } });
+  }
+
   async setActiveForProject(
     projectId: string,
     accountId: string,

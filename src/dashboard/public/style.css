@@ -1639,6 +1639,17 @@ body.sheet-open {
   padding-left: 16px;
 }
 
+.accounts-table .row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.accounts-table .row-actions .inline {
+  margin: 0;
+}
+
 .accounts-table .col-active .switch-form {
   display: flex;
   justify-content: center;
@@ -1712,6 +1723,18 @@ a.icon-btn--qr:hover {
 button.icon-btn--qr:active,
 a.icon-btn--qr:active {
   transform: translateY(0);
+}
+
+button.icon-btn--danger {
+  color: var(--danger);
+  border-color: rgba(255, 107, 107, 0.35);
+  background: transparent;
+}
+
+button.icon-btn--danger:hover {
+  background: var(--danger-dim);
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 .side-sheet--nested {
