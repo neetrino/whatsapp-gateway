@@ -81,7 +81,6 @@ jobs:
     name: Dependency audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -95,4 +94,9 @@ jobs:
         run: npm ci
 
       - name: Audit high+ vulnerabilities
-        run: npm audit --audit-level=high
+        run: |
+          if npm audit --audit-level=high; then
+            echo "No high+ vulnerabilities."
+          else
+            echo "::warning::npm audit reported high+ vulnerabilities. Review Dependabot; this job is informational."
+          fi
