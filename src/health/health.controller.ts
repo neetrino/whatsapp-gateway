@@ -9,6 +9,13 @@ export class HealthController {
 
   @Public()
   @SkipThrottle()
+  @Get('ready')
+  ready(): { ok: true; service: 'whatsapp-gateway' } {
+    return { ok: true, service: 'whatsapp-gateway' };
+  }
+
+  @Public()
+  @SkipThrottle()
   @Get('health')
   async check(): Promise<{
     success: true;
