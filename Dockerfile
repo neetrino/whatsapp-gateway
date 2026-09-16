@@ -31,7 +31,7 @@ FROM node:20-alpine AS runtime
 ENV NODE_ENV=production \
     PORT=3000
 
-RUN apk add --no-cache openssl tini && \
+RUN apk add --no-cache openssl tini curl && \
     addgroup -S app && adduser -S app -G app
 WORKDIR /app
 

@@ -13,7 +13,15 @@ services:
     depends_on:
       - waha
     ports:
-      - "3000:3000"
+      - '3000:3000'
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -sf http://127.0.0.1:3000/ready >/dev/null || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
   waha:
     image: devlikeapro/waha:noweb-2026.8.1
@@ -24,7 +32,7 @@ services:
     volumes:
       - waha_sessions:/app/.sessions
     expose:
-      - "3000"
+      - '3000'
 
 volumes:
   gateway_data:
